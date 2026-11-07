@@ -64,7 +64,6 @@ void main() {
               title: 'تحت الأرض ج2',
               poster: '',
               type: 'series',
-              season: 2,
             ),
             title: 'تحت الأرض ج2',
             sourceRef: 'alooy:one',
