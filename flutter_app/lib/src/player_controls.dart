@@ -14,8 +14,10 @@ class PlayerControls extends StatefulWidget {
     required this.onForward,
     required this.onPlaybackSpeedChanged,
     this.showSpeed = true,
+    this.seekSeconds = 10,
   });
 
+  final int seekSeconds;
   final bool showSpeed;
   final bool isPlaying;
   final bool isTv;
@@ -69,9 +71,25 @@ class _PlayerControlsState extends State<PlayerControls> {
               ),
               key: const Key('player-rewind'),
               focusNode: _rewindFocus,
-              tooltip: 'رجوع 10 ثوانٍ',
+              tooltip: 'رجوع ${widget.seekSeconds} ثانية',
               onPressed: widget.onRewind,
-              icon: const Icon(Icons.replay_10),
+              icon: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(Icons.replay),
+                  Padding(
+                    padding: EdgeInsets.only(top: 3),
+                    child: Text(
+                      '${widget.seekSeconds}',
+                      style: TextStyle(
+                        fontFamily: 'ThmanyahSans',
+                        fontSize: 11,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             IconButton.filled(
               key: const Key('player-play-toggle'),
@@ -103,9 +121,25 @@ class _PlayerControlsState extends State<PlayerControls> {
               ),
               key: const Key('player-forward'),
               focusNode: _forwardFocus,
-              tooltip: 'تقديم 10 ثوانٍ',
+              tooltip: 'تقديم ${widget.seekSeconds} ثانية',
               onPressed: widget.onForward,
-              icon: const Icon(Icons.forward_10),
+              icon: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(Icons.rotate_right),
+                  Padding(
+                    padding: EdgeInsets.only(top: 3),
+                    child: Text(
+                      '${widget.seekSeconds}',
+                      style: TextStyle(
+                        fontFamily: 'ThmanyahSans',
+                        fontSize: 11,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             if (widget.showSpeed)
               NajdChoiceButton<double>(

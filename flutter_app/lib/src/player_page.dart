@@ -1,3 +1,7 @@
+import 'all_provider_search.dart';
+import 'playback_timeline.dart';
+import 'up_next_prompt.dart';
+import 'player_level_rail.dart';
 import 'episode_browser.dart';
 import 'desktop_window_stub.dart' if (dart.library.io) 'desktop_window_io.dart';
 import 'browser_content_route.dart';
@@ -246,6 +250,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
 
   late final NajdPipBridge _pip = widget.pipBridge ?? NajdPipBridge();
   StreamSubscription<NajdPipEvent>? _pipSubscription;
+  bool _controlsLocked = false;
   bool _pipAvailable = false, _pipActive = false, _pipHandoff = false;
   bool? _lastPipPlaying;
   Size? _lastPipSize;
@@ -302,7 +307,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   int _boostSerial = 0;
   Future<void> _rateQueue = Future.value();
   double _videoScale = 1;
-  double? _seekPreviewMs;
+  bool _levelGestureActive = false;
+  Timer? _levelFeedbackTimer;
   Timer? _controlsTimer;
   DateTime _lastBrightnessUpdate = DateTime.fromMillisecondsSinceEpoch(0);
   bool _gestureRight = false;
@@ -376,8 +382,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   List<EpisodeItem> get _queue => _loadedSourceQueue ?? widget.episodeQueue;
   Future<void> _loadSourceQueue() async {
     if (widget.episodeQueue.isNotEmpty ||
-        !widget.item.ref.startsWith('source:') ||
-        widget.episodeNumber == null) {
+        !(widget.item.ref.startsWith('source:') ||
+            widget.item.ref.startsWith('alooy:')) ||
+        widget.isLive ||
+        widget.item.type == 'movie') {
       return;
     }
     try {
@@ -391,7 +399,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       }
       while (mounted &&
           page.episodeNextOffset != null &&
-          !episodes.values.any((ep) => ep.number > widget.episodeNumber!) &&
+          !episodes.values.any(
+            (ep) => ep.number > (_currentEpisodeNumber ?? 0),
+          ) &&
           seenOffsets.add(page.episodeNextOffset!)) {
         page = await widget.api.moreSourceEpisodes(
           widget.item.ref,
@@ -449,9 +459,11 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   }
 
   void _doubleTapSeek() {
-    unawaited(_seekBy(Duration(seconds: _gestureRight ? 10 : -10)));
+    if (_controlsLocked) return;
+    final step = NajdPreferences.instance.seekSeconds;
+    unawaited(_seekBy(Duration(seconds: _gestureRight ? step : -step)));
     _seekFeedbackTimer?.cancel();
-    setState(() => _seekFeedback = _gestureRight ? '+10 ثوانٍ' : '−10 ثوانٍ');
+    setState(() => _seekFeedback = _gestureRight ? '+$step' : '−$step');
     _seekFeedbackTimer = Timer(const Duration(milliseconds: 900), () {
       if (mounted) setState(() => _seekFeedback = '');
     });
@@ -912,7 +924,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           unawaited(_prepareNext(next, refresh: true));
         }
       }
-      if (value.isCompleted) unawaited(_advanceEpisode(next));
+      // Completion and cancellation are coordinated by UpNextPrompt.
     }
     if (controller.value.hasError) {
       unawaited(_fallbackFromNative('تعذر استمرار التشغيل بالمشغل الأصلي'));
@@ -1202,10 +1214,6 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   }
 
   Future<void> _providerCatalogue() async {
-    if (widget.api.providerBrowser) {
-      await _episodeMenu();
-      return;
-    }
     await _endBoost();
     if (!mounted) return;
     final returnRoute = ModalRoute.of(context);
@@ -1223,7 +1231,16 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     final base = widget.providerCatalogRef.isNotEmpty
         ? widget.providerCatalogRef
         : widget.item.ref.replaceFirst(RegExp(r':s\d+:e\d+$'), '');
-    ({CatalogItem item, TitleDetails details, EpisodeItem? episode})? chosen;
+    final broadApi = widget.api.providerBrowser
+        ? widget.api.browserSession()
+        : widget.api;
+    ({
+      CatalogItem item,
+      TitleDetails details,
+      EpisodeItem? episode,
+      MitvApi api,
+    })?
+    chosen;
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (browserContext) => Scaffold(
@@ -1231,6 +1248,42 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           body: ListView(
             padding: const EdgeInsets.all(18),
             children: [
+              ExpansionTile(
+                initiallyExpanded:
+                    widget.api.providerBrowser || !base.startsWith('tmdb:'),
+                title: const Text('البحث في جميع المصادر'),
+                children: [
+                  AllProviderSearchPanel(
+                    api: broadApi,
+                    query: groupSearchWorks([widget.item]).first.title,
+                    onOpen: (candidate) {
+                      final selectedApi = broadApi.providerBrowser
+                          ? broadApi.browserSession(origin: candidate)
+                          : broadApi;
+                      Navigator.of(browserContext).push(
+                        MaterialPageRoute(
+                          builder: (_) => DetailsPage(
+                            api: selectedApi,
+                            store: widget.store,
+                            item: candidate,
+                            providerCatalogRef: base,
+                            onPlaySelection: (item, details, episode) async {
+                              chosen = (
+                                item: item,
+                                details: details,
+                                episode: episode,
+                                api: selectedApi,
+                              );
+                              Navigator.of(context)
+                                  .popUntil((route) => route == returnRoute);
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
               if (widget.searchMatches.isNotEmpty)
                 for (final candidate in SearchWorkGroup(
                   '',
@@ -1256,6 +1309,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                               item: item,
                               details: details,
                               episode: episode,
+                              api: widget.api,
                             );
                             Navigator.of(context)
                                 .popUntil((route) => route == returnRoute);
@@ -1264,45 +1318,48 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                       ),
                     ),
                   ),
-              SourceEditionsPanel(
-                api: widget.api,
-                workRef: base,
-                onOpen: (edition) {
-                  final ref = '${edition['ref'] ?? ''}';
-                  if (!RegExp(r'^source:[a-z0-9][a-z0-9_-]{1,29}:[a-f0-9]{24}$')
-                      .hasMatch(ref)) {
-                    return;
-                  }
-                  final item = CatalogItem(
-                    id: ref,
-                    ref: ref,
-                    title: '${edition['title'] ?? widget.item.title}',
-                    poster: widget.item.poster,
-                    type: widget.item.type,
-                    source: '${edition['provider'] ?? ''}',
-                  );
-                  Navigator.of(browserContext).push(
-                    MaterialPageRoute(
-                      builder: (_) => DetailsPage(
-                        api: widget.api,
-                        store: widget.store,
-                        item: item,
-                        providerCatalogRef: base,
-                        searchMatches: widget.searchMatches,
-                        onPlaySelection: (item, details, episode) async {
-                          chosen = (
-                            item: item,
-                            details: details,
-                            episode: episode,
-                          );
-                          Navigator.of(context)
-                              .popUntil((route) => route == returnRoute);
-                        },
+              if (!widget.api.providerBrowser)
+                SourceEditionsPanel(
+                  api: widget.api,
+                  workRef: base,
+                  onOpen: (edition) {
+                    final ref = '${edition['ref'] ?? ''}';
+                    if (!RegExp(
+                      r'^source:[a-z0-9][a-z0-9_-]{1,29}:[a-f0-9]{24}$',
+                    ).hasMatch(ref)) {
+                      return;
+                    }
+                    final item = CatalogItem(
+                      id: ref,
+                      ref: ref,
+                      title: '${edition['title'] ?? widget.item.title}',
+                      poster: widget.item.poster,
+                      type: widget.item.type,
+                      source: '${edition['provider'] ?? ''}',
+                    );
+                    Navigator.of(browserContext).push(
+                      MaterialPageRoute(
+                        builder: (_) => DetailsPage(
+                          api: widget.api,
+                          store: widget.store,
+                          item: item,
+                          providerCatalogRef: base,
+                          searchMatches: widget.searchMatches,
+                          onPlaySelection: (item, details, episode) async {
+                            chosen = (
+                              item: item,
+                              details: details,
+                              episode: episode,
+                              api: widget.api,
+                            );
+                            Navigator.of(context)
+                                .popUntil((route) => route == returnRoute);
+                          },
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
             ],
           ),
         ),
@@ -1320,7 +1377,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) => PlayerPage(
-            api: widget.api,
+            api: selection.api,
             store: widget.store,
             item: selection.item.copyWith(
               season: episode?.season ?? selection.details.season,
@@ -1344,21 +1401,43 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     );
   }
 
+  int? get _currentEpisodeNumber {
+    if (widget.episodeNumber != null) return widget.episodeNumber;
+    for (final episode in _queue) {
+      if (episode.ref == widget.sourceRef ||
+          (widget.episodeId.isNotEmpty && episode.id == widget.episodeId)) {
+        return episode.number;
+      }
+    }
+    return widget.item.episode;
+  }
+
+  int? get _currentEpisodeSeason {
+    if (widget.item.season != null) return widget.item.season;
+    for (final episode in _queue) {
+      if (episode.ref == widget.sourceRef ||
+          (widget.episodeId.isNotEmpty && episode.id == widget.episodeId)) {
+        return episode.season;
+      }
+    }
+    return null;
+  }
+
   bool _nextPrepared = false, _nextRenewed = false, _advancing = false;
   EpisodeItem? get _previousEpisode => widget.item.type == 'movie'
       ? null
       : previousObservedEpisode(
           _queue,
-          number: widget.episodeNumber,
-          season: widget.item.season,
+          number: _currentEpisodeNumber,
+          season: _currentEpisodeSeason,
         );
 
   EpisodeItem? get _nextEpisode => widget.item.type == 'movie'
       ? null
       : nextObservedEpisode(
           _queue,
-          number: widget.episodeNumber,
-          season: widget.item.season,
+          number: _currentEpisodeNumber,
+          season: _currentEpisodeSeason,
         );
   Future<void> _prepareNext(EpisodeItem episode, {bool refresh = false}) async {
     try {
@@ -1441,17 +1520,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       _subtitleNotice('انتظر اكتمال استئناف التشغيل أولًا.');
       return;
     }
-    await _endBoost();
-    await _saveProgress(force: true);
     final wasPlaying = player.value.isPlaying;
     _pipPosition = player.value.position;
     _pipDuration = player.value.duration;
-    if (_pip.needsNativeHandoff) {
-      _pipHandoff = true;
-      _requestedPlaying = false;
-      await player.pause();
-    }
-    final entered = await _pip.enter(
+    Future<bool> enter() => _pip.enter(
       url: player.uri.toString(),
       headers: player.headers,
       position: _pipPosition!,
@@ -1460,6 +1532,23 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       width: player.value.size.width,
       height: player.value.size.height,
     );
+    bool entered;
+    if (kIsWeb) {
+      // Safari requires the OS request in the tap's user-activation turn.
+      final pending = enter();
+      unawaited(_endBoost());
+      unawaited(_saveProgress(force: true));
+      entered = await pending;
+    } else {
+      await _endBoost();
+      unawaited(_saveProgress(force: true));
+      if (_pip.needsNativeHandoff) {
+        _pipHandoff = true;
+        _requestedPlaying = false;
+        await player.pause();
+      }
+      entered = await enter();
+    }
     if (!mounted || player != _controller) return;
     if (!entered) {
       _pipHandoff = false;
@@ -1490,10 +1579,12 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     }
     setState(() => _pipActive = event.active);
     if (_pipHandoff) {
-      await _saveProgress(
-        force: true,
-        positionOverride: _pipPosition,
-        durationOverride: _pipDuration,
+      unawaited(
+        _saveProgress(
+          force: true,
+          positionOverride: _pipPosition,
+          durationOverride: _pipDuration,
+        ),
       );
       if (!mounted || player != _controller) return;
       if (!event.active) {
@@ -1882,9 +1973,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
             if (!widget.isLive && widget.localFileUri == null)
               (
                 'providers',
-                widget.api.providerBrowser
-                    ? 'حلقات هذا الموقع'
-                    : 'المزودون والحلقات',
+                widget.item.type == 'movie'
+                    ? 'مصادر أخرى لهذا الفيلم'
+                    : 'البحث في جميع المصادر',
                 Icons.travel_explore,
               ),
             ('quality', 'جودة الفيديو', Icons.high_quality_outlined),
@@ -1928,7 +2019,14 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               ),
               title: Text(option.$2),
               trailing: const Icon(Icons.chevron_left),
-              onTap: () => Navigator.pop(panelContext, option.$1),
+              onTap: () {
+                if (option.$1 == 'pip') {
+                  unawaited(_enterPip());
+                  Navigator.pop(panelContext);
+                  return;
+                }
+                Navigator.pop(panelContext, option.$1);
+              },
             ),
         ],
       ),
@@ -1980,6 +2078,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     _generation.cancelOutstanding();
     _controlsTimer?.cancel();
     _seekFeedbackTimer?.cancel();
+    _levelFeedbackTimer?.cancel();
     if (identical(_displayOwner, this)) {
       _displayOwner = null;
       unawaited(_restoreDisplay());
@@ -2002,95 +2101,28 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  Widget _modernControls(UniversalPlayer activeController) => Container(
+  Widget _modernControls(UniversalPlayer controller) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    color: Colors.black.withAlpha(140),
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ValueListenableBuilder<VideoPlayerValue>(
-          valueListenable: activeController,
-          builder: (context, value, _) {
-            final maximum = value.duration.inMilliseconds.toDouble();
-            return Column(
-              children: [
-                if (!widget.isLive || maximum > 0)
-                  Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Slider(
-                      key: const Key('player-seek-slider'),
-                      value:
-                          (_seekPreviewMs ??
-                                  value.position.inMilliseconds.toDouble())
-                              .clamp(0, maximum > 0 ? maximum : 1),
-                      max: maximum > 0 ? maximum : 1,
-                      onChanged: maximum > 0
-                          ? (v) => setState(() => _seekPreviewMs = v)
-                          : null,
-                      onChangeStart: maximum > 0
-                          ? (v) {
-                              _controlsTimer?.cancel();
-                              setState(() => _seekPreviewMs = v);
-                            }
-                          : null,
-                      onChangeEnd: maximum > 0
-                          ? (v) async {
-                              try {
-                                await activeController.seekTo(
-                                  Duration(milliseconds: v.round()),
-                                );
-                              } catch (_) {
-                                if (mounted) {
-                                  _subtitleNotice(
-                                    'تعذر الانتقال إلى هذا الوقت. أعد المحاولة.',
-                                  );
-                                }
-                              } finally {
-                                if (mounted) {
-                                  setState(() => _seekPreviewMs = null);
-                                  _revealControls();
-                                }
-                              }
-                            }
-                          : null,
-                    ),
-                  ),
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _time(value.position),
-                        key: const Key('player-elapsed-time'),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        widget.isLive
-                            ? 'بث مباشر'
-                            : '-${_time(value.duration > value.position ? value.duration - value.position : Duration.zero)}',
-                        key: const Key('player-remaining-time'),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _trackControls(activeController),
-              ],
-            );
-          },
-        ),
+        if (!widget.isLive)
+          PlaybackTimeline(
+            player: controller,
+            seek: controller.seekTo,
+            onStart: () => _controlsTimer?.cancel(),
+            onEnd: _revealControls,
+            onError: () =>
+                _subtitleNotice('تعذر الانتقال إلى هذا الوقت. أعد المحاولة.'),
+          ),
+        if (widget.isLive)
+          const Text('بث مباشر', style: TextStyle(color: Colors.white)),
+        _trackControls(controller),
       ],
     ),
   );
 
-  String _time(Duration v) =>
-      '${v.inMinutes}:${(v.inSeconds % 60).toString().padLeft(2, '0')}';
   void _subtitleNotice(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -2532,79 +2564,98 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     }
   }
 
-  Widget _trackControls(UniversalPlayer controller) => Wrap(
-    alignment: WrapAlignment.center,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    spacing: 8,
-    children: [
-      if (_previousEpisode != null)
-        IconButton(
-          key: const Key('player-previous-episode'),
-          tooltip: 'الحلقة السابقة',
-          onPressed: () => _advanceEpisode(_previousEpisode!),
-          icon: const Icon(Icons.skip_previous, color: Colors.white),
-        ),
-      if (_nextEpisode != null)
-        IconButton(
-          key: const Key('player-next-episode'),
-          tooltip: 'الحلقة التالية',
-          onPressed: () => _advanceEpisode(_nextEpisode!),
-          icon: const Icon(Icons.skip_next, color: Colors.white),
-        ),
-      if (widget.item.type != 'movie' &&
-          (_queue.isNotEmpty ||
-              widget.episodeNumber != null ||
-              widget.item.type == 'series'))
-        TextButton.icon(
-          key: const Key('player-episodes'),
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.white,
-            minimumSize: Size(48, isTvTarget ? 64 : 48),
-          ),
-          onPressed: _queue.isNotEmpty ? _episodeMenu : _providerCatalogue,
-          icon: const Icon(Icons.video_library_outlined, size: 20),
-          label: const Text('الحلقات', style: TextStyle(fontSize: 12)),
-        ),
-      if (widget.item.type != 'movie' &&
-          widget.episodeNumber != null &&
-          _queue.map((ep) => ep.season).whereType<int>().toSet().length > 1)
-        TextButton.icon(
-          key: const Key('player-seasons'),
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.white,
-            minimumSize: Size(48, isTvTarget ? 64 : 48),
-          ),
-          onPressed: _seasonMenu,
-          icon: const Icon(Icons.collections_bookmark_outlined, size: 20),
-          label: const Text('المواسم', style: TextStyle(fontSize: 12)),
-        ),
-      TextButton.icon(
-        key: const Key('player-audio-subtitles'),
+  Widget _trackControls(UniversalPlayer controller) => Theme(
+    data: Theme.of(context).copyWith(
+      textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
+          backgroundColor: Colors.black.withAlpha(200),
           foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.white54),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           minimumSize: Size(48, isTvTarget ? 64 : 48),
         ),
-        onPressed: () => _audioMenu(controller),
-        icon: const Icon(Icons.subtitles_outlined, size: 20),
-        label: const Text('الصوت والترجمة', style: TextStyle(fontSize: 12)),
       ),
-      if (kIsWeb)
-        IconButton(
-          key: const Key('player-web-fullscreen'),
-          tooltip: 'ملء الشاشة',
-          onPressed: _toggleFullscreen,
-          icon: const Icon(Icons.fullscreen, color: Colors.white),
-        ),
-      IconButton(
-        key: const Key('player-more'),
-        tooltip: 'المزيد',
+      iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
-          minimumSize: Size.square(isTvTarget ? 64 : 48),
+          backgroundColor: Colors.black.withAlpha(200),
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.white54),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        onPressed: () => _moreMenu(controller),
-        icon: const Icon(Icons.more_horiz, color: Colors.white),
       ),
-    ],
+    ),
+    child: Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      children: [
+        if (_previousEpisode != null)
+          TextButton(
+            key: const Key('player-previous-episode'),
+            onPressed: () => _advanceEpisode(_previousEpisode!),
+            child: const Text('الحلقة السابقة'),
+          ),
+        if (_nextEpisode != null)
+          TextButton(
+            key: const Key('player-next-episode'),
+            onPressed: () => _advanceEpisode(_nextEpisode!),
+            child: const Text('الحلقة التالية'),
+          ),
+        if (widget.item.type != 'movie' &&
+            (_queue.isNotEmpty ||
+                widget.episodeNumber != null ||
+                widget.item.type == 'series'))
+          TextButton.icon(
+            key: const Key('player-episodes'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              minimumSize: Size(48, isTvTarget ? 64 : 48),
+            ),
+            onPressed: _queue.isNotEmpty ? _episodeMenu : _providerCatalogue,
+            icon: const Icon(Icons.video_library_outlined, size: 20),
+            label: const Text('الحلقات', style: TextStyle(fontSize: 12)),
+          ),
+        if (widget.item.type != 'movie' &&
+            _currentEpisodeNumber != null &&
+            _queue.map((ep) => ep.season).whereType<int>().toSet().length > 1)
+          TextButton.icon(
+            key: const Key('player-seasons'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              minimumSize: Size(48, isTvTarget ? 64 : 48),
+            ),
+            onPressed: _seasonMenu,
+            icon: const Icon(Icons.collections_bookmark_outlined, size: 20),
+            label: const Text('المواسم', style: TextStyle(fontSize: 12)),
+          ),
+        TextButton.icon(
+          key: const Key('player-audio-subtitles'),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+            minimumSize: Size(48, isTvTarget ? 64 : 48),
+          ),
+          onPressed: () => _audioMenu(controller),
+          icon: const Icon(Icons.subtitles_outlined, size: 20),
+          label: const Text('الصوت والترجمة', style: TextStyle(fontSize: 12)),
+        ),
+        if (kIsWeb)
+          IconButton(
+            key: const Key('player-web-fullscreen'),
+            tooltip: 'ملء الشاشة',
+            onPressed: _toggleFullscreen,
+            icon: const Icon(Icons.fullscreen, color: Colors.white),
+          ),
+        IconButton(
+          key: const Key('player-more'),
+          tooltip: 'المزيد',
+          style: IconButton.styleFrom(
+            minimumSize: Size.square(isTvTarget ? 64 : 48),
+          ),
+          onPressed: () => _moreMenu(controller),
+          icon: const Icon(Icons.more_horiz, color: Colors.white),
+        ),
+      ],
+    ),
   );
 
   @override
@@ -2641,6 +2692,14 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           child: Focus(
             autofocus: true,
             onKeyEvent: (_, event) {
+              if (_controlsLocked) {
+                if (event is KeyDownEvent &&
+                    event.logicalKey == LogicalKeyboardKey.escape) {
+                  setState(() => _controlsLocked = false);
+                  _revealControls();
+                }
+                return KeyEventResult.handled;
+              }
               if (event.logicalKey == LogicalKeyboardKey.mediaFastForward) {
                 if (event is KeyRepeatEvent) unawaited(_startBoost());
                 if (event is KeyUpEvent) unawaited(_endBoost());
@@ -2675,8 +2734,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                     _seekBy(
                       Duration(
                         seconds: key == LogicalKeyboardKey.arrowRight
-                            ? 10
-                            : -10,
+                            ? NajdPreferences.instance.seekSeconds
+                            : -NajdPreferences.instance.seekSeconds,
                       ),
                     ),
                   );
@@ -2694,22 +2753,49 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                   if (active != null)
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onLongPressStart: (_) => unawaited(_startBoost()),
+                      onLongPressStart: (_) {
+                        if (!_controlsLocked) unawaited(_startBoost());
+                      },
                       onLongPressEnd: (_) => unawaited(_endBoost()),
                       onLongPressCancel: () => unawaited(_endBoost()),
-                      onTap: () => _controlsVisible
+                      onTap: () => _controlsLocked
+                          ? null
+                          : _controlsVisible
                           ? setState(() => _controlsVisible = false)
                           : _revealControls(),
                       onDoubleTapDown: (d) => _gestureRight =
                           d.localPosition.dx >
                           MediaQuery.sizeOf(context).width / 2,
                       onDoubleTap: _doubleTapSeek,
-                      onVerticalDragStart: isTvTarget
+                      onVerticalDragStart: isTvTarget || _controlsLocked
                           ? null
-                          : (d) => _gestureRight =
-                                d.localPosition.dx >
-                                MediaQuery.sizeOf(context).width / 2,
-                      onVerticalDragUpdate: isTvTarget
+                          : (d) {
+                              _levelFeedbackTimer?.cancel();
+                              setState(() => _levelGestureActive = true);
+                              _gestureRight =
+                                  d.localPosition.dx >
+                                  MediaQuery.sizeOf(context).width / 2;
+                            },
+                      onVerticalDragEnd: isTvTarget
+                          ? null
+                          : (_) {
+                              _levelFeedbackTimer = Timer(
+                                const Duration(milliseconds: 900),
+                                () {
+                                  if (mounted) {
+                                    setState(() => _levelGestureActive = false);
+                                  }
+                                },
+                              );
+                            },
+                      onVerticalDragCancel: isTvTarget
+                          ? null
+                          : () {
+                              if (mounted) {
+                                setState(() => _levelGestureActive = false);
+                              }
+                            },
+                      onVerticalDragUpdate: isTvTarget || _controlsLocked
                           ? null
                           : (d) {
                               final change =
@@ -2730,7 +2816,6 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                               } else {
                                 unawaited(_setBrightness());
                               }
-                              _revealControls();
                             },
                       child: Stack(
                         fit: StackFit.expand,
@@ -2766,17 +2851,30 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                     : Alignment.centerLeft,
                                 child: Container(
                                   margin: const EdgeInsets.all(28),
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
                                     color: Colors.black54,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text(
-                                    _seekFeedback,
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      color: Colors.white,
-                                    ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _gestureRight
+                                            ? Icons.fast_forward
+                                            : Icons.fast_rewind,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      Text(
+                                        _seekFeedback,
+                                        style: const TextStyle(
+                                          fontFamily: 'ThmanyahSans',
+                                          fontSize: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -2805,7 +2903,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                   exploreLabel:
                                       !widget.isLive &&
                                           widget.localFileUri == null
-                                      ? 'اختيار مزود أو حلقة'
+                                      ? (widget.item.type == 'movie'
+                                            ? 'اختيار مزود للفيلم'
+                                            : 'اختيار مزود أو حلقة')
                                       : 'العودة',
                                 ),
                               )
@@ -2872,21 +2972,127 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                         ),
                       ),
                     ),
-                  if (active != null && _controlsVisible && !_pipActive) ...[
+                  if (active != null &&
+                      !widget.isLive &&
+                      _nextEpisode != null &&
+                      !_pipActive &&
+                      !_controlsLocked)
+                    Positioned(
+                      right: insets.right + 16,
+                      bottom: insets.bottom + (_controlsVisible ? 210 : 100),
+                      child: UpNextPrompt(
+                        key: ValueKey('up-next-${widget.sourceRef}'),
+                        player: active,
+                        onNext: () {
+                          final next = _nextEpisode;
+                          if (next != null) unawaited(_advanceEpisode(next));
+                        },
+                      ),
+                    ),
+                  if (active != null &&
+                      !isTvTarget &&
+                      !_pipActive &&
+                      !_controlsLocked &&
+                      (_controlsVisible || _levelGestureActive)) ...[
+                    Positioned(
+                      left: insets.left + 8,
+                      top: MediaQuery.sizeOf(context).height * .28,
+                      child: PlayerLevelRail(
+                        value: _brightness,
+                        label: 'السطوع',
+                        icon: Icons.brightness_6_outlined,
+                        onChanged: (value) {
+                          setState(() => _brightness = value.clamp(.15, 1));
+                          unawaited(_setBrightness());
+                        },
+                      ),
+                    ),
+                    Positioned(
+                      right: insets.right + 8,
+                      top: MediaQuery.sizeOf(context).height * .28,
+                      child: PlayerLevelRail(
+                        value: _volume,
+                        label: 'الصوت',
+                        icon: Icons.volume_up_outlined,
+                        onChanged: (value) {
+                          setState(() => _volume = value);
+                          unawaited(active.setVolume(value));
+                        },
+                      ),
+                    ),
+                  ],
+                  if (active != null && _pipActive && isDesktopTarget)
+                    Positioned(
+                      top: insets.top + 4,
+                      right: insets.right + 4,
+                      child: Row(
+                        children: [
+                          IconButton.filledTonal(
+                            tooltip: 'العودة إلى المشغل',
+                            onPressed: () => _pip.close(),
+                            icon: const Icon(Icons.picture_in_picture_alt),
+                          ),
+                          IconButton.filledTonal(
+                            tooltip: 'تشغيل أو إيقاف',
+                            onPressed: () => _togglePlay(active),
+                            icon: Icon(
+                              active.value.isPlaying
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (active != null &&
+                      !_pipActive &&
+                      (_controlsVisible || _controlsLocked))
+                    Positioned(
+                      top: insets.top + 4,
+                      left: insets.left + 4,
+                      child: IconButton.filledTonal(
+                        key: const Key('player-control-lock'),
+                        tooltip: _controlsLocked
+                            ? 'إلغاء قفل التحكم'
+                            : 'قفل التحكم',
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.black54,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: Icon(
+                          _controlsLocked ? Icons.lock : Icons.lock_open,
+                        ),
+                        onPressed: () {
+                          setState(() => _controlsLocked = !_controlsLocked);
+                          if (!_controlsLocked) _revealControls();
+                        },
+                      ),
+                    ),
+                  if (active != null &&
+                      _controlsVisible &&
+                      !_pipActive &&
+                      !_controlsLocked) ...[
                     Positioned.fill(
                       child: Center(
                         child: ValueListenableBuilder<VideoPlayerValue>(
                           valueListenable: active,
                           builder: (context, value, _) => PlayerControls(
                             isPlaying: value.isPlaying,
+                            seekSeconds: NajdPreferences.instance.seekSeconds,
                             showSpeed: false,
                             isTv: isTvTarget,
                             playbackSpeed: _playbackSpeed,
-                            onRewind: () =>
-                                _seekBy(const Duration(seconds: -10)),
+                            onRewind: () => _seekBy(
+                              Duration(
+                                seconds: -NajdPreferences.instance.seekSeconds,
+                              ),
+                            ),
                             onTogglePlay: () => _togglePlay(active),
-                            onForward: () =>
-                                _seekBy(const Duration(seconds: 10)),
+                            onForward: () => _seekBy(
+                              Duration(
+                                seconds: NajdPreferences.instance.seekSeconds,
+                              ),
+                            ),
                             onPlaybackSpeedChanged: _setPlaybackSpeed,
                           ),
                         ),
