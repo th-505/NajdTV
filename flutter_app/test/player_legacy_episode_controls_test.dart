@@ -82,6 +82,8 @@ void main() {
       expect(find.text('الحلقة التالية'), findsOneWidget);
       expect(find.text('00:00:00'), findsOneWidget);
       await tester.tap(find.byKey(const Key('player-control-lock')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('قفل التحكم'));
       await tester.pump();
       expect(find.byKey(const Key('player-forward')), findsNothing);
       final before = engine.value.position;
