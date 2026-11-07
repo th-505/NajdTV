@@ -1412,13 +1412,24 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     return widget.item.episode;
   }
 
+  int? get _currentEpisodeSeason {
+    if (widget.item.season != null) return widget.item.season;
+    for (final episode in _queue) {
+      if (episode.ref == widget.sourceRef ||
+          (widget.episodeId.isNotEmpty && episode.id == widget.episodeId)) {
+        return episode.season;
+      }
+    }
+    return null;
+  }
+
   bool _nextPrepared = false, _nextRenewed = false, _advancing = false;
   EpisodeItem? get _previousEpisode => widget.item.type == 'movie'
       ? null
       : previousObservedEpisode(
           _queue,
           number: _currentEpisodeNumber,
-          season: widget.item.season,
+          season: _currentEpisodeSeason,
         );
 
   EpisodeItem? get _nextEpisode => widget.item.type == 'movie'
@@ -1426,7 +1437,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       : nextObservedEpisode(
           _queue,
           number: _currentEpisodeNumber,
-          season: widget.item.season,
+          season: _currentEpisodeSeason,
         );
   Future<void> _prepareNext(EpisodeItem episode, {bool refresh = false}) async {
     try {
