@@ -36,3 +36,9 @@ test('successful metadata is coalesced and bounded, while failures and empty pag
  let attempts=0;const fail=createProviderBrowser({providers:()=>[meta],lookup:()=>({meta,module:{CONFIG:{categories:{live:'/'}},scrapeCatalog:async()=>{attempts++;if(attempts===1)throw Object.assign(Error('blocked'),{code:'ACCESS_BLOCKED'});return[];}}})});
  await assert.rejects(()=>fail.catalog('sample','live'),/SOURCE_UNAVAILABLE/);await fail.catalog('sample','live');await fail.catalog('sample','live');assert.equal(attempts,3);
 });
+
+test('hybrid VOD providers retain their film and episode catalogue outside the live-only section',()=>{
+ const meta={id:'hybrid',name:'Hybrid',domains:['https://example.com'],capabilities:{catalog:true,live:true,episodes:true}};
+ const browser=createProviderBrowser({providers:()=>[meta],lookup:()=>({meta,module:{scrapeCatalog:async()=>[]}})});
+ assert.equal(browser.sources()[0].content_type,'vod');
+});

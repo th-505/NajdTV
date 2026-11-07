@@ -30,7 +30,7 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
     sources: () => runInBrowserLane(()=>providers().filter(meta => meta.enabled !== false && meta.capabilities?.catalog
       && typeof lookup(meta.id)?.module.scrapeCatalog === 'function')
       .map(meta => ({ id: meta.id, name: meta.name, domain: new URL(meta.domains[0]).hostname,
-        content_type:meta.capabilities?.live===true?'live':'vod',categories: categories(meta.id) }))),
+        content_type:meta.capabilities?.live===true && meta.capabilities?.episodes!==true?'live':'vod',categories: categories(meta.id) }))),
     async catalog(id, category, page = 1) { return runInBrowserLane(async()=>{
       const provider = entry(id);
       if (typeof provider.module.scrapeCatalog !== 'function') throw Error('BROWSER_CATALOG_UNSUPPORTED');
