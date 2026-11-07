@@ -1,4 +1,3 @@
-import * as threeIskkMod from './sites/3iskk.mjs';
 import {wrapConfiguredProvider} from './configurable-provider.mjs';
 // server/scrapers/registry.mjs
 // Central Capability Registry for all MATV scrapers & providers
@@ -30,7 +29,6 @@ import * as larozaMod from './sites/laroza.mjs';
 import * as fivetvMod from './sites/fivetv.mjs';
 
 const PROVIDER_ENTRIES = [
-  { meta: threeIskkMod.PROVIDER_META, module: threeIskkMod },
   { meta: ahwakMod.PROVIDER_META, module: ahwakMod },
   { meta: brstejMod.PROVIDER_META, module: brstejMod },
   { meta: fostaMod.PROVIDER_META, module: fostaMod },

@@ -2,16 +2,16 @@
   "schema_version": 1,
   "scope": "static repository declarations; no network requests",
   "counts": {
-    "site_modules_with_metadata": 26,
-    "registered_modules": 26,
-    "najd_scrapers": 26,
-    "beta_scrapers": 26,
-    "total_scraper_implementations": 52,
+    "site_modules_with_metadata": 25,
+    "registered_modules": 25,
+    "najd_scrapers": 25,
+    "beta_scrapers": 25,
+    "total_scraper_implementations": 50,
     "explicit_mirrors": 2,
-    "not_marked_as_mirror": 24,
+    "not_marked_as_mirror": 23,
     "ui_spellings": 0,
     "static_ui_array_entries": 0,
-    "pinned_search_modules": 24,
+    "pinned_search_modules": 23,
     "seed_only_entries": 6
   },
   "ui_delivery": {
@@ -65,7 +65,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/3isk.mjs",
       "metadata_line": 56,
-      "source_sha256": "c1ca6a4830f85cec3ec2c3972b759fb5fde7a926128138cd1799363b7c1a8037",
+      "source_sha256": "1eaed3a73f6f229a7b2749f92ddd8b13722790612f10915f0f4716911316784d",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -88,39 +88,6 @@
       "ui_spellings": [],
       "pinned_search_spellings": [
         "3isk"
-      ],
-      "live_validation": "not_run"
-    },
-    {
-      "id": "3iskk",
-      "name": "قصة عشق — أعمال تركية",
-      "code": "IK",
-      "mirror_of": null,
-      "path": "server/scrapers/sites/3iskk.mjs",
-      "metadata_line": 9,
-      "source_sha256": "9976075753010d386aefa3109f34d452ab5557b5f09161445eafad8dfdc029e4",
-      "registered": true,
-      "declared_capabilities": {
-        "catalog": true,
-        "search": true,
-        "details": true,
-        "episodes": true,
-        "servers": true,
-        "resolve": true,
-        "live": false
-      },
-      "exported_capabilities": {
-        "catalog": true,
-        "search": true,
-        "details": true,
-        "episodes": true,
-        "servers": true,
-        "resolve": true,
-        "live": false
-      },
-      "ui_spellings": [],
-      "pinned_search_spellings": [
-        "3iskk"
       ],
       "live_validation": "not_run"
     },
@@ -896,16 +863,7 @@
       "id": "3isk",
       "scope": "beta",
       "path": "server/browser/providers/sites/3isk.mjs",
-      "source_sha256": "05a67605780c450017a83ed591760b5a491c500130a1fc64409f7021101ef484",
-      "registered": true,
-      "mirror_of": null,
-      "live_validation": "not_run"
-    },
-    {
-      "id": "3iskk",
-      "scope": "beta",
-      "path": "server/browser/providers/sites/3iskk.mjs",
-      "source_sha256": "901bd738a0bc449bb0993bdb16f504b9bd581c40de00dd949ea0759860eb4cd5",
+      "source_sha256": "1a07cd4fe090868e24198ef349851771c91d1196369591249cfd70482d9f253f",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"

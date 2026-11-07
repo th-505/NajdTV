@@ -1,4 +1,3 @@
-import * as threeIskkMod from './providers/sites/3iskk.mjs';
 import {wrapConfiguredProvider} from '../scrapers/configurable-provider.mjs';
 import {runInBrowserLane} from './traffic.mjs';
 const wrap = entry => wrapConfiguredProvider(entry, {scope: 'beta', run: runInBrowserLane});
@@ -32,7 +31,6 @@ import * as larozaMod from './providers/sites/laroza.mjs';
 import * as fivetvMod from './providers/sites/fivetv.mjs';
 
 const PROVIDER_ENTRIES = [
-  { meta: threeIskkMod.PROVIDER_META, module: threeIskkMod },
   { meta: ahwakMod.PROVIDER_META, module: ahwakMod },
   { meta: brstejMod.PROVIDER_META, module: brstejMod },
   { meta: fostaMod.PROVIDER_META, module: fostaMod },

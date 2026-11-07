@@ -2,11 +2,11 @@ import test from 'node:test';import assert from 'node:assert/strict';import fs f
 import {observedContainer,mediaFormatFromUrl} from '../shared/media-container.mjs';
 for(const family of ['najd','beta']){
  const prefix=family==='najd'?'../server/scrapers/sites/':'../server/browser/providers/sites/';
- const parser=await import(prefix+'3iskk.mjs'),moviz=await import(prefix+'moviztime.mjs');
- test(family+' observed portal keeps source seasons and separate dubbed/subtitled works',()=>{
-  const hits=parser.parseSearch(fs.readFileSync('tests/fixtures/v4/turkxyz.html','utf8'));
+ const parser=await import(prefix+'3isk.mjs'),moviz=await import(prefix+'moviztime.mjs');
+ test(family+' observed portal keeps source seasons and separate dubbed/subtitled works',async()=>{
+  const hits=await parser.scrapeSearch('وادي الذئاب',1,{maxRetries:0,fetchImpl:async()=>new Response(fs.readFileSync('tests/fixtures/v4/turkxyz.html','utf8'),{headers:{'content-type':'text/html'}})});
   assert.equal(hits.length,6);assert(hits.some(h=>h.title.includes('مدبلج')));assert(hits.some(h=>h.title.includes('مترجم')));
-  const detail=parser.parseDetails(fs.readFileSync('tests/fixtures/v4/xyzwork.html','utf8'),'https://3iskk.xyz/watch/tvshows/serie-kurtlar-vadisi-pusu-1oct5/');
+  const detail=await parser.scrapeDetails('https://3iskk.xyz/watch/tvshows/serie-kurtlar-vadisi-pusu-1oct5/',{maxRetries:0,fetchImpl:async()=>new Response(fs.readFileSync('tests/fixtures/v4/xyzwork.html','utf8'),{headers:{'content-type':'text/html'}})});
   assert.deepEqual(detail.seasons.map(s=>s.season),[1,2]);assert.equal(detail.episodes.length,4);assert(detail.episodes.every(e=>e.number>1));
  });
  test(family+' Moviz ordinal and numbered season cards link only observed matching editions',()=>{

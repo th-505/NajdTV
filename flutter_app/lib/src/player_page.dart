@@ -3020,8 +3020,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                       !_pipActive &&
                       !_controlsLocked)
                     Positioned(
-                      right: insets.right + 16,
-                      bottom: insets.bottom + (_controlsVisible ? 210 : 100),
+                      right: insets.right + (_controlsVisible ? 80 : 16),
+                      bottom: insets.bottom + (_controlsVisible ? 130 : 90),
                       child: UpNextPrompt(
                         key: ValueKey('up-next-${widget.sourceRef}'),
                         player: active,
