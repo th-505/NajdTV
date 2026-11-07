@@ -1,0 +1,24 @@
+-- Additive compatibility migration: no user rows, identifiers or names change.
+set lock_timeout = '2s';
+set statement_timeout = '15s';
+create index if not exists najd_links_receiver_idx on mitv_private.najd_links(receiver_id);
+create index if not exists najd_playback_owner_idx on mitv_private.najd_playback_transfers(owner_id);
+alter policy "Users can delete own favorites" on public.mitv_favorites using ((select auth.uid()) = user_id);
+alter policy "Users can insert own favorites" on public.mitv_favorites with check ((select auth.uid()) = user_id);
+alter policy "Users can select own favorites" on public.mitv_favorites using ((select auth.uid()) = user_id);
+alter policy "Users can update own favorites" on public.mitv_favorites using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+alter policy "Users can delete own history" on public.mitv_watch_history using ((select auth.uid()) = user_id);
+alter policy "Users can insert own history" on public.mitv_watch_history with check ((select auth.uid()) = user_id);
+alter policy "Users can select own history" on public.mitv_watch_history using ((select auth.uid()) = user_id);
+alter policy "Users can update own history" on public.mitv_watch_history using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+comment on schema mitv_private is 'Najd internal account linking and playback transfer state. Compatibility name retained; clients use owner-checked RPCs, never direct table access.';
+comment on table public.mitv_library is 'Owner-scoped synchronized library records. Includes favorites, episode watch checkpoints and tombstones. Compatibility table name retained.';
+comment on table public.matv_discovery_jobs is 'Durable discovery jobs and leases. Work -> provider search/index -> explicit episode resolution. Not user library data.';
+comment on table public.najd_work_catalog is 'Shared source/canonical work metadata. ref is stable; source identity does not imply a verified TMDB match.';
+comment on table public.najd_source_catalog is 'Per-provider editions with observed identity evidence; dubbed and subtitled cuts remain distinct.';
+comment on table public.najd_season_catalog is 'Observed season metadata belonging to a stable work reference.';
+comment on table public.najd_episode_cache is 'Observed episode references and short-lived direct-media cache. Expiry of media does not erase episode identity.';
+comment on table public.najd_beta_catalog is 'Isolated beta source catalog metadata. Never shares mutable provider parsing state with Najd discovery.';
+comment on table public.najd_provider_config is 'Validated Najd provider domain/search configuration; separate from beta configuration.';
+comment on table public.najd_beta_provider_config is 'Validated beta provider domain/search configuration; separate from Najd configuration.';
+comment on table mitv_private.najd_playback_transfers is 'Short-lived owner-checked playback handoff messages. TV receivers never become senders implicitly.';
