@@ -1,3 +1,4 @@
+import {identityTitle} from '../../../scrapers/shared/work-title.mjs';
 // Beta-owned implementation. Edit independently from Najd source parsers.
 // server/browser/providers/sites/moviztime.mjs
 // Standalone provider module for Moviz Time (وقت الأفلام - moviztime, code: ME)
@@ -196,6 +197,11 @@ function extractCardsFromDom($, baseUrl, defaultType = 'movie') {
 }
 
 const MOVIZTIME_SEASON_ORDINALS = [
+  [/الحادي\s+عشر|الحادية\s+عشرة/, 11], [/الثاني\s+عشر|الثانية\s+عشرة/, 12],
+  [/الثالث\s+عشر|الثالثة\s+عشرة/, 13], [/الرابع\s+عشر|الرابعة\s+عشرة/, 14],
+  [/الخامس\s+عشر|الخامسة\s+عشرة/, 15], [/السادس\s+عشر|السادسة\s+عشرة/, 16],
+  [/السابع\s+عشر|السابعة\s+عشرة/, 17], [/الثامن\s+عشر|الثامنة\s+عشرة/, 18],
+  [/التاسع\s+عشر|التاسعة\s+عشرة/, 19], [/العشرون|العشرين/, 20],
   [/الأول|الاول|الأولى|الاولى/, 1],
   [/الثاني|الثانية|الثانيه/, 2],
   [/الثالث|الثالثة|الثالثه/, 3],
@@ -218,7 +224,7 @@ function parseMovizTimeSeasonText(text = '', fallback = null) {
   }
   for (const [rgx, num] of MOVIZTIME_SEASON_ORDINALS) {
     const fullRgx = new RegExp(`(?:الموسم|موسم)\\s+(?:${rgx.source})(?:\\s|$|[-_/,])`, 'i');
-    if (fullRgx.test(s) || rgx.test(s)) {
+    if (fullRgx.test(s)) {
       if (/(?:الموسم|موسم)/i.test(s)) return num;
     }
   }
@@ -476,6 +482,38 @@ export async function scrapeSearch(query = '', page = 1, options = {}) {
   }
 }
 
+const relatedSeasonCache = new Map();
+export function observedMovizSeasons(html, baseUrl, title) {
+  const $ = cheerio.load(html), key = identityTitle(title), cut = /مدبلج|dubbed/i.test(title) ? 'dubbed' : /مترجم|subtit/i.test(title) ? 'subtitled' : null;
+  const rows = new Map();
+  for (const item of extractCardsFromDom($, baseUrl, 'series')) {
+    const label = item.title || '', season = parseMovizTimeSeasonText(label, null);
+    if (/^(?:أنمي|انمي|anime)\s/i.test(title) !== /^(?:أنمي|انمي|anime)\s/i.test(label)) continue;
+    const edition = /مدبلج|dubbed/i.test(label) ? 'dubbed' : /مترجم|subtit/i.test(label) ? 'subtitled' : null;
+    const url = item.url || String(item.ref || '').replace(/^moviztime:/,'');
+    if (season && identityTitle(label) === key && (!cut || !edition || cut === edition) && /^\/(?:anime|series|tvshows)\//.test(new URL(url, baseUrl).pathname)) rows.set(url, {season,url,title:label});
+  }
+  return [...rows.values()].sort((a,b)=>a.season-b.season);
+}
+async function discoverRelatedSeasons(title, options) {
+  const key = identityTitle(title);
+  if (key.length < 2) return [];
+  const old = relatedSeasonCache.get(key);
+  if (old && old.expires > Date.now()) return old.rows;
+  if (old?.pending) return old.pending;
+  const task = (async()=>{
+    try {
+      const url = MOVIZTIME_CONFIG.baseUrl+'/?s='+encodeURIComponent(key);
+      const response = await fetchProviderHtml(url,{...options,providerId:PROVIDER_META.id,allowHttp:false,timeoutMs:6000,maxRetries:0});
+      return response.ok ? observedMovizSeasons(response.html,response.url||url,title) : [];
+    } catch { return []; }
+  })();
+  if (relatedSeasonCache.size >= 64) relatedSeasonCache.delete(relatedSeasonCache.keys().next().value);
+  relatedSeasonCache.set(key,{pending:task,expires:0});
+  const rows = await task;
+  if(rows.length)relatedSeasonCache.set(key,{rows,expires:Date.now()+15*60000});else relatedSeasonCache.delete(key);
+  return rows;
+}
 export async function scrapeDetails(urlOrRef, options = {}) {
   const cleanUrl = resolveSafeUrl(stripProviderPrefix(urlOrRef), MOVIZTIME_CONFIG.baseUrl);
   if (!cleanUrl) {
@@ -588,6 +626,10 @@ export async function scrapeDetails(urlOrRef, options = {}) {
     { providerId: PROVIDER_META.id, baseUrl: MOVIZTIME_CONFIG.baseUrl }
   );
 
+  if (isSeries && /^\/(?:anime|series|tvshows)\//.test(new URL(cleanUrl).pathname)) {
+    normalized.source_season_links = await discoverRelatedSeasons(title, options);
+    normalized.season_number = seasonNumber;
+  }
   return attachResultMeta(normalized, {
     ok: Boolean(title),
     providerId: PROVIDER_META.id,

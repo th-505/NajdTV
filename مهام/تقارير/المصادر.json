@@ -2,16 +2,16 @@
   "schema_version": 1,
   "scope": "static repository declarations; no network requests",
   "counts": {
-    "site_modules_with_metadata": 25,
-    "registered_modules": 25,
-    "najd_scrapers": 25,
-    "beta_scrapers": 25,
-    "total_scraper_implementations": 50,
+    "site_modules_with_metadata": 26,
+    "registered_modules": 26,
+    "najd_scrapers": 26,
+    "beta_scrapers": 26,
+    "total_scraper_implementations": 52,
     "explicit_mirrors": 2,
-    "not_marked_as_mirror": 23,
+    "not_marked_as_mirror": 24,
     "ui_spellings": 0,
     "static_ui_array_entries": 0,
-    "pinned_search_modules": 23,
+    "pinned_search_modules": 24,
     "seed_only_entries": 6
   },
   "ui_delivery": {
@@ -32,7 +32,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/3cktv.mjs",
       "metadata_line": 37,
-      "source_sha256": "bc17e4c1a5b140be6ef5c84d4d3e6d059418f8a90fc23d648fd7dadbe252a672",
+      "source_sha256": "cb0eaf58c8ee83bb732166ae4ec50a00681bbae1d75514b332f494e20bf991ce",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -88,6 +88,39 @@
       "ui_spellings": [],
       "pinned_search_spellings": [
         "3isk"
+      ],
+      "live_validation": "not_run"
+    },
+    {
+      "id": "3iskk",
+      "name": "قصة عشق — أعمال تركية",
+      "code": "IK",
+      "mirror_of": null,
+      "path": "server/scrapers/sites/3iskk.mjs",
+      "metadata_line": 9,
+      "source_sha256": "9976075753010d386aefa3109f34d452ab5557b5f09161445eafad8dfdc029e4",
+      "registered": true,
+      "declared_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "exported_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "ui_spellings": [],
+      "pinned_search_spellings": [
+        "3iskk"
       ],
       "live_validation": "not_run"
     },
@@ -427,7 +460,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/fivetv.mjs",
       "metadata_line": 18,
-      "source_sha256": "4be48f9b91eff6c2847f04a20068ce17f265912e68945124cd8c35b21908c828",
+      "source_sha256": "ee5550d0447915df4fdb3f6cf4df3419a190e6b330fa6c98d06419b6f3996561",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -587,12 +620,12 @@
     },
     {
       "id": "moviztime",
-      "name": "Moviz Time",
+      "name": "وقت الأفلام",
       "code": "ME",
       "mirror_of": null,
       "path": "server/scrapers/sites/moviztime.mjs",
-      "metadata_line": 31,
-      "source_sha256": "f43ccf112afc4bce807ae70e1efa2e0d39792d8261967edd38c9e01b5bd72396",
+      "metadata_line": 32,
+      "source_sha256": "df1db12052a1fac6e3358785c4355f5e368761e53ea06e358a8b70b54db53feb",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -791,7 +824,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/witanime.mjs",
       "metadata_line": 52,
-      "source_sha256": "5f4fe6e464d22c7bba94b05fccab3a449ab95b139125879ce2ed010c4e65b6c8",
+      "source_sha256": "9f093dae18edf736deeba04be43d28f8b124989a2ef64558faaae42cc8404275",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -854,7 +887,7 @@
       "id": "3cktv",
       "scope": "beta",
       "path": "server/browser/providers/sites/3cktv.mjs",
-      "source_sha256": "1de4985694c1cd34d8395644454f451df43e489c8259bd26d2e5c0b2b3c20699",
+      "source_sha256": "3bf77a69f01b32f4cabfae1b4fd503325f9e70b5e277ed1c7270b569ee9d46ff",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -864,6 +897,15 @@
       "scope": "beta",
       "path": "server/browser/providers/sites/3isk.mjs",
       "source_sha256": "05a67605780c450017a83ed591760b5a491c500130a1fc64409f7021101ef484",
+      "registered": true,
+      "mirror_of": null,
+      "live_validation": "not_run"
+    },
+    {
+      "id": "3iskk",
+      "scope": "beta",
+      "path": "server/browser/providers/sites/3iskk.mjs",
+      "source_sha256": "901bd738a0bc449bb0993bdb16f504b9bd581c40de00dd949ea0759860eb4cd5",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -962,7 +1004,7 @@
       "id": "fivetv",
       "scope": "beta",
       "path": "server/browser/providers/sites/fivetv.mjs",
-      "source_sha256": "fe73beab2c4c0e7d698ac34b5f145d53b483e82d4f2eb867e6fcac740664bbfa",
+      "source_sha256": "74c80c26c4a51db6d99592f60d2c165cc098ba7097ee82c97481179ad626b896",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -1007,7 +1049,7 @@
       "id": "moviztime",
       "scope": "beta",
       "path": "server/browser/providers/sites/moviztime.mjs",
-      "source_sha256": "66b7caf91fc5f2587ec8dec751f6d6e918bc6555a7a940e87ccb0a28b51056df",
+      "source_sha256": "68a6a0b5e0eb67c7b80735097ff861a8fb012e79c6a7b23cfd30d17405a2780f",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -1061,7 +1103,7 @@
       "id": "witanime",
       "scope": "beta",
       "path": "server/browser/providers/sites/witanime.mjs",
-      "source_sha256": "c0092cf34656cadcccb74025b35c52e76a9a3e47801c8c9815a66c83bcbf5169",
+      "source_sha256": "f563841772a9fff4542b89a847c0762783d38b9b949f00e4a434c6cd486281b8",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"

@@ -1,5 +1,6 @@
 /** Restrict only proven specialist sources. Unknown language never excludes a source. */
 const specialist=Object.freeze({
+ '3iskk':{languages:['tr'],kinds:['movie','series']},
  '3isk':{languages:['tr'],kinds:['movie','series']},
  '3cktv':{languages:['tr'],kinds:['movie','series']},
  anime4up:{animation:true},anime4up_rest:{animation:true},witanime:{animation:true},ristoanime:{animation:true},

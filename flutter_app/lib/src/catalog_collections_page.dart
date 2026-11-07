@@ -55,7 +55,7 @@ class _CatalogCollectionsPageState extends State<CatalogCollectionsPage> {
           padding: EdgeInsets.all(isTvTarget ? 28 : 16),
           itemCount: definitions.length + 3,
           itemBuilder: (context, index) {
-            if (index == 0)
+            if (index == 0) {
               return FutureBuilder<List<CatalogItem>>(
                 future: _requests.putIfAbsent(
                   'hero',
@@ -73,6 +73,7 @@ class _CatalogCollectionsPageState extends State<CatalogCollectionsPage> {
                       )
                     : const SizedBox.shrink(),
               );
+            }
             if (index < 3) {
               final items = index == 1
                   ? widget.store.continueWatching
@@ -136,8 +137,9 @@ class _CatalogCollectionsPageState extends State<CatalogCollectionsPage> {
                       .join('|');
                   if (_signatures.entries.any(
                     (e) => e.key != ref && e.value == signature,
-                  ))
+                  )) {
                     return const SizedBox.shrink();
+                  }
                   _signatures[ref] = signature;
                 }
                 return _shelf(

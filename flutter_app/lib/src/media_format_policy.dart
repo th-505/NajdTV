@@ -57,7 +57,48 @@ bool usesExtendedMediaEngine(String mediaType, String path) {
         'mpd',
         'mpeg-ts',
         'stream',
-        'ts'
+        'ts',
       ].contains(type) ||
       RegExp(r'\.(mkv|webm|mpd|ts|m2ts)$', caseSensitive: false).hasMatch(path);
+}
+
+/// Retain declared/observed formats instead of relabeling every direct URL MP4.
+String runtimeMediaTypeFor(String url, [String declared = '']) {
+  const aliases = {
+    'hls': 'm3u8',
+    'application/vnd.apple.mpegurl': 'm3u8',
+    'application/x-mpegurl': 'm3u8',
+    'dash': 'mpd',
+    'application/dash+xml': 'mpd',
+    'matroska': 'mkv',
+    'video/x-matroska': 'mkv',
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
+    'video/quicktime': 'mov',
+    'video/mp2t': 'ts',
+    'video/x-msvideo': 'avi',
+    'mpeg-ts': 'ts',
+  };
+  const formats = [
+    'mp4',
+    'm3u8',
+    'mpd',
+    'mkv',
+    'webm',
+    'mov',
+    'm4v',
+    'avi',
+    'ts',
+    'm2ts',
+    'mpeg',
+    'mpg',
+    'ogv',
+    'flv',
+  ];
+  final type = declared.trim().toLowerCase().split(';').first;
+  if (aliases.containsKey(type)) return aliases[type]!;
+  if (formats.contains(type)) return type;
+  final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
+  final suffix = path.split('.').last;
+  return formats.contains(suffix) ? suffix : 'mp4';
 }

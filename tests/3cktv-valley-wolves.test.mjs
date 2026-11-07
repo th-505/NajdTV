@@ -26,7 +26,7 @@ test('own metadata never uses an upload date or a related card as release year o
  const d=await scrapeDetails('https://e.3cktv.cam/video/series/kurtlar-vadisi/',{fixtureHtml:html});assert.equal(d.year,'2003');assert.deepEqual(d.observed_cast,['الممثل المرصود']);
 });
 test('provider page requests use only the verified domain set and the shared HTTP profile',async()=>{
- assert.equal(THREE_CKTV_CONFIG.baseUrl,'https://e.3cktv.cam');assert(!PROVIDER_META.domains.includes('https://d.3cktv.cam'));
+ assert.equal(THREE_CKTV_CONFIG.baseUrl,'https://e.3cktv.com');assert(!PROVIDER_META.domains.includes('https://d.3cktv.cam'));
  const legacy='https://e.3cktv.com/series/installed-ref/';assert.equal(decode3cktvRef(encode3cktvRef(legacy)),legacy);
  let calls=0;const rows=await scrapeSearch('وادي الذئاب',1,{maxRetries:0,fetchImpl:async(_url,options)=>{calls++;assert.equal(options.headers['User-Agent'],BROWSER_USER_AGENTS[0]);return new Response('',{status:302,headers:{location:'https://d.3cktv.cam/'}})}});
  assert.equal(calls,1);assert.equal(rows._meta.errorCode,'UNSAFE_URL');

@@ -37,8 +37,9 @@ class _CatalogCollectionShelfState extends State<CatalogCollectionShelf> {
         final signature = (items.map((e) => e.ref).toList()..sort()).join('|');
         if (widget.signatures.entries.any(
           (e) => e.key != id && e.value == signature,
-        ))
+        )) {
           return const SizedBox.shrink();
+        }
         widget.signatures[id] = signature;
       }
       return Column(

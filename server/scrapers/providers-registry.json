@@ -33,7 +33,7 @@
     },
     {
       "id": "moviztime",
-      "url": "https://moviz-time.land",
+      "url": "https://moviz-time.surf",
       "enabled": true
     },
     {
@@ -43,7 +43,7 @@
     },
     {
       "id": "witanime",
-      "url": "https://witanime.cyou",
+      "url": "https://witanime.site",
       "enabled": true
     },
     {
@@ -104,6 +104,11 @@
     {
       "id": "ahwak",
       "url": "https://yam.ahwaktv.net",
+      "enabled": true
+    },
+    {
+      "id": "3iskk",
+      "url": "https://3iskk.xyz",
       "enabled": true
     }
   ]

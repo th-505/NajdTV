@@ -1917,6 +1917,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         if (!selectBrowserQuality(id)) {
           _subtitleNotice('تعذر تغيير الجودة في هذا المتصفح.');
         }
+      } else if (await controller.selectHlsQuality(selected)) {
+        // Actual master rendition selection, keeping its audio/subtitle groups.
       } else if (!kIsWeb &&
           native != null &&
           native.state.tracks.video.any((t) => t.h != null)) {
@@ -2617,132 +2619,94 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     }
   }
 
-  Widget _trackControls(UniversalPlayer controller) => Theme(
-    data: Theme.of(context).copyWith(
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          backgroundColor: Colors.black.withAlpha(200),
-          foregroundColor: Colors.white,
-          side: const BorderSide(color: Colors.white54),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          minimumSize: Size(48, isTvTarget ? 64 : 48),
-        ),
+  Widget _trackControls(UniversalPlayer controller) {
+    final hasEpisodes =
+        widget.item.type != 'movie' &&
+        (_queue.isNotEmpty || widget.item.type == 'series');
+    final style = TextButton.styleFrom(
+      backgroundColor: Colors.black.withAlpha(170),
+      foregroundColor: Colors.white,
+      side: const BorderSide(color: Colors.white54),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      minimumSize: Size(48, isTvTarget ? 64 : 48),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      textStyle: const TextStyle(fontSize: 12),
+    );
+    Widget button(String key, String title, VoidCallback action) => TextButton(
+      key: Key(key),
+      style: style,
+      onPressed: action,
+      child: Text(title, textAlign: TextAlign.center),
+    );
+    final controls = <Widget>[
+      if (_previousEpisode != null)
+        button(
+          'player-previous-episode',
+          'الحلقة السابقة',
+          () => _advanceEpisode(_previousEpisode!),
+        )
+      else
+        const SizedBox.shrink(),
+      button(
+        'player-audio-subtitles',
+        'الصوت والترجمة',
+        () => _audioMenu(controller),
       ),
-      iconButtonTheme: IconButtonThemeData(
+      IconButton(
+        key: const Key('player-more'),
+        tooltip: 'المزيد',
         style: IconButton.styleFrom(
-          backgroundColor: Colors.black.withAlpha(200),
+          backgroundColor: Colors.black.withAlpha(170),
           foregroundColor: Colors.white,
           side: const BorderSide(color: Colors.white54),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          minimumSize: Size.square(isTvTarget ? 64 : 48),
+        ),
+        onPressed: () => _moreMenu(controller),
+        icon: const Icon(Icons.more_horiz),
+      ),
+      if (hasEpisodes)
+        button(
+          'player-episodes',
+          'الحلقات',
+          _queue.isNotEmpty ? _episodeMenu : _providerCatalogue,
+        )
+      else
+        const SizedBox.shrink(),
+      if (_nextEpisode != null)
+        button(
+          'player-next-episode',
+          'الحلقة التالية',
+          () => _advanceEpisode(_nextEpisode!),
+        )
+      else
+        const SizedBox.shrink(),
+    ];
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 850),
+          child: Row(
+            children: [
+              for (final child in controls)
+                Expanded(
+                  child: Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                        child: child,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
-    ),
-    child: Directionality(
-      textDirection: TextDirection.ltr,
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 8,
-        children:
-            [
-                  if (_previousEpisode != null)
-                    TextButton(
-                      key: const Key('player-previous-episode'),
-                      onPressed: () => _advanceEpisode(_previousEpisode!),
-                      child: const Text('الحلقة السابقة'),
-                    ),
-                  TextButton.icon(
-                    key: const Key('player-audio-subtitles'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      minimumSize: Size(48, isTvTarget ? 64 : 48),
-                    ),
-                    onPressed: () => _audioMenu(controller),
-                    icon: const Icon(Icons.subtitles_outlined, size: 20),
-                    label: const Text(
-                      'الصوت والترجمة',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  IconButton(
-                    key: const Key('player-more'),
-                    tooltip: 'المزيد',
-                    style: IconButton.styleFrom(
-                      minimumSize: Size.square(isTvTarget ? 64 : 48),
-                    ),
-                    onPressed: () => _moreMenu(controller),
-                    icon: const Icon(Icons.more_horiz, color: Colors.white),
-                  ),
-                  if (widget.item.type != 'movie' &&
-                      (_queue.isNotEmpty ||
-                          widget.episodeNumber != null ||
-                          widget.item.type == 'series'))
-                    TextButton.icon(
-                      key: const Key('player-episodes'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        minimumSize: Size(48, isTvTarget ? 64 : 48),
-                      ),
-                      onPressed: _queue.isNotEmpty
-                          ? _episodeMenu
-                          : _providerCatalogue,
-                      icon: const Icon(Icons.video_library_outlined, size: 20),
-                      label: const Text(
-                        'الحلقات',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  if (_nextEpisode != null)
-                    TextButton(
-                      key: const Key('player-next-episode'),
-                      onPressed: () => _advanceEpisode(_nextEpisode!),
-                      child: const Text('الحلقة التالية'),
-                    ),
-                  if (widget.item.type != 'movie' &&
-                      _currentEpisodeNumber != null &&
-                      _queue
-                              .map((ep) => ep.season)
-                              .whereType<int>()
-                              .toSet()
-                              .length >
-                          1)
-                    TextButton.icon(
-                      key: const Key('player-seasons'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        minimumSize: Size(48, isTvTarget ? 64 : 48),
-                      ),
-                      onPressed: _seasonMenu,
-                      icon: const Icon(
-                        Icons.collections_bookmark_outlined,
-                        size: 20,
-                      ),
-                      label: const Text(
-                        'المواسم',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  if (kIsWeb)
-                    IconButton(
-                      key: const Key('player-web-fullscreen'),
-                      tooltip: 'ملء الشاشة',
-                      onPressed: _toggleFullscreen,
-                      icon: const Icon(Icons.fullscreen, color: Colors.white),
-                    ),
-                ]
-                .map(
-                  (child) => ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                      child: child,
-                    ),
-                  ),
-                )
-                .toList(),
-      ),
-    ),
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3166,11 +3130,31 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                   await _qualityMenu(active);
                                 }
                                 if (action == 'fit') await _chooseFit();
+                                if (action == 'seasons') await _seasonMenu();
+                                if (action == 'fullscreen') {
+                                  await _toggleFullscreen();
+                                }
                                 if (action == 'providers') {
                                   await _providerCatalogue();
                                 }
                               },
-                              itemBuilder: (_) => const [
+                              itemBuilder: (_) => [
+                                if (kIsWeb)
+                                  const PopupMenuItem(
+                                    value: 'fullscreen',
+                                    child: Text('ملء الشاشة'),
+                                  ),
+                                if (widget.item.type != 'movie' &&
+                                    _queue
+                                            .map((e) => e.season)
+                                            .whereType<int>()
+                                            .toSet()
+                                            .length >
+                                        1)
+                                  const PopupMenuItem(
+                                    value: 'seasons',
+                                    child: Text('المواسم'),
+                                  ),
                                 PopupMenuItem(
                                   value: 'lock',
                                   child: Text('قفل التحكم'),

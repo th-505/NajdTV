@@ -74,7 +74,7 @@ function normalizeResult(item = {}) {
     type: series ? "series" : "movie",
     year: yearFrom(releaseDate),
     rating: ratingFrom(item.vote_average),
-    popularity: Number.isFinite(Number(item.popularity)) ? Math.max(0, Number(item.popularity)) : 0,
+    ...(item.popularity != null && Number.isFinite(Number(item.popularity)) ? {popularity: Math.max(0, Number(item.popularity))} : {}),
     source: "tmdb",
     ref: `tmdb:${mediaType}:${id}`,
   };
