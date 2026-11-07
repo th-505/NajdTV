@@ -11,7 +11,7 @@ export function observedContainer(bytes){
  if(/^(?:<\?xml[^>]*>\s*)?<MPD(?:\s|>)/.test(text))return 'dash';
  if(b.readUInt32BE(0)===0x1a45dfa3){if(text.includes('webm'))return 'webm';if(text.includes('matroska'))return 'matroska';return null;}
  if(b.subarray(0,4).toString('ascii')==='RIFF'&&b.subarray(8,12).toString('ascii')==='AVI ')return 'avi';
- if(b[0]===0x47&&b.length>376&&b[188]===0x47&&b[376]===0x47)return 'mpeg-ts';
+ if((b[0]===0x47&&b.length>376&&b[188]===0x47&&b[376]===0x47)||(b.length>388&&b[4]===0x47&&b[196]===0x47&&b[388]===0x47))return 'mpeg-ts';
  if(b.subarray(0,4).toString('ascii')==='OggS')return 'ogg';
  if(b.subarray(0,3).toString('ascii')==='FLV')return 'flv';
  if(b[0]===0&&b[1]===0&&b[2]===1&&[0xb3,0xba].includes(b[3]))return 'mpeg';

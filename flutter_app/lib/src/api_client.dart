@@ -516,7 +516,10 @@ class MitvApi implements MediaRepository {
     final uri = Uri.tryParse(value);
     return uri != null &&
         isPublicMediaUri(uri) &&
-        RegExp(r'\.(?:mp4|m3u8)$', caseSensitive: false).hasMatch(uri.path);
+        RegExp(
+          r'\.(?:mp4|m3u8|mpd|webm|mkv|mov|m4v|avi|ts|m2ts|mpeg|mpg|ogv|flv)$',
+          caseSensitive: false,
+        ).hasMatch(uri.path);
   }
 
   Future<Map<String, dynamic>> _metadataJson(
