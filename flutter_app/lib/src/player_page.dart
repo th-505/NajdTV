@@ -1,3 +1,6 @@
+import 'dart:ui' show ImageFilter;
+
+import 'seek_burst.dart';
 import 'all_provider_search.dart';
 import 'playback_timeline.dart';
 import 'up_next_prompt.dart';
@@ -301,6 +304,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   BoxFit _videoFit = BoxFit.contain;
   Timer? _seekFeedbackTimer;
   String _seekFeedback = "";
+  final _seekBurst = SeekBurst();
+  Duration? _burstTarget;
   bool _controlsVisible = true;
   bool _boosting = false;
   int? _holdPointer;
@@ -458,13 +463,39 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     }
   }
 
-  void _doubleTapSeek() {
+  void _videoTap(TapUpDetails details) {
     if (_controlsLocked) return;
-    final step = NajdPreferences.instance.seekSeconds;
-    unawaited(_seekBy(Duration(seconds: _gestureRight ? step : -step)));
+    final right =
+        details.localPosition.dx > MediaQuery.sizeOf(context).width / 2;
+    final step = _seekBurst.tap(
+      right: right,
+      now: DateTime.now(),
+      seconds: NajdPreferences.instance.seekSeconds,
+    );
+    if (step == 0) {
+      _burstTarget = null;
+      if (_controlsVisible) {
+        setState(() => _controlsVisible = false);
+      } else {
+        _revealControls();
+      }
+      return;
+    }
+    _gestureRight = right;
+    final player = _controller;
+    if (player == null) return;
+    final origin = _burstTarget ?? player.value.position;
+    _burstTarget = Duration(
+      milliseconds: (origin.inMilliseconds + step * 1000).clamp(
+        0,
+        player.value.duration.inMilliseconds,
+      ),
+    );
+    unawaited(_seekBy(Duration(seconds: step), origin: origin));
     _seekFeedbackTimer?.cancel();
-    setState(() => _seekFeedback = _gestureRight ? '+$step' : '−$step');
+    setState(() => _seekFeedback = '${right ? '+' : '−'}${_seekBurst.total}');
     _seekFeedbackTimer = Timer(const Duration(milliseconds: 900), () {
+      _burstTarget = null;
       if (mounted) setState(() => _seekFeedback = '');
     });
   }
@@ -481,7 +512,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       final value = await ScreenBrightness.instance.application;
       if (mounted) {
         setState(() {
-          _brightness = value.clamp(.15, 1);
+          _brightness = value.clamp(0.0, 1.0);
           _nativeBrightness = true;
         });
       }
@@ -1660,13 +1691,13 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     if (force) unawaited(CloudLibrarySync.flushCheckpoint(widget.store));
   }
 
-  Future<void> _seekBy(Duration delta) async {
+  Future<void> _seekBy(Duration delta, {Duration? origin}) async {
     _revealControls();
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
     final duration = controller.value.duration;
     if (widget.isLive && duration <= Duration.zero) return;
-    var target = controller.value.position + delta;
+    var target = (origin ?? controller.value.position) + delta;
     if (target < Duration.zero) target = Duration.zero;
     if (duration > Duration.zero && target > duration) target = duration;
     await controller.seekTo(target);
@@ -1852,34 +1883,18 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       title: 'جودة الفيديو',
       icon: Icons.high_quality_outlined,
       options: [
-        for (final row in browser)
-          NajdOption(
-            'web:${row['id']}',
-            '${row['label']}',
-            icon: Icons.high_quality_outlined,
-          ),
-        if (!kIsWeb && native != null)
-          for (final track in native.state.tracks.video.where(
-            (t) => t.id != 'no',
-          ))
-            NajdOption(
-              'track:${track.id}',
-              track.id == 'auto'
-                  ? 'تلقائي'
-                  : track.h != null
-                  ? '${track.h}p${track.codec == null ? '' : ' · ${track.codec}'}'
-                  : track.title ?? track.id,
-              selected: track.id == native.state.track.video.id,
-              icon: Icons.high_quality_outlined,
-            ),
-        for (var i = 0; i < _sources.length; i++)
-          NajdOption(
-            'source:$i',
-            _sources[i].displayLabel,
-            selected: i == _sourceIndex,
-            icon: Icons.dns_outlined,
-          ),
-        NajdOption(
+        const NajdOption(
+          'best',
+          'أفضل جودة متاحة',
+          icon: Icons.high_quality_outlined,
+        ),
+        const NajdOption(
+          'auto',
+          'الجودة المناسبة للإنترنت',
+          icon: Icons.auto_awesome,
+        ),
+        const NajdOption('low', 'أقل جودة متاحة', icon: Icons.data_saver_on),
+        const NajdOption(
           'diagnostics',
           'الدقة الفعلية ومعلومات التشغيل',
           icon: Icons.info_outline,
@@ -1887,17 +1902,55 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       ],
     );
     if (!mounted || selected == null) return;
-    if (selected.startsWith('web:')) {
-      if (!selectBrowserQuality(int.parse(selected.substring(4)))) {
-        _subtitleNotice('تعذر تغيير الجودة في هذا المتصفح.');
+    if (selected != 'diagnostics') {
+      if (kIsWeb && browser.isNotEmpty) {
+        final levels = browser.where((r) => r['id'] != -1).toList()
+          ..sort(
+            (a, b) => ((a['height'] as num?) ?? (a['bitrate'] as num?) ?? 0)
+                .compareTo(
+                  (b['height'] as num?) ?? (b['bitrate'] as num?) ?? 0,
+                ),
+          );
+        final id = selected == 'auto' || levels.isEmpty
+            ? -1
+            : (selected == 'best' ? levels.last : levels.first)['id'] as int;
+        if (!selectBrowserQuality(id)) {
+          _subtitleNotice('تعذر تغيير الجودة في هذا المتصفح.');
+        }
+      } else if (!kIsWeb &&
+          native != null &&
+          native.state.tracks.video.any((t) => t.h != null)) {
+        final tracks =
+            native.state.tracks.video
+                .where((t) => t.id != 'no' && t.id != 'auto' && t.h != null)
+                .toList()
+              ..sort((a, b) => (a.h ?? 0).compareTo(b.h ?? 0));
+        if (selected == 'auto') {
+          await native.setVideoTrack(mk.VideoTrack.auto());
+        } else if (tracks.isNotEmpty) {
+          await native.setVideoTrack(
+            selected == 'best' ? tracks.last : tracks.first,
+          );
+        }
+      } else if (_sources.isNotEmpty) {
+        final indices = List.generate(_sources.length, (i) => i)
+          ..sort(
+            (a, b) => (_sources[a].resolution?.height ?? 0).compareTo(
+              _sources[b].resolution?.height ?? 0,
+            ),
+          );
+        final index = selected == 'auto'
+            ? _sourceIndex
+            : selected == 'best'
+            ? indices.last
+            : indices.first;
+        if (index != _sourceIndex) await _selectSource(index);
+        if (_sources.length == 1) {
+          _subtitleNotice(
+            'المصدر يوفر جودة واحدة؛ تُستخدم في الخيارات الثلاثة.',
+          );
+        }
       }
-    } else if (selected.startsWith('track:') && native != null) {
-      final id = selected.substring(6);
-      await native.setVideoTrack(
-        native.state.tracks.video.firstWhere((t) => t.id == id),
-      );
-    } else if (selected.startsWith('source:')) {
-      await _selectSource(int.parse(selected.substring(7)));
     } else if (selected == 'diagnostics') {
       final value = controller.value;
       final web = kIsWeb ? browserVideoDiagnostics() : <String, dynamic>{};
@@ -2103,7 +2156,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
 
   Widget _modernControls(UniversalPlayer controller) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    color: Colors.black.withAlpha(140),
+    color: Colors.transparent,
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -2584,77 +2637,110 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         ),
       ),
     ),
-    child: Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 8,
-      children: [
-        if (_previousEpisode != null)
-          TextButton(
-            key: const Key('player-previous-episode'),
-            onPressed: () => _advanceEpisode(_previousEpisode!),
-            child: const Text('الحلقة السابقة'),
-          ),
-        if (_nextEpisode != null)
-          TextButton(
-            key: const Key('player-next-episode'),
-            onPressed: () => _advanceEpisode(_nextEpisode!),
-            child: const Text('الحلقة التالية'),
-          ),
-        if (widget.item.type != 'movie' &&
-            (_queue.isNotEmpty ||
-                widget.episodeNumber != null ||
-                widget.item.type == 'series'))
-          TextButton.icon(
-            key: const Key('player-episodes'),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white,
-              minimumSize: Size(48, isTvTarget ? 64 : 48),
-            ),
-            onPressed: _queue.isNotEmpty ? _episodeMenu : _providerCatalogue,
-            icon: const Icon(Icons.video_library_outlined, size: 20),
-            label: const Text('الحلقات', style: TextStyle(fontSize: 12)),
-          ),
-        if (widget.item.type != 'movie' &&
-            _currentEpisodeNumber != null &&
-            _queue.map((ep) => ep.season).whereType<int>().toSet().length > 1)
-          TextButton.icon(
-            key: const Key('player-seasons'),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white,
-              minimumSize: Size(48, isTvTarget ? 64 : 48),
-            ),
-            onPressed: _seasonMenu,
-            icon: const Icon(Icons.collections_bookmark_outlined, size: 20),
-            label: const Text('المواسم', style: TextStyle(fontSize: 12)),
-          ),
-        TextButton.icon(
-          key: const Key('player-audio-subtitles'),
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.white,
-            minimumSize: Size(48, isTvTarget ? 64 : 48),
-          ),
-          onPressed: () => _audioMenu(controller),
-          icon: const Icon(Icons.subtitles_outlined, size: 20),
-          label: const Text('الصوت والترجمة', style: TextStyle(fontSize: 12)),
-        ),
-        if (kIsWeb)
-          IconButton(
-            key: const Key('player-web-fullscreen'),
-            tooltip: 'ملء الشاشة',
-            onPressed: _toggleFullscreen,
-            icon: const Icon(Icons.fullscreen, color: Colors.white),
-          ),
-        IconButton(
-          key: const Key('player-more'),
-          tooltip: 'المزيد',
-          style: IconButton.styleFrom(
-            minimumSize: Size.square(isTvTarget ? 64 : 48),
-          ),
-          onPressed: () => _moreMenu(controller),
-          icon: const Icon(Icons.more_horiz, color: Colors.white),
-        ),
-      ],
+    child: Directionality(
+      textDirection: TextDirection.ltr,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        children:
+            [
+                  if (_previousEpisode != null)
+                    TextButton(
+                      key: const Key('player-previous-episode'),
+                      onPressed: () => _advanceEpisode(_previousEpisode!),
+                      child: const Text('الحلقة السابقة'),
+                    ),
+                  TextButton.icon(
+                    key: const Key('player-audio-subtitles'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      minimumSize: Size(48, isTvTarget ? 64 : 48),
+                    ),
+                    onPressed: () => _audioMenu(controller),
+                    icon: const Icon(Icons.subtitles_outlined, size: 20),
+                    label: const Text(
+                      'الصوت والترجمة',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  IconButton(
+                    key: const Key('player-more'),
+                    tooltip: 'المزيد',
+                    style: IconButton.styleFrom(
+                      minimumSize: Size.square(isTvTarget ? 64 : 48),
+                    ),
+                    onPressed: () => _moreMenu(controller),
+                    icon: const Icon(Icons.more_horiz, color: Colors.white),
+                  ),
+                  if (widget.item.type != 'movie' &&
+                      (_queue.isNotEmpty ||
+                          widget.episodeNumber != null ||
+                          widget.item.type == 'series'))
+                    TextButton.icon(
+                      key: const Key('player-episodes'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        minimumSize: Size(48, isTvTarget ? 64 : 48),
+                      ),
+                      onPressed: _queue.isNotEmpty
+                          ? _episodeMenu
+                          : _providerCatalogue,
+                      icon: const Icon(Icons.video_library_outlined, size: 20),
+                      label: const Text(
+                        'الحلقات',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  if (_nextEpisode != null)
+                    TextButton(
+                      key: const Key('player-next-episode'),
+                      onPressed: () => _advanceEpisode(_nextEpisode!),
+                      child: const Text('الحلقة التالية'),
+                    ),
+                  if (widget.item.type != 'movie' &&
+                      _currentEpisodeNumber != null &&
+                      _queue
+                              .map((ep) => ep.season)
+                              .whereType<int>()
+                              .toSet()
+                              .length >
+                          1)
+                    TextButton.icon(
+                      key: const Key('player-seasons'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        minimumSize: Size(48, isTvTarget ? 64 : 48),
+                      ),
+                      onPressed: _seasonMenu,
+                      icon: const Icon(
+                        Icons.collections_bookmark_outlined,
+                        size: 20,
+                      ),
+                      label: const Text(
+                        'المواسم',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  if (kIsWeb)
+                    IconButton(
+                      key: const Key('player-web-fullscreen'),
+                      tooltip: 'ملء الشاشة',
+                      onPressed: _toggleFullscreen,
+                      icon: const Icon(Icons.fullscreen, color: Colors.white),
+                    ),
+                ]
+                .map(
+                  (child) => ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                      child: child,
+                    ),
+                  ),
+                )
+                .toList(),
+      ),
     ),
   );
 
@@ -2758,15 +2844,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                       },
                       onLongPressEnd: (_) => unawaited(_endBoost()),
                       onLongPressCancel: () => unawaited(_endBoost()),
-                      onTap: () => _controlsLocked
-                          ? null
-                          : _controlsVisible
-                          ? setState(() => _controlsVisible = false)
-                          : _revealControls(),
-                      onDoubleTapDown: (d) => _gestureRight =
-                          d.localPosition.dx >
-                          MediaQuery.sizeOf(context).width / 2,
-                      onDoubleTap: _doubleTapSeek,
+                      onTapUp: _videoTap,
                       onVerticalDragStart: isTvTarget || _controlsLocked
                           ? null
                           : (d) {
@@ -2847,8 +2925,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                             IgnorePointer(
                               child: Align(
                                 alignment: _gestureRight
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
+                                    ? const Alignment(.5, 0)
+                                    : const Alignment(-.5, 0),
                                 child: Container(
                                   margin: const EdgeInsets.all(28),
                                   padding: const EdgeInsets.all(10),
@@ -2996,21 +3074,37 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                       (_controlsVisible || _levelGestureActive)) ...[
                     Positioned(
                       left: insets.left + 8,
-                      top: MediaQuery.sizeOf(context).height * .28,
+                      top:
+                          (MediaQuery.sizeOf(context).height -
+                                  (MediaQuery.sizeOf(context).height - 220)
+                                      .clamp(80, 180)) /
+                              2 -
+                          25,
                       child: PlayerLevelRail(
+                        height: (MediaQuery.sizeOf(context).height - 220)
+                            .clamp(80, 180)
+                            .toDouble(),
                         value: _brightness,
                         label: 'السطوع',
                         icon: Icons.brightness_6_outlined,
                         onChanged: (value) {
-                          setState(() => _brightness = value.clamp(.15, 1));
+                          setState(() => _brightness = value.clamp(0.0, 1.0));
                           unawaited(_setBrightness());
                         },
                       ),
                     ),
                     Positioned(
                       right: insets.right + 8,
-                      top: MediaQuery.sizeOf(context).height * .28,
+                      top:
+                          (MediaQuery.sizeOf(context).height -
+                                  (MediaQuery.sizeOf(context).height - 220)
+                                      .clamp(80, 180)) /
+                              2 -
+                          25,
                       child: PlayerLevelRail(
+                        height: (MediaQuery.sizeOf(context).height - 220)
+                            .clamp(80, 180)
+                            .toDouble(),
                         value: _volume,
                         label: 'الصوت',
                         icon: Icons.volume_up_outlined,
@@ -3050,23 +3144,51 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                     Positioned(
                       top: insets.top + 4,
                       left: insets.left + 4,
-                      child: IconButton.filledTonal(
-                        key: const Key('player-control-lock'),
-                        tooltip: _controlsLocked
-                            ? 'إلغاء قفل التحكم'
-                            : 'قفل التحكم',
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black54,
-                          foregroundColor: Colors.white,
-                        ),
-                        icon: Icon(
-                          _controlsLocked ? Icons.lock : Icons.lock_open,
-                        ),
-                        onPressed: () {
-                          setState(() => _controlsLocked = !_controlsLocked);
-                          if (!_controlsLocked) _revealControls();
-                        },
-                      ),
+                      child: _controlsLocked
+                          ? IconButton.filledTonal(
+                              key: const Key('player-control-lock'),
+                              tooltip: 'إلغاء قفل التحكم',
+                              icon: const Icon(Icons.lock),
+                              onPressed: () {
+                                setState(() => _controlsLocked = false);
+                                _revealControls();
+                              },
+                            )
+                          : PopupMenuButton<String>(
+                              key: const Key('player-control-lock'),
+                              tooltip: 'أدوات سريعة',
+                              icon: const Icon(Icons.tune, color: Colors.white),
+                              onSelected: (action) async {
+                                if (action == 'lock') {
+                                  setState(() => _controlsLocked = true);
+                                }
+                                if (action == 'quality') {
+                                  await _qualityMenu(active);
+                                }
+                                if (action == 'fit') await _chooseFit();
+                                if (action == 'providers') {
+                                  await _providerCatalogue();
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'lock',
+                                  child: Text('قفل التحكم'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'quality',
+                                  child: Text('جودة الفيديو'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'fit',
+                                  child: Text('أبعاد الفيديو'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'providers',
+                                  child: Text('البحث في جميع المصادر'),
+                                ),
+                              ],
+                            ),
                     ),
                   if (active != null &&
                       _controlsVisible &&

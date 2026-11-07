@@ -89,6 +89,16 @@ class _PlaybackTimelineState extends State<PlaybackTimeline> {
     }
   }
 
+  Widget _clockBadge(Widget child) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+    decoration: BoxDecoration(
+      color: Colors.black87,
+      borderRadius: BorderRadius.circular(5),
+      border: Border.all(color: Colors.black),
+    ),
+    child: child,
+  );
+
   String _time(Duration time) {
     final seconds = time.inSeconds.clamp(0, 864000);
     return '${(seconds ~/ 3600).toString().padLeft(2, '0')}:${(seconds % 3600 ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
@@ -130,15 +140,19 @@ class _PlaybackTimelineState extends State<PlaybackTimeline> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  _time(Duration(milliseconds: position.round())),
-                  key: const Key('player-elapsed-time'),
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                _clockBadge(
+                  Text(
+                    _time(Duration(milliseconds: position.round())),
+                    key: const Key('player-elapsed-time'),
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
                 ),
-                Text(
-                  '-${_time(v.duration - Duration(milliseconds: position.round()))}',
-                  key: const Key('player-remaining-time'),
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                _clockBadge(
+                  Text(
+                    '-${_time(v.duration - Duration(milliseconds: position.round()))}',
+                    key: const Key('player-remaining-time'),
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
                 ),
               ],
             ),

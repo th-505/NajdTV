@@ -31,6 +31,7 @@ class MediaItem {
     required this.ref,
     this.year,
     this.rating = 0,
+    this.popularity = 0,
     this.source = 'mitv',
     this.discoveryScope = 'najd',
     this.genres = const [],
@@ -49,10 +50,18 @@ class MediaItem {
   final String type;
   final String ref;
   final int? year;
-  final double rating;
+  final double rating, popularity;
   final String source;
   final String discoveryScope;
   final List<String> genres;
+  List<String> get displayGenres => genres
+      .where(
+        (g) => !RegExp(
+          r"^(?:catalog|source|tmdb):",
+          caseSensitive: false,
+        ).hasMatch(g),
+      )
+      .toList();
   final int? season;
   final int? episode;
   final String audioLanguage;
@@ -70,6 +79,7 @@ class MediaItem {
     String? ref,
     int? year,
     double? rating,
+    double? popularity,
     String? source,
     String? discoveryScope,
     List<String>? genres,
@@ -89,6 +99,7 @@ class MediaItem {
     ref: ref ?? this.ref,
     year: year ?? this.year,
     rating: rating ?? this.rating,
+    popularity: popularity ?? this.popularity,
     source: source ?? this.source,
     discoveryScope: discoveryScope ?? this.discoveryScope,
     genres: List.unmodifiable(genres ?? this.genres),
@@ -112,6 +123,7 @@ class MediaItem {
     'ref': ref,
     'year': year,
     'rating': rating,
+    if (popularity > 0) 'popularity': popularity,
     'source': source,
     if (discoveryScope == 'beta') 'discovery_scope': discoveryScope,
     'genres': genres,
@@ -133,6 +145,9 @@ class MediaItem {
     ref: '${json['ref'] ?? ''}',
     year: int.tryParse('${json['year'] ?? ''}'),
     rating: _safeRating(json['rating']),
+    popularity: (double.tryParse('${json['popularity']}') ?? 0)
+        .clamp(0, 1000000000)
+        .toDouble(),
     source: '${json['source'] ?? 'mitv'}',
     discoveryScope: json['discovery_scope'] == 'beta' ? 'beta' : 'najd',
     genres: _descriptiveGenres(json),

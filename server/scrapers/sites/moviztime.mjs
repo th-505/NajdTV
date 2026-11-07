@@ -30,9 +30,9 @@ import {
 
 export const PROVIDER_META = Object.freeze({
   id: 'moviztime',
-  name: 'Moviz Time',
+  name: 'وقت الأفلام',
   code: 'ME',
-  domains: ['https://moviz-time.quest'],
+  domains: ['https://moviz-time.surf', 'https://moviz-time.quest'],
   mirrorOf: null,
   capabilities: {
     catalog: true,
@@ -53,9 +53,9 @@ export const PROVIDER_META = Object.freeze({
 export const MOVIZTIME_CONFIG = {
   key: 'moviztime',
   id: 'moviztime',
-  name: 'Moviz Time',
+  name: 'وقت الأفلام',
   code: 'ME',
-  baseUrl: 'https://moviz-time.quest',
+  baseUrl: 'https://moviz-time.surf',
   categories: {
     all: '/',
     movies: '/category/%d8%a3%d9%81%d9%84%d8%a7%d9%85-%d8%a3%d8%ac%d9%86%d8%a8%d9%8a%d8%a9/',
@@ -123,7 +123,7 @@ function extractCardsFromDom($, baseUrl, defaultType = 'movie') {
       '';
     const qualityBadge = $(el).find('span._quality_tag').first().text().trim();
     const quality =
-      qualityBadge && !/حلقة|الحلقة/i.test(qualityBadge) ? qualityBadge : 'HD';
+      qualityBadge && !/حلقة|الحلقة/i.test(qualityBadge) ? qualityBadge : '';
 
     const hasSeriesClass = $(el).find('.series, .type-series').length > 0;
     const inferredType =
@@ -257,7 +257,8 @@ function extractEpisodesFromDom($, pageUrl, defaultSeason = 1) {
         const href = $(el).attr('href') || '';
         const locMatch = onclick.match(/location\.href\s*=\s*['"]([^'"]+)['"]/i);
         const embedUrl = locMatch ? locMatch[1].trim() : href.trim();
-        const epNum = extractEpisodeNumber(label, '', idx + 1) || idx + 1;
+        const epNum = extractEpisodeNumber(label, '', null) || (/^\d{1,5}$/.test(label) ? Number(label) : null);
+        if (!epNum) return;
 
         // Only add primary episode entry once across multiple server blocks and deduplicate by episode number
         if (blockIdx === 0 && embedUrl && !seenEpNumbers.has(epNum)) {
@@ -282,8 +283,8 @@ function extractEpisodesFromDom($, pageUrl, defaultSeason = 1) {
       const season = parts.length > 1 && !Number.isNaN(parts[0]) ? parts[0] : defaultSeason;
       const epNum =
         (parts.length > 1 ? parts[1] : parts[0]) ||
-        extractEpisodeNumber(a.text().trim(), epHref, idx + 1) ||
-        idx + 1;
+        extractEpisodeNumber(a.text().trim(), epHref, null);
+      if (!epNum) return;
 
       if (epHref) {
         rawEpisodes.push({

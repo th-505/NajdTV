@@ -39,7 +39,7 @@ export const PROVIDER_META = Object.freeze({
   id: '3cktv',
   name: '3ckTV',
   code: '3V',
-  domains: ['https://e.3cktv.cam', 'https://e.3cktv.com', 'https://3cktv.com', 'https://ei.3cktv.com'],
+  domains: ['https://e.3cktv.com', 'https://e.3cktv.cam', 'https://3cktv.com', 'https://ei.3cktv.com'],
   mirrorOf: null,
   capabilities: {
     catalog: true,
@@ -65,9 +65,9 @@ export const THREE_CKTV_CONFIG = Object.freeze({
   id: '3cktv',
   name: '3ckTV',
   code: '3V',
-  baseUrl: 'https://e.3cktv.cam',
+  baseUrl: 'https://e.3cktv.com',
   fallbackBaseUrl: 'https://3cktv.com',
-  domains: ['https://e.3cktv.cam', 'https://e.3cktv.com', 'https://3cktv.com', 'https://ei.3cktv.com'],
+  domains: ['https://e.3cktv.com', 'https://e.3cktv.cam', 'https://3cktv.com', 'https://ei.3cktv.com'],
   categories: {
     turkish_latest: '/episodes/',
     turkish_subbed: '/category/مسلسلات-تركية-مترجمة/',

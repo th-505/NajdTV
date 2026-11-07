@@ -1,3 +1,4 @@
+import 'person_works_grid.dart';
 import 'episode_browser.dart';
 import 'browser_content_route.dart';
 import 'browser_navigation_stub.dart'
@@ -730,30 +731,17 @@ class _DetailsPageState extends State<DetailsPage> {
               if (snapshot.data!.isEmpty) {
                 return const Center(child: Text('لا توجد أعمال متاحة حالياً'));
               }
-              return GridView.builder(
-                padding: const EdgeInsets.all(16),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 220,
-                  mainAxisExtent: 340,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                ),
-                itemCount: snapshot.data!.length,
-                itemBuilder: (context, index) {
-                  final item = snapshot.data![index];
-                  return NajdWorkCard(
-                    item: item,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => DetailsPage(
-                            api: widget.api,
-                            store: widget.store,
-                            item: item,
-                          ),
-                        ),
-                      );
-                    },
+              return PersonWorksGrid(
+                items: snapshot.data!,
+                onItem: (item) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DetailsPage(
+                        api: widget.api,
+                        store: widget.store,
+                        item: item,
+                      ),
+                    ),
                   );
                 },
               );

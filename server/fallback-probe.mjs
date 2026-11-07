@@ -1,4 +1,6 @@
 const DIRECT_MEDIA_TYPES = Object.freeze([
+  ['application/dash+xml','dash'], ['video/webm','webm'], ['video/x-matroska','matroska'],
+  ['video/quicktime','quicktime'], ['video/x-msvideo','avi'], ['video/ogg','ogg'], ['video/x-flv','flv'],
   ["application/vnd.apple.mpegurl", "hls"],
   ["application/x-mpegurl", "hls"],
   ["video/mp4", "mp4"],

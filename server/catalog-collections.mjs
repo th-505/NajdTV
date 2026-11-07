@@ -9,5 +9,5 @@ export function collectionRequest(ref,page,now=new Date()){
  if(row.window==='week'||row.window==='upcoming'){
   params['air_date.gte']=date(row.window==='week'?-6:0);params['air_date.lte']=date(row.window==='week'?0:7);
  }
- return{path:`/discover/${row.type}`,type:row.type,params};
+ return{path:row.path||`/discover/${row.type}`,type:row.type,params};
 }

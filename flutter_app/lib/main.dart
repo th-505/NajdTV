@@ -1,3 +1,6 @@
+import 'src/catalog_collection_defs.dart';
+import 'src/catalog_shelf.dart';
+import 'src/scroll_to_top.dart';
 import 'src/episode_preferences.dart';
 import 'src/browser_content_route.dart';
 import 'src/browser_navigation_stub.dart'
@@ -165,14 +168,16 @@ class _MitvAppState extends State<MitvApp> with WidgetsBindingObserver {
         theme: NajdThemes.light,
         darkTheme: NajdThemes.dark,
         themeMode: NajdAppearance.instance.mode,
-        builder: (context, child) => NajdTvViewport(
-          child: NajdIntro(
-            child: isTvTarget
-                ? VirtualPointerScope(
-                    controller: _pointer,
-                    child: _navigationTree(),
-                  )
-                : _navigationTree(),
+        builder: (context, child) => ScrollToTopOverlay(
+          child: NajdTvViewport(
+            child: NajdIntro(
+              child: isTvTarget
+                  ? VirtualPointerScope(
+                      controller: _pointer,
+                      child: _navigationTree(),
+                    )
+                  : _navigationTree(),
+            ),
           ),
         ),
         locale: const Locale('ar'),
@@ -887,6 +892,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final Map<String, String> _homeSignatures = {};
+  late Future<List<CatalogItem>> _featured = widget.api.category(
+    'catalog:collection:home-daily',
+  );
   late Future<List<CatalogItem>> _topMovies = widget.api.category(
     'catalog:collection:movie-top',
   );
@@ -903,6 +912,8 @@ class _HomePageState extends State<HomePage> {
     'catalog:anime:tv',
   );
   void _retry() => setState(() {
+    _featured = widget.api.category('catalog:collection:home-daily');
+    _homeSignatures.clear();
     _latest = widget.api.category('catalog:movie:all');
     _series = widget.api.category('catalog:tv:all');
     _anime = widget.api.category('catalog:anime:tv');
@@ -1016,6 +1027,7 @@ class _HomePageState extends State<HomePage> {
                 width: isTvTarget ? 220 : 162,
                 child: NajdWorkCard(
                   item: items[i],
+                  rank: collectionRef?.endsWith('-top') == true ? i + 1 : null,
                   onTap: () =>
                       openDetails(context, widget.api, widget.store, items[i]),
                 ),
@@ -1054,156 +1066,188 @@ class _HomePageState extends State<HomePage> {
           );
         }
         final items = snapshot.data ?? const <CatalogItem>[];
-        return ListView(
-          key: const Key('stitch-home'),
-          padding: EdgeInsets.all(isTvTarget ? 32 : 18),
-          children: [
-            if (items.isNotEmpty)
-              NajdFeatureCarousel(
-                items: items,
+        final children = <Widget>[
+          if (items.isNotEmpty)
+            FutureBuilder<List<CatalogItem>>(
+              future: _featured,
+              builder: (context, featured) => NajdFeatureCarousel(
+                items: featured.data?.isNotEmpty == true
+                    ? featured.data!
+                    : items,
                 isSaved: (item) => widget.store.isFavorite(item.ref),
                 onWatch: (item) =>
                     openDetails(context, widget.api, widget.store, item),
                 onSave: (item) => unawaited(widget.store.toggleFavorite(item)),
               ),
-            if (widget.store.continueWatching.isNotEmpty) ...[
-              NajdSectionHeading(
-                'متابعة المشاهدة',
-                action: 'عرض السجل',
-                onAction: _history,
-              ),
-              SizedBox(
-                height: 200,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: widget.store.continueWatching.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 14),
-                  itemBuilder: (context, i) {
-                    final entry = widget.store.continueWatching[i];
-                    return SizedBox(
-                      width: 270,
-                      child: NajdSurface(
-                        padding: EdgeInsets.zero,
-                        child: InkWell(
-                          onTap: () => openHistoryEntry(
-                            context,
-                            widget.api,
-                            widget.store,
-                            entry,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(20),
-                                  ),
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      NajdPoster(url: entry.poster),
-                                      const Center(
-                                        child: Icon(
-                                          Icons.play_circle_fill,
-                                          color: Colors.white,
-                                          size: 42,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              Directionality(
-                                textDirection: TextDirection.ltr,
-                                child: LinearProgressIndicator(
-                                  value: entry.durationMs > 0
-                                      ? entry.progress
-                                      : 0,
-                                  minHeight: 4,
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Text(
-                                  entry.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-            if (widget.store.continueWatching.isEmpty) ...[
-              const NajdSectionHeading('متابعة المشاهدة'),
-              const Text('الأعمال التي تبدأها ستظهر هنا.'),
-            ],
-            NajdSectionHeading(
-              'قائمتي',
-              action: 'المزيد',
-              onAction: () => widget.onNavigate?.call(7),
             ),
-            if (widget.store.favorites.isEmpty)
-              const Text('أضف أعمالك المفضلة لتجدها هنا.'),
-            if (widget.store.favorites.isNotEmpty)
-              SizedBox(
-                height: isTvTarget ? 350 : 285,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: widget.store.favorites.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 12),
-                  itemBuilder: (_, index) {
-                    final item = widget.store.favorites[index];
-                    return SizedBox(
-                      width: isTvTarget ? 210 : 155,
-                      child: NajdWorkCard(
-                        item: item,
-                        onTap: () => openDetails(
+          if (widget.store.continueWatching.isNotEmpty) ...[
+            NajdSectionHeading(
+              'متابعة المشاهدة',
+              action: 'عرض السجل',
+              onAction: _history,
+            ),
+            SizedBox(
+              height: 200,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: widget.store.continueWatching.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 14),
+                itemBuilder: (context, i) {
+                  final entry = widget.store.continueWatching[i];
+                  return SizedBox(
+                    width: 270,
+                    child: NajdSurface(
+                      padding: EdgeInsets.zero,
+                      child: InkWell(
+                        onTap: () => openHistoryEntry(
                           context,
                           widget.api,
                           widget.store,
-                          item,
+                          entry,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(20),
+                                ),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    NajdPoster(url: entry.poster),
+                                    const Center(
+                                      child: Icon(
+                                        Icons.play_circle_fill,
+                                        color: Colors.white,
+                                        size: 42,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: LinearProgressIndicator(
+                                value: entry.durationMs > 0
+                                    ? entry.progress
+                                    : 0,
+                                minHeight: 4,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Text(
+                                entry.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+          if (widget.store.continueWatching.isEmpty) ...[
+            const NajdSectionHeading('متابعة المشاهدة'),
+            const Text('الأعمال التي تبدأها ستظهر هنا.'),
+          ],
+          NajdSectionHeading(
+            'قائمتي',
+            action: 'المزيد',
+            onAction: () => widget.onNavigate?.call(7),
+          ),
+          if (widget.store.favorites.isEmpty)
+            const Text('أضف أعمالك المفضلة لتجدها هنا.'),
+          if (widget.store.favorites.isNotEmpty)
+            SizedBox(
+              height: isTvTarget ? 350 : 285,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: widget.store.favorites.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (_, index) {
+                  final item = widget.store.favorites[index];
+                  return SizedBox(
+                    width: isTvTarget ? 210 : 155,
+                    child: NajdWorkCard(
+                      item: item,
+                      onTap: () =>
+                          openDetails(context, widget.api, widget.store, item),
+                    ),
+                  );
+                },
+              ),
+            ),
+          _shelf(
+            'أفضل عشرة أفلام · تقييم TMDB',
+            _topMovies,
+            1,
+            collectionRef: 'catalog:collection:movie-top',
+            limit: 10,
+          ),
+          _shelf(
+            'أفضل عشرة مسلسلات · تقييم TMDB',
+            _topSeries,
+            2,
+            collectionRef: 'catalog:collection:series-top',
+            limit: 10,
+          ),
+          _shelf('أحدث الإضافات', _latest, 1),
+          if (items.isNotEmpty) ...[
+            _shelf('مسلسلات تستحق المشاهدة', _series, 2),
+            _shelf('عالم الأنمي', _anime, 3),
+          ],
+          if (items.isEmpty)
+            NajdEmptyState(
+              kind: NajdEmptyKind.search,
+              onExplore: () => widget.onNavigate?.call(5),
+            ),
+          const SizedBox(height: 20),
+          for (final definition in najdCatalogCollections.where(
+            (r) =>
+                r['group'] == 'home' &&
+                ![
+                  'catalog:collection:home-top',
+                  'catalog:collection:home-series-top',
+                  'catalog:collection:home-anime',
+                ].contains(r['id']),
+          ))
+            CatalogCollectionShelf(
+              api: widget.api,
+              definition: definition,
+              signatures: _homeSignatures,
+              onItem: (item) =>
+                  openDetails(context, widget.api, widget.store, item),
+              onMore: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => Scaffold(
+                    appBar: AppBar(title: Text(definition['title']!)),
+                    body: CatalogPage(
+                      api: widget.api,
+                      store: widget.store,
+                      title: definition['title']!,
+                      categoryId: definition['id']!,
+                    ),
+                  ),
                 ),
               ),
-            _shelf(
-              'أفضل عشرة أفلام · تقييم TMDB',
-              _topMovies,
-              1,
-              collectionRef: 'catalog:collection:movie-top',
-              limit: 10,
             ),
-            _shelf(
-              'أفضل عشرة مسلسلات · تقييم TMDB',
-              _topSeries,
-              2,
-              collectionRef: 'catalog:collection:series-top',
-              limit: 10,
-            ),
-            _shelf('أحدث الإضافات', _latest, 1),
-            if (items.isNotEmpty) ...[
-              _shelf('مسلسلات تستحق المشاهدة', _series, 2),
-              _shelf('عالم الأنمي', _anime, 3),
-            ],
-            if (items.isEmpty)
-              NajdEmptyState(
-                kind: NajdEmptyKind.search,
-                onExplore: () => widget.onNavigate?.call(5),
-              ),
-            const SizedBox(height: 20),
-          ],
+        ];
+        return ListView.builder(
+          key: const Key('stitch-home'),
+          padding: EdgeInsets.all(isTvTarget ? 32 : 18),
+          itemCount: children.length,
+          itemBuilder: (_, i) => children[i],
         );
       },
     ),
@@ -2339,6 +2383,7 @@ class _CatalogPageState extends State<CatalogPage> {
                     }
                     final item = items[i];
                     return _CatalogCard(
+                      rank: selectedCategory.endsWith('-top') ? i + 1 : null,
                       item: item,
                       onTap: () =>
                           openDetails(context, widget.api, widget.store, item),
@@ -2356,13 +2401,20 @@ class _CatalogCard extends StatelessWidget {
     required this.item,
     required this.onTap,
     this.sourceLabel,
+    this.rank,
   });
+  final int? rank;
   final String? sourceLabel;
   final CatalogItem item;
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => FocusHighlight(
-    child: NajdWorkCard(item: item, onTap: onTap, sourceLabel: sourceLabel),
+    child: NajdWorkCard(
+      item: item,
+      onTap: onTap,
+      sourceLabel: sourceLabel,
+      rank: rank,
+    ),
   );
 }
 

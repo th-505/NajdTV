@@ -4,11 +4,12 @@ class PlayerLevelRail extends StatelessWidget {
   const PlayerLevelRail({
     super.key,
     required this.value,
+    this.height = 180,
     required this.label,
     required this.icon,
     required this.onChanged,
   });
-  final double value;
+  final double value, height;
   final String label;
   final IconData icon;
   final ValueChanged<double> onChanged;
@@ -18,7 +19,7 @@ class PlayerLevelRail extends StatelessWidget {
     borderRadius: BorderRadius.circular(18),
     child: SizedBox(
       width: 52,
-      height: 200,
+      height: height,
       child: Column(
         children: [
           const SizedBox(height: 8),
@@ -26,11 +27,14 @@ class PlayerLevelRail extends StatelessWidget {
           Expanded(
             child: RotatedBox(
               quarterTurns: 3,
-              child: Slider(
-                value: value.clamp(0, 1),
-                onChanged: onChanged,
-                semanticFormatterCallback: (v) =>
-                    '$label ${(v * 100).round()}٪',
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: Slider(
+                  value: value.clamp(0, 1),
+                  onChanged: onChanged,
+                  semanticFormatterCallback: (v) =>
+                      '$label ${(v * 100).round()}٪',
+                ),
               ),
             ),
           ),

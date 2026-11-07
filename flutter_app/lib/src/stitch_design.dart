@@ -107,7 +107,9 @@ class NajdWorkCard extends StatelessWidget {
     this.selected = false,
     this.onSelect,
     this.sourceLabel,
+    this.rank,
   });
+  final int? rank;
   final String? sourceLabel;
   final CatalogItem item;
   final VoidCallback onTap;
@@ -137,6 +139,28 @@ class NajdWorkCard extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 NajdPoster(url: item.poster),
+                if (rank != null)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$rank',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
                 Positioned(
                   top: 9,
                   right: 9,
@@ -200,7 +224,7 @@ class NajdWorkCard extends StatelessWidget {
                       child: Text(
                         [
                           if (item.year != null) '${item.year}',
-                          ...item.genres.take(1),
+                          ...item.displayGenres.take(1),
                         ].join(' · '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -247,19 +271,27 @@ class _NajdFeatureCarouselState extends State<NajdFeatureCarousel> {
   final _pages = PageController();
   Timer? _timer;
   int _index = 0;
-  bool _interacted = false;
-  int get _count => widget.items.length.clamp(0, 8);
+  DateTime? _pausedUntil;
+  bool _focused = false;
+  List<CatalogItem> get _items =>
+      {for (final item in widget.items) item.ref: item}.values
+          .take(15)
+          .toList();
+  int get _count => _items.length;
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _timer?.cancel();
-    if (!_interacted &&
-        !MediaQuery.disableAnimationsOf(context) &&
+    if (!MediaQuery.disableAnimationsOf(context) &&
         TickerMode.valuesOf(context).enabled) {
       _timer = Timer.periodic(const Duration(seconds: 8), (_) {
-        if (mounted && _pages.hasClients && _count > 1) {
+        if (mounted &&
+            !_focused &&
+            (_pausedUntil == null || DateTime.now().isAfter(_pausedUntil!)) &&
+            _pages.hasClients &&
+            _count > 1) {
           _pages.animateToPage(
-            (_index + 1) % _count,
+            _index + 1,
             duration: const Duration(milliseconds: 450),
             curve: Curves.easeInOut,
           );
@@ -269,8 +301,7 @@ class _NajdFeatureCarouselState extends State<NajdFeatureCarousel> {
   }
 
   void _pause() {
-    _interacted = true;
-    _timer?.cancel();
+    _pausedUntil = DateTime.now().add(const Duration(seconds: 8));
   }
 
   @override
@@ -284,57 +315,85 @@ class _NajdFeatureCarouselState extends State<NajdFeatureCarousel> {
   Widget build(BuildContext context) {
     if (_count == 0) return const SizedBox.shrink();
     return Focus(
-      onFocusChange: (focused) {
-        if (focused) _pause();
-      },
+      onFocusChange: (value) => _focused = value,
       child: Listener(
         onPointerDown: (_) => _pause(),
-        child: Column(
-          children: [
-            SizedBox(
-              height: MediaQuery.sizeOf(context).width < 600 ? 300 : 400,
-              child: PageView.builder(
-                controller: _pages,
-                itemCount: _count,
-                onPageChanged: (value) => setState(() => _index = value),
-                itemBuilder: (_, index) {
-                  final item = widget.items[index];
-                  return NajdFeatureHero(
-                    item: item,
-                    saved: widget.isSaved(item),
-                    onWatch: () => widget.onWatch(item),
-                    onSave: () => widget.onSave(item),
-                  );
-                },
-              ),
-            ),
-            if (_count > 1)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    tooltip: 'العمل السابق',
-                    onPressed: () {
-                      _pause();
-                      _pages.jumpToPage((_index - 1 + _count) % _count);
-                    },
-                    icon: const Icon(Icons.chevron_right),
+        child: LayoutBuilder(
+          builder: (context, bounds) {
+            final visible = (bounds.maxWidth / 340).floor().clamp(1, 5);
+            return Column(
+              children: [
+                SizedBox(
+                  height: bounds.maxWidth < 600 ? 270 : 310,
+                  child: PageView.builder(
+                    controller: _pages,
+                    onPageChanged: (value) => setState(() => _index = value),
+                    itemBuilder: (_, page) => Row(
+                      children: [
+                        for (var i = 0; i < visible; i++)
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                              ),
+                              child: NajdFeatureHero(
+                                item: _items[(page + i) % _count],
+                                saved: widget.isSaved(
+                                  _items[(page + i) % _count],
+                                ),
+                                onWatch: () =>
+                                    widget.onWatch(_items[(page + i) % _count]),
+                                onSave: () =>
+                                    widget.onSave(_items[(page + i) % _count]),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                  Text(
-                    '${_index + 1} / $_count',
-                    semanticsLabel: 'العمل ${_index + 1} من $_count',
+                ),
+                if (_count > 1)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        tooltip: 'العمل السابق',
+                        onPressed: () {
+                          _pause();
+                          _pages.jumpToPage(
+                            _index > 0 ? _index - 1 : _count - 1,
+                          );
+                        },
+                        icon: const Icon(Icons.chevron_right),
+                      ),
+                      for (var i = 0; i < _count; i++)
+                        Padding(
+                          padding: const EdgeInsets.all(3),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: i == _index % _count ? 16 : 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: i == _index % _count
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.outline,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      IconButton(
+                        tooltip: 'العمل التالي',
+                        onPressed: () {
+                          _pause();
+                          _pages.jumpToPage(_index + 1);
+                        },
+                        icon: const Icon(Icons.chevron_left),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    tooltip: 'العمل التالي',
-                    onPressed: () {
-                      _pause();
-                      _pages.jumpToPage((_index + 1) % _count);
-                    },
-                    icon: const Icon(Icons.chevron_left),
-                  ),
-                ],
-              ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -372,7 +431,7 @@ class NajdFeatureHero extends StatelessWidget {
                   colors: [
                     Color(0x10000000),
                     Color(0x55000000),
-                    Color(0xFA121118),
+                    Color(0xD91A1933),
                   ],
                 ),
               ),
@@ -398,17 +457,17 @@ class NajdFeatureHero extends StatelessWidget {
                     item.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
                       height: 1.4,
                     ),
                   ),
-                  if (item.genres.isNotEmpty)
+                  if (item.displayGenres.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        item.genres.take(3).join(' · '),
+                        item.displayGenres.take(3).join(' · '),
                         style: const TextStyle(color: Color(0xFFE6DDF7)),
                       ),
                     ),

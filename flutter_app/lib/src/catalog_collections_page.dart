@@ -29,6 +29,7 @@ class CatalogCollectionsPage extends StatefulWidget {
 
 class _CatalogCollectionsPageState extends State<CatalogCollectionsPage> {
   final Map<String, Future<List<CatalogItem>>> _requests = {};
+  final Map<String, String> _signatures = {};
   bool _matches(CatalogItem item) => widget.group == 'movie'
       ? item.type == 'movie'
       : widget.group == 'series'
@@ -43,16 +44,37 @@ class _CatalogCollectionsPageState extends State<CatalogCollectionsPage> {
       animation: widget.store,
       builder: (context, _) => RefreshIndicator(
         onRefresh: () async {
-          setState(_requests.clear);
+          setState(() {
+            _requests.clear();
+            _signatures.clear();
+          });
         },
         child: ListView.builder(
           key: ValueKey('collection-feed-${widget.group}'),
           scrollCacheExtent: const ScrollCacheExtent.pixels(200),
           padding: EdgeInsets.all(isTvTarget ? 28 : 16),
-          itemCount: definitions.length + 2,
+          itemCount: definitions.length + 3,
           itemBuilder: (context, index) {
-            if (index < 2) {
-              final items = index == 0
+            if (index == 0)
+              return FutureBuilder<List<CatalogItem>>(
+                future: _requests.putIfAbsent(
+                  'hero',
+                  () => widget.api.category(
+                    'catalog:collection:${widget.group}-daily',
+                  ),
+                ),
+                builder: (context, snapshot) =>
+                    snapshot.data?.isNotEmpty == true
+                    ? NajdFeatureCarousel(
+                        items: snapshot.data!,
+                        isSaved: (item) => widget.store.isFavorite(item.ref),
+                        onWatch: widget.onItem,
+                        onSave: (item) => widget.store.toggleFavorite(item),
+                      )
+                    : const SizedBox.shrink(),
+              );
+            if (index < 3) {
+              final items = index == 1
                   ? widget.store.continueWatching
                         .map(
                           (entry) =>
@@ -70,9 +92,9 @@ class _CatalogCollectionsPageState extends State<CatalogCollectionsPage> {
                         .where(_matches)
                         .toList()
                   : widget.store.favorites.where(_matches).toList();
-              return _shelf(index == 0 ? 'متابعة المشاهدة' : 'قائمتي', items);
+              return _shelf(index == 1 ? 'متابعة المشاهدة' : 'قائمتي', items);
             }
-            final definition = definitions[index - 2], ref = definition['id']!;
+            final definition = definitions[index - 3], ref = definition['id']!;
             return FutureBuilder<List<CatalogItem>>(
               future: _requests.putIfAbsent(
                 ref,
@@ -108,11 +130,21 @@ class _CatalogCollectionsPageState extends State<CatalogCollectionsPage> {
                     ),
                   );
                 }
+                final listed = (snapshot.data ?? []).take(10).toList();
+                if (listed.isNotEmpty) {
+                  final signature = (listed.map((e) => e.ref).toList()..sort())
+                      .join('|');
+                  if (_signatures.entries.any(
+                    (e) => e.key != ref && e.value == signature,
+                  ))
+                    return const SizedBox.shrink();
+                  _signatures[ref] = signature;
+                }
                 return _shelf(
                   definition['title']!,
                   (snapshot.data ?? []).take(10).toList(),
                   onMore: () => widget.onMore(ref, definition['title']!),
-                  ranked: index == 2,
+                  ranked: ref.endsWith('-top'),
                 );
               },
             );
@@ -161,7 +193,7 @@ class _CatalogCollectionsPageState extends State<CatalogCollectionsPage> {
                   if (ranked)
                     Positioned(
                       top: 4,
-                      right: 4,
+                      left: 4,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: Colors.black87,

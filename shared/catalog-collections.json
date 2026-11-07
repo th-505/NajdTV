@@ -512,5 +512,563 @@
       "with_original_language": "tr",
       "with_genres": "35"
     }
+  },
+  {
+    "id": "catalog:collection:movie-daily",
+    "group": "movie",
+    "title": "اختيارات اليوم",
+    "type": "movie",
+    "params": {},
+    "path": "/trending/movie/day"
+  },
+  {
+    "id": "catalog:collection:series-daily",
+    "group": "series",
+    "title": "اختيارات اليوم",
+    "type": "tv",
+    "params": {},
+    "path": "/trending/tv/day"
+  },
+  {
+    "id": "catalog:collection:anime-daily",
+    "group": "anime",
+    "title": "اختيارات اليوم",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16"
+    },
+    "window": "year"
+  },
+  {
+    "id": "catalog:collection:anime-year",
+    "group": "anime",
+    "title": "الأعلى تقييمًا هذا العام",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16",
+      "sort_by": "vote_average.desc",
+      "vote_count.gte": "30"
+    },
+    "window": "year"
+  },
+  {
+    "id": "catalog:collection:anime-recent",
+    "group": "anime",
+    "title": "أحدث الأعمال",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16",
+      "sort_by": "first_air_date.desc"
+    },
+    "window": "past"
+  },
+  {
+    "id": "catalog:collection:anime-classic",
+    "group": "anime",
+    "title": "كلاسيكيات",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16",
+      "first_air_date.lte": "1999-12-31",
+      "sort_by": "vote_average.desc",
+      "vote_count.gte": "30"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-mystery",
+    "group": "anime",
+    "title": "غموض",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16,9648"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-crime",
+    "group": "anime",
+    "title": "جريمة",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16,80"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-family",
+    "group": "anime",
+    "title": "عائلي",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16,10751"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-fantasy",
+    "group": "anime",
+    "title": "خيال علمي وفانتازيا",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16,10765"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-history",
+    "group": "anime",
+    "title": "حروب وسياسة",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16,10768"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-votes",
+    "group": "anime",
+    "title": "الأكثر تصويتًا",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16",
+      "sort_by": "vote_count.desc",
+      "vote_count.gte": "30"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-nineties",
+    "group": "anime",
+    "title": "من التسعينيات",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16",
+      "first_air_date.gte": "1990-01-01",
+      "first_air_date.lte": "1999-12-31"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-millennium",
+    "group": "anime",
+    "title": "من الألفينات",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16",
+      "first_air_date.gte": "2000-01-01",
+      "first_air_date.lte": "2009-12-31"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-last-decade",
+    "group": "anime",
+    "title": "من العقد الماضي",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16",
+      "first_air_date.gte": "2010-01-01",
+      "first_air_date.lte": "2019-12-31"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-modern",
+    "group": "anime",
+    "title": "أعمال حديثة",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16",
+      "first_air_date.gte": "2020-01-01"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-rated",
+    "group": "anime",
+    "title": "الأعلى تقييمًا بمشاركة الجمهور",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16",
+      "sort_by": "vote_average.desc",
+      "vote_count.gte": "300"
+    }
+  },
+  {
+    "id": "catalog:collection:anime-latest-year",
+    "group": "anime",
+    "title": "إصدارات هذا العام",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16",
+      "sort_by": "first_air_date.desc"
+    },
+    "window": "year"
+  },
+  {
+    "id": "catalog:collection:turkish-daily",
+    "group": "turkish",
+    "title": "اختيارات اليوم",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr"
+    },
+    "window": "year"
+  },
+  {
+    "id": "catalog:collection:turkish-year",
+    "group": "turkish",
+    "title": "الأعلى تقييمًا هذا العام",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "sort_by": "vote_average.desc",
+      "vote_count.gte": "30"
+    },
+    "window": "year"
+  },
+  {
+    "id": "catalog:collection:turkish-recent",
+    "group": "turkish",
+    "title": "أحدث الأعمال",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "sort_by": "first_air_date.desc"
+    },
+    "window": "past"
+  },
+  {
+    "id": "catalog:collection:turkish-classic",
+    "group": "turkish",
+    "title": "كلاسيكيات",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "first_air_date.lte": "1999-12-31",
+      "sort_by": "vote_average.desc",
+      "vote_count.gte": "30"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-mystery",
+    "group": "turkish",
+    "title": "غموض",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "with_genres": "9648"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-crime",
+    "group": "turkish",
+    "title": "جريمة",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "with_genres": "80"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-family",
+    "group": "turkish",
+    "title": "عائلي",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "with_genres": "10751"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-fantasy",
+    "group": "turkish",
+    "title": "خيال علمي وفانتازيا",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "with_genres": "10765"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-history",
+    "group": "turkish",
+    "title": "حروب وسياسة",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "with_genres": "10768"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-votes",
+    "group": "turkish",
+    "title": "الأكثر تصويتًا",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "sort_by": "vote_count.desc",
+      "vote_count.gte": "30"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-nineties",
+    "group": "turkish",
+    "title": "من التسعينيات",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "first_air_date.gte": "1990-01-01",
+      "first_air_date.lte": "1999-12-31"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-millennium",
+    "group": "turkish",
+    "title": "من الألفينات",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "first_air_date.gte": "2000-01-01",
+      "first_air_date.lte": "2009-12-31"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-last-decade",
+    "group": "turkish",
+    "title": "من العقد الماضي",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "first_air_date.gte": "2010-01-01",
+      "first_air_date.lte": "2019-12-31"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-modern",
+    "group": "turkish",
+    "title": "أعمال حديثة",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "first_air_date.gte": "2020-01-01"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-rated",
+    "group": "turkish",
+    "title": "الأعلى تقييمًا بمشاركة الجمهور",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "sort_by": "vote_average.desc",
+      "vote_count.gte": "300"
+    }
+  },
+  {
+    "id": "catalog:collection:turkish-latest-year",
+    "group": "turkish",
+    "title": "إصدارات هذا العام",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr",
+      "sort_by": "first_air_date.desc"
+    },
+    "window": "year"
+  },
+  {
+    "id": "catalog:collection:home-top",
+    "group": "home",
+    "title": "أفضل عشرة أفلام",
+    "type": "movie",
+    "params": {
+      "sort_by": "vote_average.desc",
+      "vote_count.gte": "300"
+    }
+  },
+  {
+    "id": "catalog:collection:home-daily",
+    "group": "home",
+    "title": "ما ينصح به اليوم",
+    "type": "movie",
+    "params": {},
+    "path": "/trending/movie/day"
+  },
+  {
+    "id": "catalog:collection:home-series-top",
+    "group": "home",
+    "title": "أفضل عشرة مسلسلات",
+    "type": "tv",
+    "params": {
+      "sort_by": "vote_average.desc",
+      "vote_count.gte": "100"
+    }
+  },
+  {
+    "id": "catalog:collection:home-movie-popular",
+    "group": "home",
+    "title": "الأفلام الرائجة",
+    "type": "movie",
+    "params": {
+      "sort_by": "popularity.desc"
+    }
+  },
+  {
+    "id": "catalog:collection:home-series-popular",
+    "group": "home",
+    "title": "المسلسلات الرائجة",
+    "type": "tv",
+    "params": {
+      "sort_by": "popularity.desc"
+    }
+  },
+  {
+    "id": "catalog:collection:home-movie-year",
+    "group": "home",
+    "title": "أفضل أفلام العام",
+    "type": "movie",
+    "params": {
+      "sort_by": "vote_average.desc",
+      "vote_count.gte": "50"
+    },
+    "window": "year"
+  },
+  {
+    "id": "catalog:collection:home-series-year",
+    "group": "home",
+    "title": "أفضل مسلسلات العام",
+    "type": "tv",
+    "params": {
+      "sort_by": "vote_average.desc",
+      "vote_count.gte": "50"
+    },
+    "window": "year"
+  },
+  {
+    "id": "catalog:collection:home-movie-action",
+    "group": "home",
+    "title": "أفلام أكشن",
+    "type": "movie",
+    "params": {
+      "with_genres": "28"
+    }
+  },
+  {
+    "id": "catalog:collection:home-movie-comedy",
+    "group": "home",
+    "title": "أفلام كوميدية",
+    "type": "movie",
+    "params": {
+      "with_genres": "35"
+    }
+  },
+  {
+    "id": "catalog:collection:home-movie-drama",
+    "group": "home",
+    "title": "أفلام درامية",
+    "type": "movie",
+    "params": {
+      "with_genres": "18"
+    }
+  },
+  {
+    "id": "catalog:collection:home-movie-mystery",
+    "group": "home",
+    "title": "غموض وتشويق",
+    "type": "movie",
+    "params": {
+      "with_genres": "9648"
+    }
+  },
+  {
+    "id": "catalog:collection:home-movie-family",
+    "group": "home",
+    "title": "أفلام عائلية",
+    "type": "movie",
+    "params": {
+      "with_genres": "10751"
+    }
+  },
+  {
+    "id": "catalog:collection:home-series-arabic",
+    "group": "home",
+    "title": "مسلسلات عربية",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ar"
+    }
+  },
+  {
+    "id": "catalog:collection:home-movie-arabic",
+    "group": "home",
+    "title": "أفلام عربية",
+    "type": "movie",
+    "params": {
+      "with_original_language": "ar"
+    }
+  },
+  {
+    "id": "catalog:collection:home-turkish",
+    "group": "home",
+    "title": "التركي الرائج",
+    "type": "tv",
+    "params": {
+      "with_original_language": "tr"
+    }
+  },
+  {
+    "id": "catalog:collection:home-anime",
+    "group": "home",
+    "title": "عالم الأنمي",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ja",
+      "with_genres": "16"
+    }
+  },
+  {
+    "id": "catalog:collection:home-korean",
+    "group": "home",
+    "title": "دراما كورية",
+    "type": "tv",
+    "params": {
+      "with_original_language": "ko",
+      "with_genres": "18"
+    }
+  },
+  {
+    "id": "catalog:collection:home-indian",
+    "group": "home",
+    "title": "أفلام هندية",
+    "type": "movie",
+    "params": {
+      "with_original_language": "hi"
+    }
+  },
+  {
+    "id": "catalog:collection:home-movie-classic",
+    "group": "home",
+    "title": "كلاسيكيات السينما",
+    "type": "movie",
+    "params": {
+      "primary_release_date.lte": "1999-12-31",
+      "vote_count.gte": "300",
+      "sort_by": "vote_average.desc"
+    }
+  },
+  {
+    "id": "catalog:collection:home-documentary",
+    "group": "home",
+    "title": "أفلام وثائقية",
+    "type": "movie",
+    "params": {
+      "with_genres": "99"
+    }
   }
 ]
