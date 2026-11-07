@@ -14,8 +14,10 @@ class PlayerControls extends StatefulWidget {
     required this.onForward,
     required this.onPlaybackSpeedChanged,
     this.showSpeed = true,
+    this.seekSeconds = 10,
   });
 
+  final int seekSeconds;
   final bool showSpeed;
   final bool isPlaying;
   final bool isTv;
@@ -69,16 +71,16 @@ class _PlayerControlsState extends State<PlayerControls> {
               ),
               key: const Key('player-rewind'),
               focusNode: _rewindFocus,
-              tooltip: 'رجوع 10 ثوانٍ',
+              tooltip: 'رجوع ${widget.seekSeconds} ثانية',
               onPressed: widget.onRewind,
-              icon: const Stack(
+              icon: Stack(
                 alignment: Alignment.center,
                 children: [
-                  Icon(Icons.replay),
+                  const Icon(Icons.replay),
                   Padding(
                     padding: EdgeInsets.only(top: 3),
                     child: Text(
-                      '10',
+                      '${widget.seekSeconds}',
                       style: TextStyle(
                         fontFamily: 'ThmanyahSans',
                         fontSize: 11,
@@ -119,16 +121,16 @@ class _PlayerControlsState extends State<PlayerControls> {
               ),
               key: const Key('player-forward'),
               focusNode: _forwardFocus,
-              tooltip: 'تقديم 10 ثوانٍ',
+              tooltip: 'تقديم ${widget.seekSeconds} ثانية',
               onPressed: widget.onForward,
-              icon: const Stack(
+              icon: Stack(
                 alignment: Alignment.center,
                 children: [
-                  Icon(Icons.rotate_right),
+                  const Icon(Icons.rotate_right),
                   Padding(
                     padding: EdgeInsets.only(top: 3),
                     child: Text(
-                      '10',
+                      '${widget.seekSeconds}',
                       style: TextStyle(
                         fontFamily: 'ThmanyahSans',
                         fontSize: 11,

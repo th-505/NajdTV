@@ -250,6 +250,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
 
   late final NajdPipBridge _pip = widget.pipBridge ?? NajdPipBridge();
   StreamSubscription<NajdPipEvent>? _pipSubscription;
+  bool _controlsLocked = false;
   bool _pipAvailable = false, _pipActive = false, _pipHandoff = false;
   bool? _lastPipPlaying;
   Size? _lastPipSize;
@@ -381,8 +382,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   List<EpisodeItem> get _queue => _loadedSourceQueue ?? widget.episodeQueue;
   Future<void> _loadSourceQueue() async {
     if (widget.episodeQueue.isNotEmpty ||
-        !widget.item.ref.startsWith('source:') ||
-        widget.episodeNumber == null) {
+        !(widget.item.ref.startsWith('source:') ||
+            widget.item.ref.startsWith('alooy:')) ||
+        widget.isLive ||
+        widget.item.type == 'movie') {
       return;
     }
     try {
@@ -396,7 +399,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       }
       while (mounted &&
           page.episodeNextOffset != null &&
-          !episodes.values.any((ep) => ep.number > widget.episodeNumber!) &&
+          !episodes.values.any(
+            (ep) => ep.number > (_currentEpisodeNumber ?? 0),
+          ) &&
           seenOffsets.add(page.episodeNextOffset!)) {
         page = await widget.api.moreSourceEpisodes(
           widget.item.ref,
@@ -454,9 +459,11 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   }
 
   void _doubleTapSeek() {
-    unawaited(_seekBy(Duration(seconds: _gestureRight ? 10 : -10)));
+    if (_controlsLocked) return;
+    final step = NajdPreferences.instance.seekSeconds;
+    unawaited(_seekBy(Duration(seconds: _gestureRight ? step : -step)));
     _seekFeedbackTimer?.cancel();
-    setState(() => _seekFeedback = _gestureRight ? '+10 ثوانٍ' : '−10 ثوانٍ');
+    setState(() => _seekFeedback = _gestureRight ? '+$step' : '−$step');
     _seekFeedbackTimer = Timer(const Duration(milliseconds: 900), () {
       if (mounted) setState(() => _seekFeedback = '');
     });
@@ -1394,12 +1401,23 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     );
   }
 
+  int? get _currentEpisodeNumber {
+    if (widget.episodeNumber != null) return widget.episodeNumber;
+    for (final episode in _queue) {
+      if (episode.ref == widget.sourceRef ||
+          (widget.episodeId.isNotEmpty && episode.id == widget.episodeId)) {
+        return episode.number;
+      }
+    }
+    return widget.item.episode;
+  }
+
   bool _nextPrepared = false, _nextRenewed = false, _advancing = false;
   EpisodeItem? get _previousEpisode => widget.item.type == 'movie'
       ? null
       : previousObservedEpisode(
           _queue,
-          number: widget.episodeNumber,
+          number: _currentEpisodeNumber,
           season: widget.item.season,
         );
 
@@ -1407,7 +1425,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       ? null
       : nextObservedEpisode(
           _queue,
-          number: widget.episodeNumber,
+          number: _currentEpisodeNumber,
           season: widget.item.season,
         );
   Future<void> _prepareNext(EpisodeItem episode, {bool refresh = false}) async {
@@ -1512,7 +1530,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       entered = await pending;
     } else {
       await _endBoost();
-      await _saveProgress(force: true);
+      unawaited(_saveProgress(force: true));
       if (_pip.needsNativeHandoff) {
         _pipHandoff = true;
         _requestedPlaying = false;
@@ -1550,10 +1568,12 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     }
     setState(() => _pipActive = event.active);
     if (_pipHandoff) {
-      await _saveProgress(
-        force: true,
-        positionOverride: _pipPosition,
-        durationOverride: _pipDuration,
+      unawaited(
+        _saveProgress(
+          force: true,
+          positionOverride: _pipPosition,
+          durationOverride: _pipDuration,
+        ),
       );
       if (!mounted || player != _controller) return;
       if (!event.active) {
@@ -2585,7 +2605,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
             label: const Text('الحلقات', style: TextStyle(fontSize: 12)),
           ),
         if (widget.item.type != 'movie' &&
-            widget.episodeNumber != null &&
+            _currentEpisodeNumber != null &&
             _queue.map((ep) => ep.season).whereType<int>().toSet().length > 1)
           TextButton.icon(
             key: const Key('player-seasons'),
@@ -2661,6 +2681,14 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           child: Focus(
             autofocus: true,
             onKeyEvent: (_, event) {
+              if (_controlsLocked) {
+                if (event is KeyDownEvent &&
+                    event.logicalKey == LogicalKeyboardKey.escape) {
+                  setState(() => _controlsLocked = false);
+                  _revealControls();
+                }
+                return KeyEventResult.handled;
+              }
               if (event.logicalKey == LogicalKeyboardKey.mediaFastForward) {
                 if (event is KeyRepeatEvent) unawaited(_startBoost());
                 if (event is KeyUpEvent) unawaited(_endBoost());
@@ -2695,8 +2723,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                     _seekBy(
                       Duration(
                         seconds: key == LogicalKeyboardKey.arrowRight
-                            ? 10
-                            : -10,
+                            ? NajdPreferences.instance.seekSeconds
+                            : -NajdPreferences.instance.seekSeconds,
                       ),
                     ),
                   );
@@ -2714,17 +2742,21 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                   if (active != null)
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onLongPressStart: (_) => unawaited(_startBoost()),
+                      onLongPressStart: (_) {
+                        if (!_controlsLocked) unawaited(_startBoost());
+                      },
                       onLongPressEnd: (_) => unawaited(_endBoost()),
                       onLongPressCancel: () => unawaited(_endBoost()),
-                      onTap: () => _controlsVisible
+                      onTap: () => _controlsLocked
+                          ? null
+                          : _controlsVisible
                           ? setState(() => _controlsVisible = false)
                           : _revealControls(),
                       onDoubleTapDown: (d) => _gestureRight =
                           d.localPosition.dx >
                           MediaQuery.sizeOf(context).width / 2,
                       onDoubleTap: _doubleTapSeek,
-                      onVerticalDragStart: isTvTarget
+                      onVerticalDragStart: isTvTarget || _controlsLocked
                           ? null
                           : (d) {
                               _levelFeedbackTimer?.cancel();
@@ -2752,7 +2784,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                 setState(() => _levelGestureActive = false);
                               }
                             },
-                      onVerticalDragUpdate: isTvTarget
+                      onVerticalDragUpdate: isTvTarget || _controlsLocked
                           ? null
                           : (d) {
                               final change =
@@ -2808,17 +2840,30 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                     : Alignment.centerLeft,
                                 child: Container(
                                   margin: const EdgeInsets.all(28),
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
                                     color: Colors.black54,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text(
-                                    _seekFeedback,
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      color: Colors.white,
-                                    ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _gestureRight
+                                            ? Icons.fast_forward
+                                            : Icons.fast_rewind,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      Text(
+                                        _seekFeedback,
+                                        style: const TextStyle(
+                                          fontFamily: 'ThmanyahSans',
+                                          fontSize: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -2919,7 +2964,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                   if (active != null &&
                       !widget.isLive &&
                       _nextEpisode != null &&
-                      !_pipActive)
+                      !_pipActive &&
+                      !_controlsLocked)
                     Positioned(
                       right: insets.right + 16,
                       bottom: insets.bottom + (_controlsVisible ? 210 : 100),
@@ -2935,6 +2981,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                   if (active != null &&
                       !isTvTarget &&
                       !_pipActive &&
+                      !_controlsLocked &&
                       (_controlsVisible || _levelGestureActive)) ...[
                     Positioned(
                       left: insets.left + 8,
@@ -2986,21 +3033,55 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                         ],
                       ),
                     ),
-                  if (active != null && _controlsVisible && !_pipActive) ...[
+                  if (active != null &&
+                      !_pipActive &&
+                      (_controlsVisible || _controlsLocked))
+                    Positioned(
+                      top: insets.top + 4,
+                      left: insets.left + 4,
+                      child: IconButton.filledTonal(
+                        key: const Key('player-control-lock'),
+                        tooltip: _controlsLocked
+                            ? 'إلغاء قفل التحكم'
+                            : 'قفل التحكم',
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.black54,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: Icon(
+                          _controlsLocked ? Icons.lock : Icons.lock_open,
+                        ),
+                        onPressed: () {
+                          setState(() => _controlsLocked = !_controlsLocked);
+                          if (!_controlsLocked) _revealControls();
+                        },
+                      ),
+                    ),
+                  if (active != null &&
+                      _controlsVisible &&
+                      !_pipActive &&
+                      !_controlsLocked) ...[
                     Positioned.fill(
                       child: Center(
                         child: ValueListenableBuilder<VideoPlayerValue>(
                           valueListenable: active,
                           builder: (context, value, _) => PlayerControls(
                             isPlaying: value.isPlaying,
+                            seekSeconds: NajdPreferences.instance.seekSeconds,
                             showSpeed: false,
                             isTv: isTvTarget,
                             playbackSpeed: _playbackSpeed,
-                            onRewind: () =>
-                                _seekBy(const Duration(seconds: -10)),
+                            onRewind: () => _seekBy(
+                              Duration(
+                                seconds: -NajdPreferences.instance.seekSeconds,
+                              ),
+                            ),
                             onTogglePlay: () => _togglePlay(active),
-                            onForward: () =>
-                                _seekBy(const Duration(seconds: 10)),
+                            onForward: () => _seekBy(
+                              Duration(
+                                seconds: NajdPreferences.instance.seekSeconds,
+                              ),
+                            ),
                             onPlaybackSpeedChanged: _setPlaybackSpeed,
                           ),
                         ),

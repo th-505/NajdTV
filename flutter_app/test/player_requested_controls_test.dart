@@ -30,6 +30,34 @@ VideoPlayerValue value({
 );
 void main() {
   testWidgets(
+    'timeline always exposes hours, minutes and seconds on both sides',
+    (tester) async {
+      final player = ValueNotifier(
+        VideoPlayerValue(
+          duration: const Duration(hours: 2, minutes: 10, seconds: 43),
+          position: const Duration(minutes: 109, seconds: 6),
+          isInitialized: true,
+        ),
+      );
+      await tester.pumpWidget(
+        app(
+          PlaybackTimeline(
+            player: player,
+            seek: (_) async {},
+            onStart: () {},
+            onEnd: () {},
+            onError: () {},
+          ),
+        ),
+      );
+      expect(find.text('01:49:06'), findsOneWidget);
+      expect(find.textContaining('00:21:37'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      player.dispose();
+    },
+  );
+
+  testWidgets(
     'up-next appears independently, waits ten playing seconds and advances once',
     (tester) async {
       final player = ValueNotifier(value(seconds: 60));

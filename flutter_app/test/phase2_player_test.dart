@@ -188,9 +188,9 @@ void main() {
         await tester.tapAt(point);
         await tester.pump(const Duration(milliseconds: 100));
         expect(engines.last.seeks.last, const Duration(seconds: 50));
-        expect(find.text('+10 ثوانٍ'), findsOneWidget);
+        expect(find.text('+10'), findsOneWidget);
         await tester.pump(const Duration(seconds: 1));
-        expect(find.text('+10 ثوانٍ'), findsNothing);
+        expect(find.text('+10'), findsNothing);
       }
       await NajdPreferences.instance.setHoldSpeed(3);
       final surface = find.byKey(const Key('test-video-surface'));

@@ -101,6 +101,7 @@ final class NajdPipController: NSObject, AVPictureInPictureControllerDelegate {
     let video = AVPlayer(playerItem: item)
     let output = AVPlayerLayer(player: video)
     output.videoGravity = .resizeAspect
+    output.opacity = 0 // Never flash the beginning while restoring the clock.
     output.frame = view.bounds
     view.layer.addSublayer(output)
     player = video
@@ -123,6 +124,7 @@ final class NajdPipController: NSObject, AVPictureInPictureControllerDelegate {
         DispatchQueue.main.async {
           guard self.pending != nil else { return }
           self.seekReady = true
+          self.layer?.opacity = 1
           self.player?.playImmediately(atRate: self.requestedRate)
           self.attemptStart()
         }
@@ -134,6 +136,7 @@ final class NajdPipController: NSObject, AVPictureInPictureControllerDelegate {
           guard let self = self, self.pending != nil else { return }
           guard completed else { self.finishFailure(); return }
           self.seekReady = true
+          self.layer?.opacity = 1
           self.player?.playImmediately(atRate: self.requestedRate)
           self.attemptStart()
         }

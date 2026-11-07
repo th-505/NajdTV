@@ -10,9 +10,13 @@ class NajdPreferences extends ChangeNotifier {
   bool providerBeta = false;
   String metadataLanguage = 'auto';
   int episodeGroupSize = 24;
+  int seekSeconds = 10;
+  static const seekChoices = [5, 10, 15, 30, 60];
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedSeek = prefs.getInt('najd.player.seek-seconds.v1') ?? 10;
+    seekSeconds = seekChoices.contains(savedSeek) ? savedSeek : 10;
     final groupSize = prefs.getInt('najd.episodes.group-size.v1') ?? 24;
     episodeGroupSize = groupSize >= 1 && groupSize <= 500 ? groupSize : 24;
     holdToBoost = prefs.getBool('najd.player.hold.v1') ?? true;
@@ -24,6 +28,16 @@ class NajdPreferences extends ChangeNotifier {
         ? language
         : 'auto';
     notifyListeners();
+  }
+
+  Future<void> setSeekSeconds(int value) async {
+    if (!seekChoices.contains(value)) return;
+    seekSeconds = value;
+    notifyListeners();
+    await (await SharedPreferences.getInstance()).setInt(
+      'najd.player.seek-seconds.v1',
+      value,
+    );
   }
 
   Future<void> setEpisodeGroupSize(int value) async {

@@ -91,10 +91,7 @@ class _PlaybackTimelineState extends State<PlaybackTimeline> {
 
   String _time(Duration time) {
     final seconds = time.inSeconds.clamp(0, 864000);
-    if (seconds < 3600) {
-      return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
-    }
-    return '${seconds ~/ 3600}:${(seconds % 3600 ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
+    return '${(seconds ~/ 3600).toString().padLeft(2, '0')}:${(seconds % 3600 ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
   }
 
   @override

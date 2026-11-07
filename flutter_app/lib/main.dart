@@ -1545,6 +1545,19 @@ class _PlaybackPreferencesPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const NajdSectionHeading('إعدادات المشغل'),
+            NajdChoiceButton<int>(
+              label: 'مدة التقديم والترجيع: ${prefs.seekSeconds} ثانية',
+              icon: Icons.fast_forward_outlined,
+              options: [
+                for (final seconds in NajdPreferences.seekChoices)
+                  NajdOption(
+                    seconds,
+                    '$seconds ثانية',
+                    selected: seconds == prefs.seekSeconds,
+                  ),
+              ],
+              onSelected: prefs.setSeekSeconds,
+            ),
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               key: const Key('setting-hold-boost'),
