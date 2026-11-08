@@ -15,6 +15,23 @@ import {
 } from './errors.mjs';
 
 const HOST_SEMAPHORES = new Map();
+const HOST_COOLDOWNS = new Map();
+const MAX_COOLDOWN_MS = 15 * 60 * 1000;
+function cooldownDuration(headers, status) {
+  const value = headers?.get?.('retry-after');
+  let ms = value && Number.isFinite(Number(value)) ? Number(value) * 1000 : NaN;
+  if (!Number.isFinite(ms) && value) ms = Date.parse(value) - Date.now();
+  return Math.min(MAX_COOLDOWN_MS, Math.max(1000, Number.isFinite(ms) ? ms : status === 429 ? 60000 : 120000));
+}
+function noteHostBlock(host, headers, status) {
+  HOST_COOLDOWNS.set(host, Date.now() + cooldownDuration(headers, status));
+}
+function assertHostAvailable(host, providerId) {
+  const until = HOST_COOLDOWNS.get(host) || 0;
+  if (until <= Date.now()) { HOST_COOLDOWNS.delete(host); return; }
+  throw new ScraperError(SCRAPER_ERROR_CODES.ACCESS_BLOCKED, 'UPSTREAM_HOST_COOLDOWN', {providerId, status:429, retryAfterMs:until-Date.now()});
+}
+
 const MAX_CONCURRENT_PER_HOST = 4;
 const MIN_DELAY_BETWEEN_REQ_MS = 60;
 
