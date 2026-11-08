@@ -395,6 +395,7 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
       while (redirects <= maxRedirects) {
         searchTraceEvent('upstream_prepare', { url: hopUrl, method:hopMethod, attempt });
         const parsedHop = assertSafeScraperUrl(hopUrl, { allowHttp, allowedHosts });
+        assertHostAvailable(parsedHop.hostname, providerId);
         // Enforce DNS resolution SSRF check at initial request and every redirect hop
         // (unless a custom mock fetchImpl is injected without dnsLookupImpl in offline unit tests)
         const shouldCheckDns = dnsLookupImpl !== null || (fetchImpl === globalThis.fetch && !skipDnsResolution);
@@ -471,6 +472,7 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
             throw new ScraperError(SCRAPER_ERROR_CODES.ACCESS_BLOCKED,suspended?'DOMAIN_SUSPENDED':'LOGIN_REQUIRED',{providerId,url:hopUrl,status:res.status});
           }
           if (isCloudflareOrAccessBlock(res.status, text, res.headers)) {
+            noteHostBlock(parsedHop.hostname, res.headers, res.status);
             throw new ScraperError(
               SCRAPER_ERROR_CODES.ACCESS_BLOCKED,
               `CLOUDFLARE_OR_WAF_CHALLENGE_HTTP_${res.status}`,
@@ -479,6 +481,7 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
           }
 
           if (!res.ok) {
+            if (res.status === 429 || res.status === 403) noteHostBlock(parsedHop.hostname, res.headers, res.status);
             if (res.status === 404 || res.status === 410) {
               return { ok: false, status: res.status, html: text, url: hopUrl, headers: res.headers };
             }
