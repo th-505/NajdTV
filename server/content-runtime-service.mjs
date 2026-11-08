@@ -10,7 +10,7 @@ import { resolveCatalogCategory } from "./catalog-categories.mjs";
 
 const DEFAULT_MATCH_TTL_MS = 15_000;
 const DEFAULT_CATALOG_TTL_MS = 30_000;
-const DEFAULT_STALE_IF_ERROR_MS = 5 * 60_000;
+const DEFAULT_STALE_IF_ERROR_MS = 30 * 60_000;
 const DEFAULT_FETCH_ATTEMPTS = 2;
 const HOME_SECTION_LIMIT = 8;
 const HOME_CONCURRENCY = 2;
@@ -71,7 +71,22 @@ export function createContentRuntimeService({
   const maxStaleMs = Math.max(0, Number(staleIfErrorMs) || 0);
   const attempts = Math.max(1, Math.min(3, Math.trunc(Number(fetchAttempts) || DEFAULT_FETCH_ATTEMPTS)));
 
-  async function execute({ kind, key, ttlMs, fallbackProvider, fetcher, normalize }) {
+  const inFlight = new Map();
+
+  // Coalesce identical requests: slow upstream connections should not trigger
+  // duplicate provider fetches for every waiting client.
+  function execute(args) {
+    const pending = inFlight.get(args.key);
+    if (pending) return pending;
+    const task = executeUnshared(args);
+    inFlight.set(args.key, task);
+    void task.finally(() => {
+      if (inFlight.get(args.key) === task) inFlight.delete(args.key);
+    }).catch(() => {});
+    return task;
+  }
+
+  async function executeUnshared({ kind, key, ttlMs, fallbackProvider, fetcher, normalize }) {
     const stamp = now();
     const cachedEntry = typeof cache.peek === "function" ? cache.peek(key, stamp) : undefined;
     if (cachedEntry && !cachedEntry.expired) {
@@ -226,6 +241,7 @@ export function createContentRuntimeService({
         resilience: {
           fetch_attempts: attempts,
           stale_if_error_ms: maxStaleMs,
+          coalesced_requests: inFlight.size,
         },
         providers: health.summary(now()),
       };
