@@ -67,5 +67,44 @@ export function createSearchTraces({ maxEntries = 400, ttlMs = 3600000, now = Da
   function list({ provider = '', query = '', id = '' } = {}) {
     prune(); return [...records.values()].filter(t => (!provider || t.provider === provider) && (!id || t.id === id) && (!query || t.query.includes(query))).reverse().slice(0,100).map(({started_ms,finished,...t}) => structuredClone(t));
   }
-  return { start, run, list, retention_seconds: ttlMs / 1000 };
+  function healthSummary({ failureThreshold = 3 } = {}) {
+    prune();
+    const groups = new Map();
+    for (const t of records.values()) {
+      if (t.state === 'running') continue;
+      const id = String(t.provider || 'unknown');
+      if (!groups.has(id)) groups.set(id, { provider: id, attempts: 0, successes: 0, empty: 0, failures: 0, consecutive_failures: 0, last_success_at: null, last_error: null, latency_total_ms: 0, last_seen_at: null });
+      const row = groups.get(id);
+      row.attempts++;
+      row.last_seen_at = t.started_at;
+      row.latency_total_ms += Math.max(0, Number(t.duration_ms) || 0);
+      if (t.state === 'results') {
+        row.successes++;
+        row.consecutive_failures = 0;
+        row.last_success_at = t.started_at;
+      } else if (t.state === 'error') {
+        row.failures++;
+        row.consecutive_failures++;
+        row.last_error = t.reason || 'SEARCH_FAILED';
+      } else {
+        row.empty++;
+        row.consecutive_failures = 0; // Empty is not evidence of a blocked provider.
+      }
+    }
+    return [...groups.values()].map(row => ({
+      provider: row.provider,
+      attempts: row.attempts,
+      successes: row.successes,
+      empty_unconfirmed: row.empty,
+      failures: row.failures,
+      success_rate: row.attempts ? Number((row.successes / row.attempts).toFixed(3)) : null,
+      average_latency_ms: row.attempts ? Math.round(row.latency_total_ms / row.attempts) : null,
+      last_success_at: row.last_success_at,
+      last_seen_at: row.last_seen_at,
+      last_error: row.last_error,
+      consecutive_failures: row.consecutive_failures,
+      alert: row.consecutive_failures >= Math.max(1, Number(failureThreshold) || 3),
+    })).sort((a, b) => a.provider.localeCompare(b.provider));
+  }
+  return { start, run, list, healthSummary, retention_seconds: ttlMs / 1000 };
 }
