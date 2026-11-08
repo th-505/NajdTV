@@ -88,7 +88,7 @@ export function createServiceChecks({
         await step("media", async () => {
           const episode = details.episodes?.find((e) => e.ref || e.url),
             target = episode?.ref || episode?.url || source;
-          const accepted=await resolveProviderMedia(entry,target,{details:episode?{}:details,network:options,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
+          const accepted=await resolveProviderMedia(entry,target,{details:episode?{}:details,network:{...options,timeoutMs:30000},resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
            for(const candidate of candidates){const result=await probe(candidate,{platform:'native'});if(result.playable&&result.container_verified)return[candidate]}return[];
           }});
           if(!accepted.length)throw Error('DIRECT_MEDIA_NOT_FOUND');
