@@ -12,8 +12,10 @@ Player, carousel, catalog filters, actor sorting, TV focus/Back, smaller cards a
 - 261 Node tests passed.
 - `npm run check` and continuation checks passed, including 154 offline source fixtures with zero network attempts.
 - TV focused navigation/layout/preview/Back checks: 10 passed, one desktop-only skip.
-- Flutter analyze: no issues. Full Flutter suite and final browser media/PiP smoke are release gates.
+- Flutter analyze: no issues. Full Flutter suite: 412 passed / 7 skipped; full TV suite: 411 passed / 8 skipped. GitHub Actions Chromium MP4, OS PiP, HLS and Web route-refresh/history checks passed for reviewed source a59e3fe. A local Chromium PiP-menu locator timed out on its first run; the actual menu and PiP support were subsequently inspected separately, so local UI rendering is not substituted for the independent CI OS-PiP result.
 - Earlier actual Chromium fixture playback rendered MP4 and the shared UI; this is distinct from physical iPhone/TV PiP certification.
+
+Four synthetic local load profiles passed with HTTP 200 for every request: load 24, stress 195, spike 73, five-minute soak 2404. Soak p95 was 2.79ms on this workspace; this is not a production, Supabase, provider or human-user capacity certification. See load-profiles-4.0.1.json.
 
 ## Distribution gate
 Publish only after all six target artifacts and the artifact verifier pass at the reviewed source commit. Android uses the persistent release key; unsigned IPA requires appropriate sideload signing, and macOS is ad-hoc without notarization. Check deployed Web/API version separately after merging and promotion. No credentials are recorded in this document.
