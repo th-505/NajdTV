@@ -1,3 +1,4 @@
+import {mediaFormatFromUrl} from '../../shared/media-container.mjs';
 // server/scrapers/stream-unwrapper.mjs
 // مفكك المشغلات العميق والمتسلسل (Recursive Cascade Stream Resolver)
 // يسأل المشغل تلو المشغل حتى يجد رابط الفيديو الفعلي (.m3u8 / .mp4) الخالي من الإعلانات ومنع أطر الـ iframe نهائياً
@@ -11,6 +12,7 @@ export async function fetchEmbedResponse(url, options = {}) {
 }
 
 const STREAM_REGEX_LIST = [
+  /["'](https?:\/\/[^"'\s<>]+\.(?:mpd|webm|mkv|mov|m4v|avi|ts|m2ts|mpeg|mpg|ogv|flv)(?:\?[^"'\s<>]*)?)["']/gi,
   /["'](https?:\/\/[^"'\s<>]+\.m3u8(?:\?[^"'\s<>]*)?)["']/gi,
   /["'](https?:\/\/[^"'\s<>]+\.mp4(?:\?[^"'\s<>]*)?)["']/gi,
   /file\s*:\s*["'](https?:\/\/[^"'\s]+)["']/gi,
@@ -92,7 +94,7 @@ export function isValidDirectMediaUrl(url = '') {
   if (/googleads|doubleclick|popads|adsterra|exoclick|juicyads|disqus|facebook|analytics/i.test(lower)) {
     return false;
   }
-  return lower.includes('.m3u8') || lower.includes('.mp4') || lower.includes('/hls/') || lower.includes('master.txt');
+  return Boolean(mediaFormatFromUrl(url));
 }
 
 // 4. استخراج روابط .m3u8 و .mp4 من نص HTML أو كود مفكوك
@@ -107,12 +109,12 @@ export function extractRawStreamsFromText(text = '', refererUrl = '') {
     while ((m = rgx.exec(combinedText)) !== null) {
       const rawUrl = m[1].replace(/\\+/g, '');
       if (isValidDirectMediaUrl(rawUrl) && !found.has(rawUrl)) {
-        const streamType = rawUrl.toLowerCase().includes('.m3u8') || rawUrl.toLowerCase().includes('/hls/') ? 'm3u8' : 'mp4';
+        const streamType = mediaFormatFromUrl(rawUrl) || 'mp4';
         const qualityMatch = rawUrl.match(/(2160p|1440p|1080p|720p|480p|360p|4k)/i);
         found.set(rawUrl, {
           url: rawUrl,
           streamType,
-          quality: qualityMatch ? qualityMatch[1].toUpperCase() : (streamType === 'm3u8' ? 'AUTO-HLS' : 'HD'),
+          quality: qualityMatch ? qualityMatch[1].toUpperCase() : (streamType === 'm3u8' ? 'AUTO-HLS' : 'تلقائي'),
           headers: generateAntiBanHeaders(refererUrl || rawUrl)
         });
       }
@@ -333,7 +335,7 @@ export async function cascadeResolveStream(rawUrl, parentReferer = '', depth = 0
 
   // أ) إن كان الرابط هو نفسه تدفق مباشر
   if (isValidDirectMediaUrl(targetUrl)) {
-    const streamType = targetUrl.toLowerCase().includes('.m3u8') || targetUrl.toLowerCase().includes('/hls/') ? 'm3u8' : 'mp4';
+    const streamType = mediaFormatFromUrl(targetUrl) || 'mp4';
     return [{
       url: targetUrl,
       streamType,

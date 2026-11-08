@@ -176,8 +176,10 @@ try {
   if (process.env.NAJD_TEST_PIP === '1') {
     await page.locator('video').evaluate(v => { v.loop = true; });
     await page.waitForTimeout(1500);
-    await page.keyboard.press('a');
-    await page.getByRole('button', {name: 'المزيد', exact: true}).evaluate(el => el.click());
+    // Reveal hidden controls through the video surface; do not toggle visible ones off.
+    const more = page.getByRole('button', {name: 'المزيد', exact: true});
+    if (await more.count() === 0) await page.mouse.click(640, 160);
+    await more.evaluate(el => el.click());
     await page.getByText('صورة داخل صورة', {exact: true}).evaluate(el => el.click());
     await page.waitForFunction(() => document.pictureInPictureElement != null, null, {timeout: 10000});
     await page.evaluate(() => document.exitPictureInPicture());

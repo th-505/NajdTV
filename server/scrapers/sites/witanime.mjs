@@ -54,9 +54,9 @@ export const PROVIDER_META = Object.freeze({
   name: PROVIDER_NAME,
   code: PROVIDER_CODE,
   domains: Object.freeze([
+    ACTIVE_SITE_URL,
     LEGACY_URL,
-    GATEWAY_URL,
-    ACTIVE_SITE_URL
+    GATEWAY_URL
   ]),
   mirrorOf: null,
   capabilities: Object.freeze({

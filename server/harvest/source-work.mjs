@@ -13,7 +13,7 @@ export function createSourceWorkHandler({store,entries,now,fetchPage,job}){
   const details=await entry.module.scrapeDetails(page?input.payload.url:ref,network);if(!details?.title)throw Error('HARVEST_SOURCE_METADATA_MISSING');
   const target=referenceUrl(page?input.payload.url:details.sourceUrl||ref,domains);
   const html=(await fetchPage(target,{...network,providerId:id,allowedHosts:domains})).html;
-  const index=scanEpisodeIndex(html,target,{provider:id,domains,title:details.title,episodes:details.episodes||[]});
+  const index=scanEpisodeIndex(html,target,{provider:id,domains,title:details.title,episodes:details.episodes||[],seasonLinks:details.source_season_links||[]});
   if(page&&input.payload.seen_fingerprints?.includes(index.page_fingerprint))return{progress:{outcome:'partial',reason:'PAGINATION_REPEATED'}};
   const indexStarted=page?input.payload.catalog_started_at:input.started_at||new Date(now()).toISOString();
   const prior=[];if(page){let offset=0;while(true){const rows=await store.episodes(input.content_ref,{offset,limit:1000,indexedSince:indexStarted});prior.push(...rows);if(rows.length<1000)break;offset+=1000;}}
@@ -35,10 +35,13 @@ export function createSourceWorkHandler({store,entries,now,fetchPage,job}){
   if(input.payload.canonical_ref){
    await store.putSource({work_ref:input.payload.canonical_ref,provider:id,source_ref:original,identity_score:Number(input.payload.identity_score)||0,evidence:{...(input.payload.identity_evidence||{}),canonical_identity_verified:input.payload.canonical_identity_verified===true},state:input.payload.canonical_identity_verified?'indexed':'identity_unconfirmed',progress:{source_work_ref:workRef,index_identity:metadata.index_identity,title:details.title,domain:new URL(target).hostname,edition:analysis.edition,seasons:sourceSeasons,catalog_decision:report},updated_at:stamp});
   }
-  const cycle=input.started_at||input.payload.cycle||stamp;
+  const cycle=input.payload.cycle||input.started_at||stamp;
+  const knownPages=new Set([...(input.payload.known_pages||[]),target]);
+  const nextPages=[...new Set([...index.parents,...index.pages])].filter(next=>!knownPages.has(next));
+  for(const next of nextPages)knownPages.add(next);
   // Persist the full source index; direct video is resolved on explicit playback demand.
   // Thousands of unsolicited episode jobs must never delay interactive discovery.
-  for(const next of [...index.parents,...index.pages])await store.enqueueMany([job(workRef,id,'provider','source-page:'+next,{...input.payload,phase:'source_page',catalog_started_at:indexStarted,source_work_ref:workRef,url:next,source_ref:original,cycle,seen_fingerprints:[...(input.payload.seen_fingerprints||[]),index.page_fingerprint].slice(-32)},details.title)]);
+  for(const next of nextPages)await store.enqueueMany([job(workRef,id,'provider','source-page:'+next,{...input.payload,phase:'source_page',known_pages:[...knownPages].slice(-2048),catalog_started_at:indexStarted,source_work_ref:workRef,url:next,source_ref:original,cycle,seen_fingerprints:[...(input.payload.seen_fingerprints||[]),index.page_fingerprint].slice(-32)},details.title)]);
   await store.event({work_ref:workRef,provider:id,stage:'catalog',outcome:rows.length?'source_indexed':'no_observed_episodes',reason:null,details:{edition:analysis.edition,source_seasons:sourceSeasons,observed_references:rows.length,pending_pages:index.pages.length,canonical_identity_verified:false}});
   return {progress:{outcome:'source_indexed',edition:analysis.edition,observed_episodes:rows.length,source_work_ref:workRef}};
  };

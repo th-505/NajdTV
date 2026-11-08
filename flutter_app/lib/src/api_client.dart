@@ -1,3 +1,5 @@
+import 'media_format_policy.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -465,7 +467,10 @@ class MitvApi implements MediaRepository {
             {
               ...raw.cast<String, dynamic>(),
               'playback_mode': 'direct',
-              'media_type': '${raw['url']}'.contains('.m3u8') ? 'm3u8' : 'mp4',
+              'media_type': runtimeMediaTypeFor(
+                '${raw['url']}',
+                '${raw['format'] ?? raw['media_type'] ?? raw['container'] ?? ''}',
+              ),
             },
         ];
         if (sources.any(
@@ -511,7 +516,10 @@ class MitvApi implements MediaRepository {
     final uri = Uri.tryParse(value);
     return uri != null &&
         isPublicMediaUri(uri) &&
-        RegExp(r'\.(?:mp4|m3u8)$', caseSensitive: false).hasMatch(uri.path);
+        RegExp(
+          r'\.(?:mp4|m3u8|mpd|webm|mkv|mov|m4v|avi|ts|m2ts|mpeg|mpg|ogv|flv)$',
+          caseSensitive: false,
+        ).hasMatch(uri.path);
   }
 
   Future<Map<String, dynamic>> _metadataJson(
@@ -1187,9 +1195,10 @@ class MitvApi implements MediaRepository {
             for (final raw in sources.whereType<Map>())
               <String, dynamic>{
                 ...raw,
-                'media_type': '${raw['url']}'.contains('.m3u8')
-                    ? 'm3u8'
-                    : 'mp4',
+                'media_type': runtimeMediaTypeFor(
+                  '${raw['url']}',
+                  '${raw['format'] ?? raw['media_type'] ?? raw['container'] ?? ''}',
+                ),
                 'playback_mode': 'direct',
                 'expires_at': raw['expires_at'] ?? expires,
               },
@@ -1200,7 +1209,10 @@ class MitvApi implements MediaRepository {
             'poster': '',
             'episodes': [],
             'media_url': first['url'],
-            'media_type': '${first['url']}'.contains('.m3u8') ? 'm3u8' : 'mp4',
+            'media_type': runtimeMediaTypeFor(
+              '${first['url']}',
+              '${first['media_type'] ?? ''}',
+            ),
             'playback_mode': 'direct',
             'media_sources': normalized,
             'expires_at': expires,

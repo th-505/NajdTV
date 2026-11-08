@@ -78,7 +78,7 @@ export function createHarvestPipeline({store,metadata,entries,now=Date.now,probe
   }
   if(!identity.accepted){await event(ref,entry.meta.id,'identity','quarantined',identity.reasons[0],{score:identity.score,evidence:identity.evidence,catalog_decision:compactCatalogDecision(decideSourceCatalog(details,{canonical:expected,identity}))});return {progress:{outcome:'identity_unconfirmed',reason:identity.reasons[0]}};}
   const html=(await fetchPage(target,{...network,providerId:entry.meta.id,allowedHosts:allowed})).html;
-  const index=scanEpisodeIndex(html,target,{provider:entry.meta.id,domains:allowed,title:details.title||expected.title,episodes:details.episodes||[]});
+  const index=scanEpisodeIndex(html,target,{provider:entry.meta.id,domains:allowed,title:details.title||expected.title,episodes:details.episodes||[],seasonLinks:details.source_season_links||[]});
   const sourceRef=payload.source_ref||entry.meta.id+':'+Buffer.from(target).toString('base64url');
   const repeatedPage=payload.parent_fingerprint===index.page_fingerprint;
   if(repeatedPage)await event(ref,entry.meta.id,'catalog','partial','PAGINATION_REPEATED');

@@ -1,3 +1,4 @@
+import {mediaFormatFromUrl,containerForFormat,NATIVE_CONTAINERS} from '../shared/media-container.mjs';
 import { getProvider } from './scrapers/registry.mjs';
 import { assertSafeScraperUrl, fetchSafeResponse } from './scrapers/shared/http.mjs';
 import { classifyFallbackProbeResponse } from './fallback-probe.mjs';
@@ -74,7 +75,7 @@ function candidateOf(value, provider) {
   let url;
   try {
     url = assertSafeScraperUrl(value.url || value.media_src || value.media_path || value.media_url || value.stream_url || '', { allowHttp: false });
-    if (url.username || url.password || url.port || url.hash || !/\.(?:mp4|m3u8)$/i.test(url.pathname)) return null;
+    if (url.username || url.password || url.port || url.hash || !mediaFormatFromUrl(url.href)) return null;
   } catch { return null; }
   const rawHeaders = value.headers || value.playback_headers || {};
   if (!rawHeaders || typeof rawHeaders !== 'object' || Array.isArray(rawHeaders)) return null;
@@ -86,7 +87,7 @@ function candidateOf(value, provider) {
   return { provider, kind: 'direct', url: url.href, headers,
     quality: typeof value.quality === 'string' ? value.quality.slice(0, 40) : null,
     web_playable: value.web_playable === true,
-    container: /\.m3u8$/i.test(url.pathname) ? 'hls' : 'mp4' };
+    container: containerForFormat(mediaFormatFromUrl(url.href)) };
 }
 
 /** A bounded HEAD response check, not a guarantee that HLS segments or codecs work. */
@@ -97,18 +98,18 @@ export async function probePinnedMedia(candidate, { platform, origin = DEFAULT_O
   const classified = classifyFallbackProbeResponse({ status: response.status, contentType: response.headers?.get?.('content-type') });
   const allowedOrigin = response.headers?.get?.('access-control-allow-origin');
   return { ...classified, statusCode: response.status,
-    webPlayable: classified.playable && ['hls', 'mp4'].includes(classified.container) &&
+    webPlayable: classified.playable && ['hls', 'mp4', 'webm', 'ogg'].includes(classified.container) &&
       (allowedOrigin === '*' || allowedOrigin === origin) };
 }
 
 /** Never searches or switches sources: only metadata -> exact episode -> direct media. */
-export function createPinnedPlayback({ loadDetails, probe = probePinnedMedia, maxSources = 8,
+export function createPinnedPlayback({ loadDetails, probe = probePinnedMedia, maxSources = 32,
   browserOrigin = DEFAULT_ORIGIN } = {}) {
   if (typeof loadDetails !== 'function') throw Error('PINNED_DETAILS_LOADER_REQUIRED');
   const origin = new URL(browserOrigin);
   if (origin.origin !== browserOrigin || (origin.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(origin.hostname)))
     throw Error('PINNED_INVALID_BROWSER_ORIGIN');
-  const limit = Math.min(16, Math.max(1, Number(maxSources) || 8));
+  const limit = Math.min(64, Math.max(1, Number(maxSources) || 32));
   async function resolve(input = {}) {
     const provider = canonicalPinnedSource(input.provider);
     const seriesRef = sourceRef(input.seriesRef, provider);
@@ -164,7 +165,7 @@ export function createPinnedPlayback({ loadDetails, probe = probePinnedMedia, ma
       if (!verified) {
         let result;
         try { result = await probe(candidate, { platform, origin: browserOrigin }); } catch { continue; }
-        verified = result?.playable === true && ['mp4', 'hls'].includes(result.container) &&
+        verified = result?.playable === true && NATIVE_CONTAINERS.includes(result.container) &&
           [200, 206].includes(result.statusCode) && (platform === 'native' || result.webPlayable === true);
       }
       if (!verified) continue;

@@ -1,0 +1,32 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
+import {observedContainer,mediaFormatFromUrl} from '../shared/media-container.mjs';
+for(const family of ['najd','beta']){
+ const prefix=family==='najd'?'../server/scrapers/sites/':'../server/browser/providers/sites/';
+ const parser=await import(prefix+'3isk.mjs'),moviz=await import(prefix+'moviztime.mjs');
+ test(family+' observed portal keeps source seasons and separate dubbed/subtitled works',async()=>{
+  const hits=await parser.scrapeSearch('وادي الذئاب',1,{maxRetries:0,fetchImpl:async()=>new Response(fs.readFileSync('tests/fixtures/v4/turkxyz.html','utf8'),{headers:{'content-type':'text/html'}})});
+  assert.equal(hits.length,6);assert(hits.some(h=>h.title.includes('مدبلج')));assert(hits.some(h=>h.title.includes('مترجم')));
+  const detail=await parser.scrapeDetails('https://3iskk.xyz/watch/tvshows/serie-kurtlar-vadisi-pusu-1oct5/',{maxRetries:0,fetchImpl:async()=>new Response(fs.readFileSync('tests/fixtures/v4/xyzwork.html','utf8'),{headers:{'content-type':'text/html'}})});
+  assert.deepEqual(detail.seasons.map(s=>s.season),[1,2]);assert.equal(detail.episodes.length,4);assert(detail.episodes.every(e=>e.number>1));
+ });
+ test(family+' Moviz ordinal and numbered season cards link only observed matching editions',()=>{
+  const rows=moviz.observedMovizSeasons(fs.readFileSync('tests/fixtures/v4/moviz.html','utf8'),'https://moviz-time.surf/','أنمي One Piece مترجم الموسم 23 كامل');
+  assert.equal(new Set(rows.map(r=>r.season)).size,23);assert(rows.some(r=>r.season===1&&r.url.includes('%d8%a7%d9%84%d8%a3%d9%88%d9%84')));assert(rows.every(r=>r.title.toLowerCase().includes('one piece')));
+ });
+}
+test('container signatures do not turn HTML or unknown binary data into playable video',()=>{
+ assert.equal(observedContainer(Buffer.from('<html>mp4</html>')),null);
+ assert.equal(observedContainer(Buffer.from('#EXTM3U\n#EXT-X-VERSION:3')),'hls');
+ assert.equal(observedContainer(Buffer.from('RIFF0000AVI data')),'avi');
+ assert.equal(observedContainer(Buffer.from('<?xml version="1.0"?><MPD xmlns="urn:mpeg:dash:schema:mpd:2011">')),'dash');
+ for(const ext of ['webm','mkv','mpd','mov','avi','ts','mp4'])assert.equal(mediaFormatFromUrl('https://cdn.example/video.'+ext+'?signed=private'),ext);
+ assert.equal(mediaFormatFromUrl('https://cdn.example/file.php?ad=movie.mp4'),null);
+});
+for(const family of ['najd','beta'])test(family+' Moviz internal episode selector retains owner reference and rejects unobserved numbers',async()=>{
+ const module=await import((family==='najd'?'../server/scrapers/sites/':'../server/browser/providers/sites/')+'moviztime.mjs');const calls=[];
+ const options={fetchImpl:async url=>{calls.push(String(url));return new Response(fs.readFileSync('tests/fixtures/v4/moviz-episodes.html','utf8'),{headers:{'content-type':'text/html'}})}};
+ const detail=await module.scrapeDetails('https://moviz-time.surf/anime/observed-season/?ep=1156',options);
+ assert.equal(detail.episode_number,1156);assert.equal(detail.season_number,23);assert(detail.episodes.every(e=>new URL(e.url).hostname==='moviz-time.surf'));
+ assert(calls.every(u=>!new URL(u).searchParams.has('ep')));
+ await assert.rejects(()=>module.scrapeDetails('https://moviz-time.surf/anime/observed-season/?ep=1',options),/MOVIZTIME_EPISODE_NOT_OBSERVED/);
+});

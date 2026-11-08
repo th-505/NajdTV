@@ -31,6 +31,7 @@ export function scanSourceGraph(
     domains,
     title: details.title,
     episodes: details.episodes || [],
+    seasonLinks: details.source_season_links || [],
   });
   const $ = cheerio.load(html),
     parents = new Set(index.parents),

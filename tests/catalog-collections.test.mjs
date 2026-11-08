@@ -1,8 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {CATALOG_COLLECTIONS,collectionRequest} from '../server/catalog-collections.mjs';
 import {browseRequest} from '../server/catalog-browser.mjs';import {validateTmdbCatalogRequest} from '../server/tmdb-runtime.mjs';
-test('54 independent collection policies are bounded valid TMDB discover requests',()=>{
- assert.equal(CATALOG_COLLECTIONS.length,54);assert.equal(new Set(CATALOG_COLLECTIONS.map(r=>r.id)).size,54);
+test('108 independent collection policies are bounded valid TMDB discover requests',()=>{
+ assert.equal(CATALOG_COLLECTIONS.length,108);assert.equal(new Set(CATALOG_COLLECTIONS.map(r=>r.id)).size,108);
+ for(const group of ['home','movie','series','anime','turkish'])assert(CATALOG_COLLECTIONS.filter(r=>r.group===group).length>=20);
  for(const row of CATALOG_COLLECTIONS){const request=browseRequest(row.id,1);assert.doesNotThrow(()=>validateTmdbCatalogRequest(request.path,request.params));}
  assert.throws(()=>browseRequest('catalog:collection:arbitrary'),/INVALID_CATALOG_SECTION/);
  assert.throws(()=>browseRequest(CATALOG_COLLECTIONS[0].id,501),/INVALID_CATALOG_SECTION/);

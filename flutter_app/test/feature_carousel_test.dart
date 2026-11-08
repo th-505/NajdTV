@@ -32,15 +32,18 @@ void main() {
           ),
         ),
       );
-      expect(find.text('1 / 3'), findsOneWidget);
+      PageController pages() =>
+          tester.widget<PageView>(find.byType(PageView)).controller!;
+      expect(pages().page, 0);
+      expect(find.text('1 / 3'), findsNothing);
       await tester.pump(const Duration(seconds: 8));
       await tester.pump(const Duration(milliseconds: 500));
-      expect(find.text('2 / 3'), findsOneWidget);
+      expect(pages().page, 1);
       await tester.tap(find.byTooltip('العمل التالي'));
       await tester.pumpAndSettle();
-      expect(find.text('3 / 3'), findsOneWidget);
+      expect(pages().page, 2);
       await tester.pump(const Duration(seconds: 9));
-      expect(find.text('3 / 3'), findsOneWidget);
+      expect(pages().page, 2);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },

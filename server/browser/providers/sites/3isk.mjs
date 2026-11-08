@@ -58,7 +58,7 @@ export const PROVIDER_META = Object.freeze({
   id: '3isk',
   name: 'قصة عشق الأصلي (3isk)',
   code: '3K',
-  domains: ['https://ww4.3ick.club', 'https://3iskk.xyz', 'https://3isk.onl'],
+  domains: ['https://3iskk.xyz', 'https://ww4.3ick.club', 'https://3isk.onl'],
   mirrorOf: null,
   capabilities: {
     catalog: true,
@@ -84,9 +84,9 @@ export const ISK_SITE_CONFIG = Object.freeze({
   id: '3isk',
   name: 'قصة عشق الأصلي (3isk)',
   code: '3K',
-  baseUrl: 'https://ww4.3ick.club',
+  baseUrl: 'https://3iskk.xyz',
   fallbackBaseUrl: 'https://3iskk.xyz',
-  domains: ['https://ww4.3ick.club', 'https://3iskk.xyz', 'https://3isk.onl'],
+  domains: ['https://3iskk.xyz', 'https://ww4.3ick.club', 'https://3isk.onl'],
   categories: {
     all: '/',
     latest: '/',

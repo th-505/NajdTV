@@ -1,0 +1,21 @@
+# v4.0.1 execution record
+
+## Database — applied, not a pending migration
+`20261107230635_najd_v4_schema_performance.sql` adds two FK indexes, optimizes eight legacy owner policies with `(select auth.uid())`, and documents ownership/catalog responsibilities without renaming or deleting data. Verified two new indexes and eight optimized policies; rollback-only authenticated owner isolation checks passed. The performance advisor then reported unused-index notices only; these were retained. See V4_DATABASE_AND_RECOVERY.md for the table map and limitations.
+
+## Sources and application
+Both independent source families retain 25 registered modules, 23 non-mirror search providers and two explicit mirrors. Existing 3isk identity was updated rather than duplicated. Observed fixtures cover real 3isk search/seasons, 23 matching Moviz Time anime seasons and ownership-safe episode handles. WitAnime remains blocked from this environment; local HTML success elsewhere does not certify CDN playback or production accessibility.
+
+Player, carousel, catalog filters, actor sorting, TV focus/Back, smaller cards and poster preview changes are described in RELEASE_4.0.1.md. The Web player remains available in the website and uses compatible direct sources; no paid conversion service or advertisement SDK was introduced. Browser codec and CORS limits cannot be removed by UI changes.
+
+## Local verification
+- 261 Node tests passed.
+- `npm run check` and continuation checks passed, including 154 offline source fixtures with zero network attempts.
+- TV focused navigation/layout/preview/Back checks: 10 passed, one desktop-only skip.
+- Flutter analyze: no issues. Full Flutter suite: 412 passed / 7 skipped; full TV suite: 411 passed / 8 skipped. GitHub Actions Chromium MP4, OS PiP, HLS and Web route-refresh/history checks passed for reviewed source a59e3fe. A local Chromium PiP-menu locator timed out on its first run; after inspecting the real menu, the unchanged smoke test passed on rerun with actual OS PiP entry and exit, zero exceptions and decoded MP4. Independent CI MP4/PiP and HLS checks also passed.
+- Earlier actual Chromium fixture playback rendered MP4 and the shared UI; this is distinct from physical iPhone/TV PiP certification.
+
+Four synthetic local load profiles passed with HTTP 200 for every request: load 24, stress 195, spike 73, five-minute soak 2404. Soak p95 was 2.79ms on this workspace; this is not a production, Supabase, provider or human-user capacity certification. See load-profiles-4.0.1.json.
+
+## Distribution gate
+Publish only after all six target artifacts and the artifact verifier pass at the reviewed source commit. Android uses the persistent release key; unsigned IPA requires appropriate sideload signing, and macOS is ad-hoc without notarization. Check deployed Web/API version separately after merging and promotion. No credentials are recorded in this document.

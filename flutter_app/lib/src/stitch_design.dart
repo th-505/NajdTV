@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'app_target.dart';
+import 'focus_highlight.dart';
 import 'models.dart';
 
 /// Shared native components derived from the approved Najd Stitch interface.
@@ -107,121 +108,152 @@ class NajdWorkCard extends StatelessWidget {
     this.selected = false,
     this.onSelect,
     this.sourceLabel,
+    this.rank,
   });
+  final int? rank;
   final String? sourceLabel;
   final CatalogItem item;
   final VoidCallback onTap;
   final bool selected;
   final VoidCallback? onSelect;
   @override
-  Widget build(BuildContext context) => Card(
-    key: ValueKey('stitch-work-${item.id}'),
-    margin: EdgeInsets.zero,
-    clipBehavior: Clip.antiAlias,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-      side: BorderSide(
-        color: selected
-            ? NajdDesign.primary
-            : Theme.of(context).colorScheme.outline.withAlpha(60),
-        width: selected ? 2 : 1,
+  Widget build(BuildContext context) => FocusHighlight(
+    child: Card(
+      key: ValueKey('stitch-work-${item.id}'),
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: selected
+              ? NajdDesign.primary
+              : Theme.of(context).colorScheme.outline.withAlpha(60),
+          width: selected ? 2 : 1,
+        ),
       ),
-    ),
-    child: InkWell(
-      onTap: onSelect ?? onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                NajdPoster(url: item.poster),
-                Positioned(
-                  top: 9,
-                  right: 9,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 3,
+      child: InkWell(
+        onTap: onSelect ?? onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  NajdPoster(url: item.poster),
+                  if (rank != null)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$rank',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(175),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      item.type == 'movie'
-                          ? 'فيلم'
-                          : item.type == 'anime'
-                          ? 'أنمي'
-                          : 'مسلسل',
-                      style: const TextStyle(color: Colors.white, fontSize: 11),
-                    ),
-                  ),
-                ),
-                if (onSelect != null)
                   Positioned(
-                    left: 8,
-                    top: 8,
-                    child: Icon(
-                      selected
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      color: selected ? NajdDesign.primary : Colors.white,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    height: 1.5,
-                  ),
-                ),
-                if (sourceLabel != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5),
-                    child: Text(
-                      sourceLabel!,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Expanded(
+                    top: 9,
+                    right: 9,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(175),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Text(
-                        [
-                          if (item.year != null) '${item.year}',
-                          ...item.genres.take(1),
-                        ].join(' · '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        item.type == 'movie'
+                            ? 'فيلم'
+                            : item.type == 'anime'
+                            ? 'أنمي'
+                            : 'مسلسل',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (onSelect != null)
+                    Positioned(
+                      left: 8,
+                      top: 8,
+                      child: Icon(
+                        selected
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        color: selected ? NajdDesign.primary : Colors.white,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      height: 1.5,
+                    ),
+                  ),
+                  if (sourceLabel != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Text(
+                        sourceLabel!,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
-                    if (item.rating > 0)
-                      Text(
-                        '★ ${item.rating.toStringAsFixed(1)}',
-                        style: const TextStyle(
-                          color: NajdDesign.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          [
+                            if (item.year != null) '${item.year}',
+                            ...item.displayGenres.take(1),
+                          ].join(' · '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
-                  ],
-                ),
-              ],
+                      if (item.rating > 0)
+                        Text(
+                          '★ ${item.rating.toStringAsFixed(1)}',
+                          style: const TextStyle(
+                            color: NajdDesign.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
@@ -247,19 +279,27 @@ class _NajdFeatureCarouselState extends State<NajdFeatureCarousel> {
   final _pages = PageController();
   Timer? _timer;
   int _index = 0;
-  bool _interacted = false;
-  int get _count => widget.items.length.clamp(0, 8);
+  DateTime? _pausedUntil;
+  bool _focused = false;
+  List<CatalogItem> get _items =>
+      {for (final item in widget.items) item.ref: item}.values
+          .take(15)
+          .toList();
+  int get _count => _items.length;
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _timer?.cancel();
-    if (!_interacted &&
-        !MediaQuery.disableAnimationsOf(context) &&
+    if (!MediaQuery.disableAnimationsOf(context) &&
         TickerMode.valuesOf(context).enabled) {
       _timer = Timer.periodic(const Duration(seconds: 8), (_) {
-        if (mounted && _pages.hasClients && _count > 1) {
+        if (mounted &&
+            !_focused &&
+            (_pausedUntil == null || DateTime.now().isAfter(_pausedUntil!)) &&
+            _pages.hasClients &&
+            _count > 1) {
           _pages.animateToPage(
-            (_index + 1) % _count,
+            _index + 1,
             duration: const Duration(milliseconds: 450),
             curve: Curves.easeInOut,
           );
@@ -269,8 +309,7 @@ class _NajdFeatureCarouselState extends State<NajdFeatureCarousel> {
   }
 
   void _pause() {
-    _interacted = true;
-    _timer?.cancel();
+    _pausedUntil = DateTime.now().add(const Duration(seconds: 8));
   }
 
   @override
@@ -284,57 +323,88 @@ class _NajdFeatureCarouselState extends State<NajdFeatureCarousel> {
   Widget build(BuildContext context) {
     if (_count == 0) return const SizedBox.shrink();
     return Focus(
-      onFocusChange: (focused) {
-        if (focused) _pause();
-      },
+      onFocusChange: (value) => _focused = value,
       child: Listener(
         onPointerDown: (_) => _pause(),
-        child: Column(
-          children: [
-            SizedBox(
-              height: MediaQuery.sizeOf(context).width < 600 ? 300 : 400,
-              child: PageView.builder(
-                controller: _pages,
-                itemCount: _count,
-                onPageChanged: (value) => setState(() => _index = value),
-                itemBuilder: (_, index) {
-                  final item = widget.items[index];
-                  return NajdFeatureHero(
-                    item: item,
-                    saved: widget.isSaved(item),
-                    onWatch: () => widget.onWatch(item),
-                    onSave: () => widget.onSave(item),
-                  );
-                },
-              ),
-            ),
-            if (_count > 1)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    tooltip: 'العمل السابق',
-                    onPressed: () {
-                      _pause();
-                      _pages.jumpToPage((_index - 1 + _count) % _count);
-                    },
-                    icon: const Icon(Icons.chevron_right),
+        child: LayoutBuilder(
+          builder: (context, bounds) {
+            final visible = (bounds.maxWidth / 300).floor().clamp(
+              1,
+              widget.items.length.clamp(1, 10),
+            );
+            return Column(
+              children: [
+                SizedBox(
+                  height: bounds.maxWidth < 600 ? 270 : 310,
+                  child: PageView.builder(
+                    controller: _pages,
+                    onPageChanged: (value) => setState(() => _index = value),
+                    itemBuilder: (_, page) => Row(
+                      children: [
+                        for (var i = 0; i < visible; i++)
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                              ),
+                              child: NajdFeatureHero(
+                                item: _items[(page + i) % _count],
+                                saved: widget.isSaved(
+                                  _items[(page + i) % _count],
+                                ),
+                                onWatch: () =>
+                                    widget.onWatch(_items[(page + i) % _count]),
+                                onSave: () =>
+                                    widget.onSave(_items[(page + i) % _count]),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                  Text(
-                    '${_index + 1} / $_count',
-                    semanticsLabel: 'العمل ${_index + 1} من $_count',
+                ),
+                if (_count > 1)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        tooltip: 'العمل السابق',
+                        onPressed: () {
+                          _pause();
+                          _pages.jumpToPage(
+                            _index > 0 ? _index - 1 : _count - 1,
+                          );
+                        },
+                        icon: const Icon(Icons.chevron_right),
+                      ),
+                      for (var i = 0; i < _count; i++)
+                        Padding(
+                          padding: const EdgeInsets.all(3),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: i == _index % _count ? 16 : 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: i == _index % _count
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.outline,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      IconButton(
+                        tooltip: 'العمل التالي',
+                        onPressed: () {
+                          _pause();
+                          _pages.jumpToPage(_index + 1);
+                        },
+                        icon: const Icon(Icons.chevron_left),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    tooltip: 'العمل التالي',
-                    onPressed: () {
-                      _pause();
-                      _pages.jumpToPage((_index + 1) % _count);
-                    },
-                    icon: const Icon(Icons.chevron_left),
-                  ),
-                ],
-              ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -372,7 +442,7 @@ class NajdFeatureHero extends StatelessWidget {
                   colors: [
                     Color(0x10000000),
                     Color(0x55000000),
-                    Color(0xFA121118),
+                    Color(0xD91A1933),
                   ],
                 ),
               ),
@@ -398,17 +468,17 @@ class NajdFeatureHero extends StatelessWidget {
                     item.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
                       height: 1.4,
                     ),
                   ),
-                  if (item.genres.isNotEmpty)
+                  if (item.displayGenres.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        item.genres.take(3).join(' · '),
+                        item.displayGenres.take(3).join(' · '),
                         style: const TextStyle(color: Color(0xFFE6DDF7)),
                       ),
                     ),

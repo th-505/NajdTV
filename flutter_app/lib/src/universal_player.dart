@@ -1,3 +1,6 @@
+import 'adaptive_quality_stub.dart'
+    if (dart.library.io) 'adaptive_quality_native.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -10,13 +13,14 @@ import 'package:video_player/video_player.dart' show VideoPlayerValue;
 /// media_kit selects its HTML5 implementation; native platforms use libmpv.
 /// VideoPlayerValue is retained only as the UI's existing listenable contract.
 class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
-  UniversalPlayer(this.uri,
-      {required this.mediaType,
-      Map<String, String> headers = const {},
-      this.software = false,
-      this.mediaKitPlayerFactory,
-      this.videoOutputFactory})
-      : headers = Map.unmodifiable(headers);
+  UniversalPlayer(
+    this.uri, {
+    required this.mediaType,
+    Map<String, String> headers = const {},
+    this.software = false,
+    this.mediaKitPlayerFactory,
+    this.videoOutputFactory,
+  }) : headers = Map.unmodifiable(headers);
 
   final Uri uri;
   final String mediaType;
@@ -32,7 +36,7 @@ class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
   final mk.Player Function()? mediaKitPlayerFactory;
   @visibleForTesting
   final Widget Function(mk.Player, mv.VideoControllerConfiguration)?
-      videoOutputFactory;
+  videoOutputFactory;
 
   final _state = ValueNotifier(const VideoPlayerValue.uninitialized());
   final _subscriptions = <StreamSubscription<dynamic>>[];
@@ -42,6 +46,8 @@ class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
   Future<void>? _initialization;
   bool _closed = false;
   bool _failed = false;
+  Duration? _qualityRestoreTarget;
+  DateTime? _qualityRestoreUntil;
 
   /// Kept for existing controls; every format now uses the extended engine.
   bool get usesExtendedEngine => true;
@@ -65,7 +71,9 @@ class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
     final player = mediaKitPlayerFactory?.call() ?? mk.Player();
     _player = player;
     final configuration = mv.VideoControllerConfiguration(
-        enableHardwareAcceleration: !software, hwdec: software ? 'no' : null);
+      enableHardwareAcceleration: !software,
+      hwdec: software ? 'no' : null,
+    );
     if (videoOutputFactory != null) {
       _injectedVideoOutput = videoOutputFactory!(player, configuration);
     } else {
@@ -75,17 +83,27 @@ class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
       player.stream.position.listen((v) {
         // libmpv can reset its clock to zero after an HTTP/decoder failure.
         // Keep the last position for a subsequent source/decoder handoff.
+        if (_qualityRestoreTarget != null &&
+            _qualityRestoreUntil != null &&
+            DateTime.now().isBefore(_qualityRestoreUntil!) &&
+            v < _qualityRestoreTarget! - const Duration(seconds: 2)) {
+          return;
+        }
+        _qualityRestoreTarget = null;
         if (!_failed) _update(value.copyWith(position: v));
       }),
-      player.stream.duration
-          .listen((v) => _update(value.copyWith(duration: v))),
+      player.stream.duration.listen(
+        (v) => _update(value.copyWith(duration: v)),
+      ),
       player.stream.playing.listen((v) {
         if (!_failed) _update(value.copyWith(isPlaying: v));
       }),
-      player.stream.completed
-          .listen((v) => _update(value.copyWith(isCompleted: v))),
-      player.stream.buffering
-          .listen((v) => _update(value.copyWith(isBuffering: v))),
+      player.stream.completed.listen(
+        (v) => _update(value.copyWith(isCompleted: v)),
+      ),
+      player.stream.buffering.listen(
+        (v) => _update(value.copyWith(isBuffering: v)),
+      ),
       player.stream.width.listen((v) {
         if (v != null) {
           _update(value.copyWith(size: Size(v.toDouble(), value.size.height)));
@@ -101,21 +119,31 @@ class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
         if (v.isNotEmpty) {
           _failed = true;
           // Native messages may contain signed URLs; keep them out of the UI.
-          _update(value.copyWith(
-              isPlaying: false, errorDescription: 'تعذر تشغيل المصدر'));
+          _update(
+            value.copyWith(
+              isPlaying: false,
+              errorDescription: 'تعذر تشغيل المصدر',
+            ),
+          );
         }
       }),
     ]);
     await player.open(
-        mk.Media(uri.toString(), httpHeaders: kIsWeb ? const {} : headers),
-        play: false);
+      mk.Media(uri.toString(), httpHeaders: kIsWeb ? const {} : headers),
+      play: false,
+    );
     if (_closed) throw StateError('PLAYER_DISPOSED');
     if (value.hasError) throw StateError('DECODER_OPEN_FAILED');
-    _update(value.copyWith(
+    _update(
+      value.copyWith(
         isInitialized: true,
         duration: player.state.duration,
-        size: Size((player.state.width ?? 0).toDouble(),
-            (player.state.height ?? 0).toDouble())));
+        size: Size(
+          (player.state.width ?? 0).toDouble(),
+          (player.state.height ?? 0).toDouble(),
+        ),
+      ),
+    );
   }
 
   mk.Player get _activePlayer {
@@ -125,9 +153,37 @@ class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
     return player;
   }
 
+  /// libmpv chooses actual HLS renditions; the original master retains audio groups.
+  Future<bool> selectHlsQuality(String mode) async {
+    if (kIsWeb || !['m3u8', 'hls'].contains(mediaType.toLowerCase())) {
+      return false;
+    }
+    final player = _activePlayer;
+    final position = value.position, playing = value.isPlaying;
+    try {
+      if (!await configureNativeHlsQuality(player, mode)) return false;
+      _qualityRestoreTarget = position;
+      _qualityRestoreUntil = DateTime.now().add(const Duration(seconds: 8));
+      await player.open(
+        mk.Media(uri.toString(), httpHeaders: headers),
+        play: false,
+      );
+      if (_closed) return false;
+      if (position > Duration.zero) await player.seek(position);
+      if (playing) await player.play();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> play() => _activePlayer.play();
   Future<void> pause() => _activePlayer.pause();
-  Future<void> seekTo(Duration position) => _activePlayer.seek(position);
+  Future<void> seekTo(Duration position) {
+    _qualityRestoreTarget = null;
+    return _activePlayer.seek(position);
+  }
+
   Future<void> setPlaybackSpeed(double speed) => _activePlayer.setRate(speed);
   Future<void> setVolume(double volume) =>
       _activePlayer.setVolume(volume * 100);
@@ -135,9 +191,10 @@ class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
   Widget video() =>
       _injectedVideoOutput ??
       mv.Video(
-          controller: _video!,
-          fit: BoxFit.contain,
-          controls: mv.NoVideoControls);
+        controller: _video!,
+        fit: BoxFit.contain,
+        controls: mv.NoVideoControls,
+      );
 
   Future<void> dispose() async {
     if (_closed) return;

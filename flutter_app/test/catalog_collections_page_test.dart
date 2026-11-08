@@ -48,11 +48,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('متابعة المشاهدة'), findsOneWidget);
-      expect(find.text('قائمتي'), findsOneWidget);
-      expect(api.calls.first, 'catalog:collection:movie-top');
+      expect(find.text('قائمتي'), findsWidgets);
+      expect(api.calls.first, 'catalog:collection:movie-daily');
+      expect(api.calls, contains('catalog:collection:movie-top'));
       expect(api.calls.length, lessThan(6));
       expect(api.calls, isNot(contains('catalog:collection:movie-53')));
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      store.dispose();
+      api.close();
     },
   );
 }

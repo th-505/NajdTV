@@ -12,7 +12,7 @@ export function referenceUrl(ref,domains){
 function safePage(raw,base,domains){const url=resolveSafeUrl(raw,base,{allowHttp:false,allowedHosts:domains});if(!url)return null;const u=new URL(url);if(u.hash||u.username||u.password)return null;return url}
 const cleanTitle=x=>identityTitle(x).replace(/^(?:انمي|أنمي|anime)\s+/i,'').replace(/[أإآ]/g,'ا');
 /** Observed links only. Never synthesize a guessed page count or number range. */
-export function scanEpisodeIndex(html,url,{provider,domains,title='',episodes=[]}={}){
+export function scanEpisodeIndex(html,url,{provider,domains,title='',episodes=[],seasonLinks=[]}={}){
  const $=cheerio.load(html);const byRef=new Map();const parentSeason=explicitSeason(title,url);
  function add(raw){
   let candidate=raw.url||raw.link||'';if(!candidate&&raw.ref){try{candidate=referenceUrl(raw.ref,domains)}catch{return}}
@@ -45,6 +45,11 @@ export function scanEpisodeIndex(html,url,{provider,domains,title='',episodes=[]
   const a=$(el),href=safePage(a.attr('href'),url,domains);if(!href||href===url)return;
   if(/series|serie|season|مسلسل|انمي|anime/i.test(new URL(href).pathname)&&title&&cleanTitle(a.text())===cleanTitle(title))parents.add(href);
  });
+ for(const link of seasonLinks){
+  const parent=safePage(link.url,url,domains);
+  const edition=t=>/مدبلج|dubbed/i.test(t)?'dubbed':/مترجم|subtit/i.test(t)?'subtitled':null;
+  if(parent&&parent!==url&&Number.isSafeInteger(link.season)&&link.season>0&&cleanTitle(link.title)===cleanTitle(title)&&(!edition(title)||!edition(link.title)||edition(title)===edition(link.title)))parents.add(parent);
+ }
  const declared=identityDigits($('.br-series-stats').text()).match(/(\d{1,5})\s*(?:حلقات|حلقة)/)?.[1]||identityDigits($('.anime-info').text()).match(/عدد الحلقات\s*:\s*(\d{1,5})/)?.[1];
  return {source_declared_references:declared?Number(declared):null,episodes:[...byRef.values()],pages:[...pages],parents:[...parents],page_fingerprint:shortHash([...byRef.keys()].sort().join('\n')),declared_title:$('h1').first().text().trim()};
 }

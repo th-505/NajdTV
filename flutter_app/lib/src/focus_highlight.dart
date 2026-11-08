@@ -13,7 +13,20 @@ class _FocusHighlightState extends State<FocusHighlight> {
   @override
   Widget build(BuildContext context) => Focus(
     canRequestFocus: false,
-    onFocusChange: (value) => setState(() => _focused = value),
+    onFocusChange: (value) {
+      setState(() => _focused = value);
+      if (value) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _focused) {
+            Scrollable.ensureVisible(
+              context,
+              duration: const Duration(milliseconds: 180),
+              alignment: .5,
+            );
+          }
+        });
+      }
+    },
     child: AnimatedContainer(
       key: const Key('focus-highlight-border'),
       duration: const Duration(milliseconds: 120),
@@ -37,5 +50,48 @@ class _FocusHighlightState extends State<FocusHighlight> {
       ),
       child: widget.child,
     ),
+  );
+}
+
+/// Follow remote focus through nested shelves without taking keys from controls.
+class FocusScrollScope extends StatefulWidget {
+  const FocusScrollScope({super.key, required this.child});
+  final Widget child;
+  @override
+  State<FocusScrollScope> createState() => _FocusScrollScopeState();
+}
+
+class _FocusScrollScopeState extends State<FocusScrollScope> {
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_follow);
+  }
+
+  void _follow() {
+    final node = FocusManager.instance.primaryFocus;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || node != FocusManager.instance.primaryFocus) return;
+      final target = node?.context;
+      if (target != null && target.mounted) {
+        Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 180),
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeListener(_follow);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FocusTraversalGroup(
+    policy: ReadingOrderTraversalPolicy(),
+    child: widget.child,
   );
 }

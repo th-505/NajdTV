@@ -1,3 +1,5 @@
+import 'poster_preview.dart';
+import 'person_works_grid.dart';
 import 'episode_browser.dart';
 import 'browser_content_route.dart';
 import 'browser_navigation_stub.dart'
@@ -730,30 +732,17 @@ class _DetailsPageState extends State<DetailsPage> {
               if (snapshot.data!.isEmpty) {
                 return const Center(child: Text('لا توجد أعمال متاحة حالياً'));
               }
-              return GridView.builder(
-                padding: const EdgeInsets.all(16),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 220,
-                  mainAxisExtent: 340,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                ),
-                itemCount: snapshot.data!.length,
-                itemBuilder: (context, index) {
-                  final item = snapshot.data![index];
-                  return NajdWorkCard(
-                    item: item,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => DetailsPage(
-                            api: widget.api,
-                            store: widget.store,
-                            item: item,
-                          ),
-                        ),
-                      );
-                    },
+              return PersonWorksGrid(
+                items: snapshot.data!,
+                onItem: (item) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DetailsPage(
+                        api: widget.api,
+                        store: widget.store,
+                        item: item,
+                      ),
+                    ),
                   );
                 },
               );
@@ -915,7 +904,14 @@ class _DetailsPageState extends State<DetailsPage> {
                         child: SizedBox(
                           width: isTvTarget ? 160 : 110,
                           height: isTvTarget ? 240 : 165,
-                          child: NajdPoster(url: details.poster),
+                          child: Material(
+                            child: InkWell(
+                              key: const Key('details-poster-preview'),
+                              onTap: () =>
+                                  showPosterPreview(context, details.poster),
+                              child: NajdPoster(url: details.poster),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
