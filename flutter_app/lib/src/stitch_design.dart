@@ -330,12 +330,19 @@ class _NajdFeatureCarouselState extends State<NajdFeatureCarousel> {
           builder: (context, bounds) {
             final visible = (bounds.maxWidth / 300).floor().clamp(
               1,
-              widget.items.length.clamp(1, 10),
+              _count.clamp(1, 10),
             );
             return Column(
               children: [
                 SizedBox(
-                  height: bounds.maxWidth < 600 ? 270 : 310,
+                  height: isTvTarget
+                      ? (MediaQuery.sizeOf(context).height * .43).clamp(
+                          230.0,
+                          310.0,
+                        )
+                      : bounds.maxWidth < 600
+                      ? 270
+                      : 310,
                   child: PageView.builder(
                     controller: _pages,
                     onPageChanged: (value) => setState(() => _index = value),
