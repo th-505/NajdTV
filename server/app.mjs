@@ -716,6 +716,16 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
         res.setHeader('Content-Type',url.pathname.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8');
         return res.end(url.pathname.endsWith('.js')?diagnosticsJs:diagnosticsHtml);
       }
+      if (url.pathname === '/api/v1/diagnostics/providers/health') {
+        if (!diagnosticsAuthorized(req)) return sendJson(req,res,401,{message:'DIAGNOSTICS_AUTH_REQUIRED'});
+        if (req.method !== 'GET') return sendJson(req,res,405,{message:'METHOD_NOT_ALLOWED'});
+        return sendJson(req,res,200,{
+          status:'success',
+          window_seconds:traceStore.retention_seconds,
+          providers:traceStore.healthSummary({failureThreshold:3}),
+          note:'Observed search traces only; empty results are not classified as blocking.'
+        });
+      }
       if (url.pathname === '/api/v1/diagnostics/searches') {
         if (!diagnosticsAuthorized(req)) return sendJson(req,res,401,{message:'DIAGNOSTICS_AUTH_REQUIRED'});
         if (req.method !== 'GET') return sendJson(req,res,405,{message:'METHOD_NOT_ALLOWED'});
