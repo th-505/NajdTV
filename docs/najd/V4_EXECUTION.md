@@ -1,15 +1,19 @@
-# v4.0.1 execution ledger
+# v4.0.1 execution record
 
-## Player
-In progress: per-button glass interiors, clear timeline clocks, bottom toolbar order, half-screen burst seeks, correctly oriented brightness/volume rails, quick tools, three actual quality policies, extended direct video containers with bounded signature probes. No paid conversion service or ad SDK; operating/network costs cannot be promised zero.
+## Database — applied, not a pending migration
+`20261107230635_najd_v4_schema_performance.sql` adds two FK indexes, optimizes eight legacy owner policies with `(select auth.uid())`, and documents ownership/catalog responsibilities without renaming or deleting data. Verified two new indexes and eight optimized policies; rollback-only authenticated owner isolation checks passed. The performance advisor then reported unused-index notices only; these were retained. See V4_DATABASE_AND_RECOVERY.md for the table map and limitations.
 
-## Providers
-Observed through the app's guarded HTTP transport: 3ckTV e.3cktv.com, Moviz Time moviz-time.surf, 3iskk.xyz and 5TV (user ho53214qa alias redirects to new61.5tv.lol) return actual content. ww4.3ick.club redirects to 3iskk.xyz and is an alias, not an independent source. WitAnime remains ACCESS_BLOCKED from this environment. Availability in production must be checked separately.
+## Sources and application
+Both independent source families retain 25 registered modules, 23 non-mirror search providers and two explicit mirrors. Existing 3isk identity was updated rather than duplicated. Observed fixtures cover real 3isk search/seasons, 23 matching Moviz Time anime seasons and ownership-safe episode handles. WitAnime remains blocked from this environment; local HTML success elsewhere does not certify CDN playback or production accessibility.
 
-## Database
-Applied migration `najd_v4_schema_performance`: two FK indexes, eight owner-policy initPlans, explanatory schema/table comments. Post-change read-only owner isolation check succeeded; performance advisors now report unused indexes only. No users, library rows, table names or compatibility identifiers were deleted/renamed.
+Player, carousel, catalog filters, actor sorting, TV focus/Back, smaller cards and poster preview changes are described in RELEASE_4.0.1.md. The Web player remains available in the website and uses compatible direct sources; no paid conversion service or advertisement SDK was introduced. Browser codec and CORS limits cannot be removed by UI changes.
 
-Snapshot: ~456k episode rows; ~203k discovery jobs, ~190k queued; one active DB session at observation. This is a snapshot, not a load-test guarantee. Old queue/cache retention and current bounded interactive workers must be assessed independently; no arbitrary purge.
+## Local verification
+- 261 Node tests passed.
+- `npm run check` and continuation checks passed, including 154 offline source fixtures with zero network attempts.
+- TV focused navigation/layout/preview/Back checks: 10 passed, one desktop-only skip.
+- Flutter analyze: no issues. Full Flutter suite and final browser media/PiP smoke are release gates.
+- Earlier actual Chromium fixture playback rendered MP4 and the shared UI; this is distinct from physical iPhone/TV PiP certification.
 
-## Remaining before release
-Finish provider parsers and actual/sanitized fixtures; complete carousel/shelves/person filters; validate responsive UI, all tests, all six builds, published web and API version; publish v4.0.1 with explicit platform/source limits. Do not mark device PiP or blocked sources as certified by a build.
+## Distribution gate
+Publish only after all six target artifacts and the artifact verifier pass at the reviewed source commit. Android uses the persistent release key; unsigned IPA requires appropriate sideload signing, and macOS is ad-hoc without notarization. Check deployed Web/API version separately after merging and promotion. No credentials are recorded in this document.
