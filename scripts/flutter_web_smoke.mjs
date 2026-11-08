@@ -176,7 +176,8 @@ try {
   if (process.env.NAJD_TEST_PIP === '1') {
     await page.locator('video').evaluate(v => { v.loop = true; });
     await page.waitForTimeout(1500);
-    await page.keyboard.press('a');
+    // Reveal the actual player controls with a single video-surface tap.
+    await page.mouse.click(640, 160);
     await page.getByRole('button', {name: 'المزيد', exact: true}).evaluate(el => el.click());
     await page.getByText('صورة داخل صورة', {exact: true}).evaluate(el => el.click());
     await page.waitForFunction(() => document.pictureInPictureElement != null, null, {timeout: 10000});

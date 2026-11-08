@@ -98,7 +98,7 @@ export async function probePinnedMedia(candidate, { platform, origin = DEFAULT_O
   const classified = classifyFallbackProbeResponse({ status: response.status, contentType: response.headers?.get?.('content-type') });
   const allowedOrigin = response.headers?.get?.('access-control-allow-origin');
   return { ...classified, statusCode: response.status,
-    webPlayable: classified.playable && ['hls', 'mp4'].includes(classified.container) &&
+    webPlayable: classified.playable && ['hls', 'mp4', 'webm', 'ogg'].includes(classified.container) &&
       (allowedOrigin === '*' || allowedOrigin === origin) };
 }
 

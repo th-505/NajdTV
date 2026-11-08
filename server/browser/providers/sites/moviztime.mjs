@@ -268,13 +268,13 @@ function extractEpisodesFromDom($, pageUrl, defaultSeason = 1) {
         if (!epNum) return;
 
         // Only add primary episode entry once across multiple server blocks and deduplicate by episode number
-        if (blockIdx === 0 && embedUrl && !seenEpNumbers.has(epNum)) {
+        if (resolveSafeUrl(embedUrl, pageUrl, {allowHttp:false}) && !seenEpNumbers.has(epNum)) {
           seenEpNumbers.add(epNum);
           rawEpisodes.push({
             number: epNum,
             season: defaultSeason,
             title: label || `الحلقة ${epNum}`,
-            url: embedUrl
+            url: (()=>{const u=new URL(pageUrl);u.searchParams.set('ep',String(epNum));return u.href;})()
           });
         }
       });
@@ -523,7 +523,8 @@ export async function scrapeDetails(urlOrRef, options = {}) {
     });
   }
 
-  const res = await fetchProviderHtml(cleanUrl, {
+  const publicUrl = new URL(cleanUrl); const requestedEpisode = Number(publicUrl.searchParams.get('ep')) || null; publicUrl.searchParams.delete('ep');
+  const res = await fetchProviderHtml(publicUrl.href, {
     ...options,
     providerId: PROVIDER_META.id
   });
@@ -604,6 +605,7 @@ export async function scrapeDetails(urlOrRef, options = {}) {
 
   seasonNumber = parseMovizTimeSeason($, title, cleanUrl, seasonNumber);
   const episodes = extractEpisodesFromDom($, cleanUrl, seasonNumber);
+  if(requestedEpisode && !episodes.some(e=>e.number===requestedEpisode))throw new ScraperError(SCRAPER_ERROR_CODES.EMPTY_RESULT,'MOVIZTIME_EPISODE_NOT_OBSERVED',{providerId:PROVIDER_META.id});
   const isSeries =
     episodes.length > 0 ||
     cleanUrl.includes('/series/') ||
@@ -626,6 +628,7 @@ export async function scrapeDetails(urlOrRef, options = {}) {
     { providerId: PROVIDER_META.id, baseUrl: MOVIZTIME_CONFIG.baseUrl }
   );
 
+  if(requestedEpisode){normalized.episode_number=requestedEpisode;normalized.season_number=seasonNumber;normalized.title=title+' الحلقة '+requestedEpisode;}
   if (isSeries && /^\/(?:anime|series|tvshows)\//.test(new URL(cleanUrl).pathname)) {
     normalized.source_season_links = await discoverRelatedSeasons(title, options);
     normalized.season_number = seasonNumber;
@@ -715,7 +718,7 @@ export async function scrapeServers(urlOrRef, options = {}) {
       });
     }
 
-    const res = await fetchProviderHtml(cleanUrl, {
+    const res = await fetchProviderHtml((()=>{const u=new URL(cleanUrl);u.searchParams.delete('ep');return u.href;})(), {
       ...options,
       providerId: PROVIDER_META.id
     });
@@ -773,7 +776,8 @@ export async function scrapeServers(urlOrRef, options = {}) {
         .find('button.ep-item, a.ep-item')
         .each((epIdx, epEl) => {
           const epText = $(epEl).text().trim();
-          const epNum = extractEpisodeNumber(epText, '', epIdx + 1) || epIdx + 1;
+          const epNum = extractEpisodeNumber(epText, '', null) || (/^\d{1,5}$/.test(epText)?Number(epText):null);
+          if(!epNum)return;
           if (requestedEp && epNum !== requestedEp) return;
           if (!requestedEp && epIdx > 0 && candidateEmbeds.length > 0) return;
 

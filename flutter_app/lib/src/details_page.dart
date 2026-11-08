@@ -1,3 +1,4 @@
+import 'poster_preview.dart';
 import 'person_works_grid.dart';
 import 'episode_browser.dart';
 import 'browser_content_route.dart';
@@ -903,7 +904,14 @@ class _DetailsPageState extends State<DetailsPage> {
                         child: SizedBox(
                           width: isTvTarget ? 160 : 110,
                           height: isTvTarget ? 240 : 165,
-                          child: NajdPoster(url: details.poster),
+                          child: Material(
+                            child: InkWell(
+                              key: const Key('details-poster-preview'),
+                              onTap: () =>
+                                  showPosterPreview(context, details.poster),
+                              child: NajdPoster(url: details.poster),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),

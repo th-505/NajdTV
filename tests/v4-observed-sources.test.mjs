@@ -22,3 +22,11 @@ test('container signatures do not turn HTML or unknown binary data into playable
  for(const ext of ['webm','mkv','mpd','mov','avi','ts','mp4'])assert.equal(mediaFormatFromUrl('https://cdn.example/video.'+ext+'?signed=private'),ext);
  assert.equal(mediaFormatFromUrl('https://cdn.example/file.php?ad=movie.mp4'),null);
 });
+for(const family of ['najd','beta'])test(family+' Moviz internal episode selector retains owner reference and rejects unobserved numbers',async()=>{
+ const module=await import((family==='najd'?'../server/scrapers/sites/':'../server/browser/providers/sites/')+'moviztime.mjs');const calls=[];
+ const options={fetchImpl:async url=>{calls.push(String(url));return new Response(fs.readFileSync('tests/fixtures/v4/moviz-episodes.html','utf8'),{headers:{'content-type':'text/html'}})}};
+ const detail=await module.scrapeDetails('https://moviz-time.surf/anime/observed-season/?ep=1156',options);
+ assert.equal(detail.episode_number,1156);assert.equal(detail.season_number,23);assert(detail.episodes.every(e=>new URL(e.url).hostname==='moviz-time.surf'));
+ assert(calls.every(u=>!new URL(u).searchParams.has('ep')));
+ await assert.rejects(()=>module.scrapeDetails('https://moviz-time.surf/anime/observed-season/?ep=1',options),/MOVIZTIME_EPISODE_NOT_OBSERVED/);
+});

@@ -49,14 +49,10 @@ At the observed point there were about 456k episode-cache rows and 203k discover
 
 Do not confuse a media URL's expiry with removal of its episode identity. Keep service-only catalog caches separate from owner RLS rows. Retain explicit episode references and every dubbed/subtitled edition rather than borrowing TMDB numbering.
 
-## Application work checkpoint — incomplete
+## Application recovery and release gate
 
-Local worktree `/workspace/najd-v4`, branch `build/najd-v4`, based on `7d45799bf1b7a101eff53386e0f1337338d1b287`.
+The recovered application work is preserved in `build/najd-v4` / PR #34, including this database audit. PR #33 is the earlier database-only recovery checkpoint and should be closed as superseded after #34 merges; do not apply its migration again.
 
-Written locally before the runtime disconnected: seek burst helper; bottom toolbar layout and clock badges; LTR vertical sliders and adaptive rails; quick tools and three quality policies; direct-container format/signature helpers; responsive infinite carousel; filtering technical category IDs from displayed genres; scroll-to-top overlay; actor sorting/year filter and popularity metadata; lazy home shelves; 108 validated TMDB filter policies; observed domain updates for 3ckTV, Moviz Time, 5TV and WitAnime.
+The existing `3isk` provider already owns both `3iskk.xyz` and the redirecting `ww4.3ick.club`. It was updated in both independent scraper families instead of duplicating its identity. Moviz Time uses observed same-source episode handles and verified sibling season links. Guarded source HTTP checks returned real HTML for 3ckTV, Moviz Time, 3isk and 5TV; WitAnime remained ACCESS_BLOCKED. HTTP accessibility is separate from actual video playback.
 
-These application edits are not included in this database-only branch, are not yet fully tested, and were not published. Last analyze check before the final shelf edits reported three style issues. New schema migration and this checkpoint are preserved remotely even though the execution environment became unavailable. The attempted new `3iskk` parser/registry write failed at exec transport startup; its existence must be checked on recovery, not assumed.
-
-Observed source checks used the app's guarded HTTP transport: 3ckTV e.3cktv.com, Moviz Time moviz-time.surf, 3iskk.xyz and the 5TV user alias returned actual content. `ww4.3ick.club` redirected to `3iskk.xyz`, so it is an alias rather than another independent source. WitAnime returned ACCESS_BLOCKED. Local accessibility is not production or video-playback certification.
-
-Remaining: finish and fixture-test the new portal and season linking; inspect metadata queue growth; complete responsive player/hero/shelf/actor tests; run full checks; bump all contracts to 4.0.1/401; build and verify six platforms; publish release and verify public web/API. Do not publish an untested partial v4 release.
+The release gate requires complete tests and six artifact builds, verified private font faces and Android signing continuity, then reviewed promotion and checks of the deployed API and website. See RELEASE_4.0.1.md for the final feature scope and explicit browser/signing/device limits.

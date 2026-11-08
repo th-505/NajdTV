@@ -1076,7 +1076,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     setState(() {
       _failed = true;
       _status = kIsWeb
-          ? 'تعذر التشغيل في المتصفح. جرّب تطبيق الهاتف أو التلفزيون.'
+          ? 'تعذر تشغيل هذا الخادم في المتصفح. أعد المحاولة أو اختر خادمًا آخر من المصادر.'
           : failureMessage;
     });
     _nativeFailureInFlight = false;

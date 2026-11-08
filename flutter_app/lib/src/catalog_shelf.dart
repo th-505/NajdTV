@@ -63,13 +63,13 @@ class _CatalogCollectionShelfState extends State<CatalogCollectionShelf> {
             ),
           if (items.isNotEmpty)
             SizedBox(
-              height: isTvTarget ? 350 : 285,
+              height: isTvTarget ? 300 : 250,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: items.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (_, i) => SizedBox(
-                  width: isTvTarget ? 210 : 155,
+                  width: isTvTarget ? 180 : 135,
                   child: NajdWorkCard(
                     item: items[i],
                     rank: id.endsWith('-top') ? i + 1 : null,

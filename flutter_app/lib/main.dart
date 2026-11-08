@@ -174,7 +174,7 @@ class _MitvAppState extends State<MitvApp> with WidgetsBindingObserver {
               child: isTvTarget
                   ? VirtualPointerScope(
                       controller: _pointer,
-                      child: _navigationTree(),
+                      child: FocusScrollScope(child: _navigationTree()),
                     )
                   : _navigationTree(),
             ),
@@ -309,6 +309,31 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   final _browserNavigation = BrowserNavigation();
   int index = 0;
+  DateTime? _lastRootBack;
+
+  void _handleTvBack() {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      _closeNavigation();
+    } else if (index != 0) {
+      _selectPage(0);
+      _lastRootBack = null;
+    } else {
+      final now = DateTime.now();
+      if (_lastRootBack != null &&
+          now.difference(_lastRootBack!) < const Duration(seconds: 2)) {
+        if (!kIsWeb) SystemNavigator.pop();
+      } else {
+        _lastRootBack = now;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('اضغط رجوع مرة أخرى للخروج'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   bool _drawerOpen = false;
   bool _headerVisible = true;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -749,7 +774,10 @@ class _ShellState extends State<Shell> {
                 ? const SizedBox.shrink()
                 : KeyedSubtree(
                     key: ValueKey((page, page == 8 ? 0 : _pageGeneration)),
-                    child: child,
+                    child: ExcludeFocus(
+                      excluding: page != index,
+                      child: TickerMode(enabled: page == index, child: child),
+                    ),
                   );
           }),
         );
@@ -778,95 +806,108 @@ class _ShellState extends State<Shell> {
             ],
           ),
         );
-        return Shortcuts(
-          shortcuts: const {
-            SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
+        return PopScope(
+          canPop: !isTvTarget,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop && isTvTarget) _handleTvBack();
           },
-          child: Actions(
-            actions: <Type, Action<Intent>>{
-              DismissIntent: CallbackAction<DismissIntent>(
-                onInvoke: (_) {
-                  if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-                    _closeNavigation();
-                  }
-                  return null;
-                },
-              ),
+          child: Shortcuts(
+            shortcuts: const {
+              SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
             },
-            child: Scaffold(
-              key: _scaffoldKey,
-              // In RTL, the start drawer opens on the physical right.
-              drawer: side
-                  ? null
-                  : Drawer(
-                      width: isTvTarget ? 340 : 272,
-                      child: _navigation(drawer: true),
-                    ),
-              onDrawerChanged: (open) {
-                setState(() => _drawerOpen = open);
-                if (open) {
-                  _navFocus[index].requestFocus();
-                } else if (!side) {
-                  _menuFocus.requestFocus();
-                }
+            child: Actions(
+              actions: <Type, Action<Intent>>{
+                DismissIntent: CallbackAction<DismissIntent>(
+                  onInvoke: (_) {
+                    if (isTvTarget) {
+                      _handleTvBack();
+                      return null;
+                    }
+                    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+                      _closeNavigation();
+                    }
+                    return null;
+                  },
+                ),
               },
-              floatingActionButtonLocation:
-                  FloatingActionButtonLocation.startFloat,
-              floatingActionButton: !side && !_headerVisible
-                  ? FloatingActionButton.small(
-                      key: const Key('tatv-open-navigation'),
-                      focusNode: _menuFocus,
-                      tooltip: 'القائمة',
-                      onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                      child: const Icon(Icons.menu),
-                    )
-                  : null,
-              drawerScrimColor: Colors.black.withAlpha(160),
-              bottomNavigationBar: side || isTvTarget
-                  ? null
-                  : NavigationBar(
-                      key: const Key('najd-bottom-navigation'),
-                      selectedIndex: !NajdUi.bottomPages.contains(index)
-                          ? 0
-                          : NajdUi.bottomPages.indexOf(index),
-                      onDestinationSelected: (value) =>
-                          _selectPage(NajdUi.bottomPages[value]),
-                      destinations: [
-                        for (final page in NajdUi.bottomPages)
-                          NavigationDestination(
-                            icon: Icon(NajdUi.icons[page]),
-                            selectedIcon: Icon(
-                              page == 0
-                                  ? Icons.home_rounded
-                                  : NajdUi.icons[page],
+              child: Scaffold(
+                key: _scaffoldKey,
+                // In RTL, the start drawer opens on the physical right.
+                drawer: side
+                    ? null
+                    : Drawer(
+                        width: isTvTarget ? 340 : 272,
+                        child: _navigation(drawer: true),
+                      ),
+                onDrawerChanged: (open) {
+                  setState(() => _drawerOpen = open);
+                  if (open) {
+                    _navFocus[index].requestFocus();
+                  } else if (!side) {
+                    _menuFocus.requestFocus();
+                  }
+                },
+                floatingActionButtonLocation:
+                    FloatingActionButtonLocation.startFloat,
+                floatingActionButton: !side && !_headerVisible
+                    ? FloatingActionButton.small(
+                        key: const Key('tatv-open-navigation'),
+                        focusNode: _menuFocus,
+                        tooltip: 'القائمة',
+                        onPressed: () =>
+                            _scaffoldKey.currentState?.openDrawer(),
+                        child: const Icon(Icons.menu),
+                      )
+                    : null,
+                drawerScrimColor: Colors.black.withAlpha(160),
+                bottomNavigationBar: side || isTvTarget
+                    ? null
+                    : NavigationBar(
+                        key: const Key('najd-bottom-navigation'),
+                        selectedIndex: !NajdUi.bottomPages.contains(index)
+                            ? 0
+                            : NajdUi.bottomPages.indexOf(index),
+                        onDestinationSelected: (value) =>
+                            _selectPage(NajdUi.bottomPages[value]),
+                        destinations: [
+                          for (final page in NajdUi.bottomPages)
+                            NavigationDestination(
+                              icon: Icon(NajdUi.icons[page]),
+                              selectedIcon: Icon(
+                                page == 0
+                                    ? Icons.home_rounded
+                                    : NajdUi.icons[page],
+                              ),
+                              label: page == 7 ? 'قائمتي' : NajdUi.labels[page],
                             ),
-                            label: page == 7 ? 'قائمتي' : NajdUi.labels[page],
-                          ),
-                      ],
-                    ),
-              body: SafeArea(
-                child: Stack(
-                  children: [
-                    Row(
-                      textDirection: TextDirection.rtl,
-                      children: [
-                        if (side) ...[
-                          _navigation(drawer: false),
-                          const VerticalDivider(width: 1),
                         ],
-                        Expanded(child: browsing),
-                      ],
-                    ),
-                    if (isTvTarget && _drawerOpen)
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                            child: const ColoredBox(color: Colors.transparent),
+                      ),
+                body: SafeArea(
+                  child: Stack(
+                    children: [
+                      Row(
+                        textDirection: TextDirection.rtl,
+                        children: [
+                          if (side) ...[
+                            _navigation(drawer: false),
+                            const VerticalDivider(width: 1),
+                          ],
+                          Expanded(child: browsing),
+                        ],
+                      ),
+                      if (isTvTarget && _drawerOpen)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                              child: const ColoredBox(
+                                color: Colors.transparent,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1018,13 +1059,13 @@ class _HomePageState extends State<HomePage> {
             },
           ),
           SizedBox(
-            height: isTvTarget ? 360 : 285,
+            height: isTvTarget ? 300 : 250,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: items.length,
               separatorBuilder: (_, _) => const SizedBox(width: 14),
               itemBuilder: (context, i) => SizedBox(
-                width: isTvTarget ? 220 : 162,
+                width: isTvTarget ? 180 : 140,
                 child: NajdWorkCard(
                   item: items[i],
                   rank: collectionRef?.endsWith('-top') == true ? i + 1 : null,
@@ -1170,7 +1211,7 @@ class _HomePageState extends State<HomePage> {
             const Text('أضف أعمالك المفضلة لتجدها هنا.'),
           if (widget.store.favorites.isNotEmpty)
             SizedBox(
-              height: isTvTarget ? 350 : 285,
+              height: isTvTarget ? 300 : 250,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: widget.store.favorites.length,
@@ -1178,7 +1219,7 @@ class _HomePageState extends State<HomePage> {
                 itemBuilder: (_, index) {
                   final item = widget.store.favorites[index];
                   return SizedBox(
-                    width: isTvTarget ? 210 : 155,
+                    width: isTvTarget ? 180 : 135,
                     child: NajdWorkCard(
                       item: item,
                       onTap: () =>
@@ -2355,7 +2396,7 @@ class _CatalogPageState extends State<CatalogPage> {
                   controller: controller,
                   padding: EdgeInsets.all(isTvTarget ? 24 : 12),
                   gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: isTvTarget ? 260 : 220,
+                    maxCrossAxisExtent: isTvTarget ? 215 : 185,
                     childAspectRatio: isTvTarget ? .68 : .62,
                     crossAxisSpacing: isTvTarget ? 18 : 10,
                     mainAxisSpacing: isTvTarget ? 18 : 10,
@@ -2809,7 +2850,7 @@ class _SearchPageState extends State<SearchPage> {
                 : GridView.builder(
                     controller: resultsController,
                     gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: isTvTarget ? 260 : 220,
+                      maxCrossAxisExtent: isTvTarget ? 215 : 185,
                       childAspectRatio: isTvTarget ? .68 : .62,
                       crossAxisSpacing: isTvTarget ? 18 : 10,
                       mainAxisSpacing: isTvTarget ? 18 : 10,
@@ -3039,7 +3080,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: isTvTarget ? 260 : 220,
+                  maxCrossAxisExtent: isTvTarget ? 215 : 185,
                   childAspectRatio: .61,
                   crossAxisSpacing: 14,
                   mainAxisSpacing: 14,

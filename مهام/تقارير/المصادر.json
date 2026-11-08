@@ -592,7 +592,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/moviztime.mjs",
       "metadata_line": 32,
-      "source_sha256": "df1db12052a1fac6e3358785c4355f5e368761e53ea06e358a8b70b54db53feb",
+      "source_sha256": "10cde284d9788665df3904cbbb1e1e973edeb69d511161dd5dfec14aa7b9d242",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -1007,7 +1007,7 @@
       "id": "moviztime",
       "scope": "beta",
       "path": "server/browser/providers/sites/moviztime.mjs",
-      "source_sha256": "68a6a0b5e0eb67c7b80735097ff861a8fb012e79c6a7b23cfd30d17405a2780f",
+      "source_sha256": "4cf89fb0cdbee33e7c50f3db370ec7c7875f4981c61dcd932ca91df715f76061",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
