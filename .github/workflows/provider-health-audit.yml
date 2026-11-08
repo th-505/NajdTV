@@ -48,3 +48,24 @@ jobs:
         run: |
           echo "### Provider audit: $SCOPE" >> "$GITHUB_STEP_SUMMARY"
           echo "Probe outcome: $RESULT (a provider failure does not imply a workflow infrastructure failure)." >> "$GITHUB_STEP_SUMMARY"
+      - name: Optional external alert on failed audit
+        if: steps.probe.outcome == 'failure'
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.NAJD_PROVIDER_ALERT_WEBHOOK_URL }}
+          SCOPE: ${{ matrix.scope }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "No webhook configured; failure remains visible in GitHub Actions."
+            exit 0
+          fi
+          node --input-type=module -e '
+            const u=process.env.ALERT_WEBHOOK_URL;
+            if(!u.startsWith("https://"))process.exit(1);
+            const controller=new AbortController();
+            const timer=setTimeout(()=>controller.abort(),8000);
+            try {
+              const response=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text:"NajdTV provider audit failed: "+process.env.SCOPE+" "+process.env.RUN_URL}),signal:controller.signal});
+              if(!response.ok)process.exitCode=1;
+            } finally {clearTimeout(timer);}
+          '
