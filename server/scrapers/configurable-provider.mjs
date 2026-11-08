@@ -19,7 +19,12 @@ async function configuredSearch(entry,query,page,config,options){
  const field=config.search_parameter||'s';u.searchParams.set(field,String(query).slice(0,120));if(page>1)u.searchParams.set('page',String(page));
  const response=await fetchProviderHtml(u.href,{...options,providerId:entry.meta.id,referer:primary+'/'});
  const $=cheerio.load(response.html),items=[];
- $(config.card_selector).each((_,el)=>{
+ // Try alternative selectors only when the primary selector finds no cards.
+ // This prevents duplicate cards and allows maintenance without code rewrites.
+ const selectors=[config.card_selector,...(Array.isArray(config.card_selectors_fallback)?config.card_selectors_fallback:[])].filter(x=>typeof x==='string'&&x.length<240);
+ const selected=selectors.find(selector=>{try{return $(selector).length>0}catch{return false}});
+ if(!selected)return items;
+ $(selected).each((_,el)=>{
   const card=$(el),link=card.is('a')?card:card.find(config.link_selector||'a[href]').first();
   const url=resolveSafeUrl(link.attr('href')||'',u.href,{allowHttp:false});if(!url)return;
   const label=card.find(config.title_selector||'h2,h3,.title').first().text()||link.attr('title')||link.text();const title=label.replace(/\s+/g,' ').trim().slice(0,250);if(!title)return;
