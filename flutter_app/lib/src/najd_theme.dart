@@ -386,7 +386,7 @@ class _NajdIntroState extends State<NajdIntro> {
             child: LayoutBuilder(
               builder: (context, bounds) {
                 final horizontal =
-                    bounds.maxWidth >= 700 &&
+                    bounds.maxWidth >= 600 &&
                     bounds.maxWidth > bounds.maxHeight;
                 final compact = bounds.maxHeight < 600;
                 final markSize = compact
@@ -427,7 +427,13 @@ class _NajdIntroState extends State<NajdIntro> {
                       textAlign: TextAlign.center,
                       textDirection: TextDirection.rtl,
                       style: TextStyle(
-                        fontSize: horizontal ? (compact ? 22 : 26) : 19,
+                        fontSize: horizontal
+                            ? (bounds.maxHeight < 400
+                                  ? 20
+                                  : compact
+                                  ? 22
+                                  : 26)
+                            : 19,
                         height: 1.65,
                       ),
                     ),

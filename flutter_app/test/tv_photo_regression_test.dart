@@ -7,8 +7,16 @@ import 'package:mitv/src/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    // Geometry assertions use real Arabic glyph metrics, not Flutter test Ahem boxes.
+    await (FontLoader(
+      'NajdArabicFallback',
+    )..addFont(rootBundle.load('assets/fallback/NotoSansArabic.ttf'))).load();
+  });
   setUp(() => SharedPreferences.setMockInitialValues({}));
   for (final size in [
+    const Size(640, 360),
     const Size(960, 540),
     const Size(1280, 720),
     const Size(1920, 1080),
