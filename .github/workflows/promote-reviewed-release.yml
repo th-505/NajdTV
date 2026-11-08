@@ -74,8 +74,28 @@ jobs:
           pathlib.Path('/tmp/review-release-notes.md').write_text(notes+'\n\nClient source: `'+os.environ['SOURCE_SHA']+'`\nReview run: '+os.environ['REVIEW_RUN_ID']+'\n')
           assets=[]
           for path in pathlib.Path('device-artifacts').glob('*/*'):
-              if path.parent.name=='Najd-TV-Flutter-Web': continue
               if path.suffix in {'.apk','.ipa','.exe','.zip','.dmg','.sha256'} or path.name=='macOS-report.json': assets.append(str(path))
           assert assets
-          subprocess.run(['gh','release','create','v'+version,'--target',os.environ['SOURCE_SHA'],'--prerelease','--title','NajdTV v'+version,'--notes-file','/tmp/review-release-notes.md',*assets,'device-verification.json'],check=True)
+          # Documentation is public source, and the reviewed Web archive has
+          # already passed the same artifact/hash verification as native builds.
+          assets += ['docs/najd/BUILD_AND_CODE_REFERENCE.md','docs/najd/RUNTIME_AND_FLOW_MAP.md']
+          load_report=pathlib.Path('docs/najd/load-profiles-'+version+'.json')
+          if load_report.is_file(): assets.append(str(load_report))
+          assets.append('device-verification.json')
+          tag='v'+version
+          existing=subprocess.run(['gh','release','view',tag,'--json','targetCommitish,assets'],capture_output=True,text=True)
+          if existing.returncode == 0:
+              import json
+              release=json.loads(existing.stdout)
+              assert release['targetCommitish']==os.environ['SOURCE_SHA'], 'RELEASE_SOURCE_CONFLICT'
+              present={asset['name']:asset for asset in release['assets']}
+              missing=[]
+              for asset in assets:
+                  path=pathlib.Path(asset)
+                  if path.name in present:
+                      assert present[path.name]['size']==path.stat().st_size, 'RELEASE_ASSET_SIZE_CONFLICT'
+                  else: missing.append(asset)
+              if missing: subprocess.run(['gh','release','upload',tag,*missing],check=True)
+          else:
+              subprocess.run(['gh','release','create',tag,'--target',os.environ['SOURCE_SHA'],'--prerelease','--title','NajdTV v'+version,'--notes-file','/tmp/review-release-notes.md',*assets],check=True)
           PY
