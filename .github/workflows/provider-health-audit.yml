@@ -1,0 +1,50 @@
+name: Provider health audit (Najd and Beta)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 2 * * *'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        scope: [najd, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Check syntax and health summary tests
+        run: |
+          node --check server/scrapers/configurable-provider.mjs
+          node --check server/diagnostics/search-trace.mjs
+          node --test tests/provider-search-health.test.mjs
+      - name: Run bounded real-source health checks
+        id: probe
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          NAJD_AUDIT_DIR: ${{ runner.temp }}/provider-audit
+        run: node scripts/audit_isolated_provider_health.mjs --scope=${{ matrix.scope }}
+      - name: Upload health report even if providers fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-audit-${{ matrix.scope }}
+          path: ${{ runner.temp }}/provider-audit/
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Summarize audit status
+        if: always()
+        env:
+          RESULT: ${{ steps.probe.outcome }}
+          SCOPE: ${{ matrix.scope }}
+        run: |
+          echo "### Provider audit: $SCOPE" >> "$GITHUB_STEP_SUMMARY"
+          echo "Probe outcome: $RESULT (a provider failure does not imply a workflow infrastructure failure)." >> "$GITHUB_STEP_SUMMARY"
