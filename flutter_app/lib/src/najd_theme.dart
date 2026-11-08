@@ -372,69 +372,121 @@ class _NajdIntroState extends State<NajdIntro> {
   Widget build(BuildContext context) => Stack(
     fit: StackFit.expand,
     children: [
-      Offstage(offstage: _visible, child: widget.child),
+      Offstage(
+        offstage: _visible,
+        child: ExcludeFocus(
+          excluding: _visible,
+          child: TickerMode(enabled: !_visible, child: widget.child),
+        ),
+      ),
       if (_visible)
         Material(
           color: Theme.of(context).scaffoldBackgroundColor,
           child: SafeArea(
             child: LayoutBuilder(
-              builder: (context, bounds) => SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: bounds.maxHeight),
-                  child: Padding(
-                    padding: const EdgeInsets.all(28),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/najd/mark.png',
-                          width: bounds.maxWidth < 500 ? 124 : 176,
-                          height: bounds.maxWidth < 500 ? 124 : 176,
-                        ),
-                        const Text(
-                          'نجد',
-                          style: TextStyle(
-                            fontSize: 44,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          'Najd TV',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 30),
-                        Text(
-                          'أن كان رمحك بأول الخيل ملحوم\nفـ أنا برمحي حـامي نجد كلـه\n\nمن شافنا بالحلم يقعد من النوم\nومن شـافنا بالعـلم بطـنـه يهلـه',
-                          textAlign: TextAlign.center,
-                          textDirection: TextDirection.rtl,
-                          style: TextStyle(
-                            fontSize: bounds.maxWidth < 500 ? 19 : 26,
-                            height: 1.85,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        const Text('محمد بن قرملة'),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          height: 52,
-                          child: _canContinue
-                              ? FilledButton.icon(
-                                  key: const Key('najd-intro-continue'),
-                                  autofocus: true,
-                                  onPressed: _dismiss,
-                                  icon: const Icon(Icons.arrow_forward),
-                                  label: const Text('متابعة'),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
+              builder: (context, bounds) {
+                final horizontal =
+                    bounds.maxWidth >= 700 &&
+                    bounds.maxWidth > bounds.maxHeight;
+                final compact = bounds.maxHeight < 600;
+                final markSize = compact
+                    ? 88.0
+                    : bounds.maxWidth < 500
+                    ? 124.0
+                    : 148.0;
+                final brand = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      'assets/najd/mark.png',
+                      width: markSize,
+                      height: markSize,
                     ),
+                    Text(
+                      'نجد',
+                      style: TextStyle(
+                        fontSize: compact ? 32 : 44,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Najd TV',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                );
+                final poetry = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'أن كان رمحك بأول الخيل ملحوم\nفـ أنا برمحي حـامي نجد كلـه\n\nمن شافنا بالحلم يقعد من النوم\nومن شـافنا بالعـلم بطـنـه يهلـه',
+                      key: const Key('najd-intro-poetry'),
+                      textAlign: TextAlign.center,
+                      textDirection: TextDirection.rtl,
+                      style: TextStyle(
+                        fontSize: horizontal ? (compact ? 22 : 26) : 19,
+                        height: 1.65,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('محمد بن قرملة'),
+                  ],
+                );
+                return Padding(
+                  padding: EdgeInsets.all(isTvTarget ? 24 : 20),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, space) => SingleChildScrollView(
+                            key: const Key('najd-intro-content'),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight: space.maxHeight,
+                              ),
+                              child: horizontal
+                                  ? Row(
+                                      textDirection: TextDirection.rtl,
+                                      children: [
+                                        Expanded(flex: 3, child: brand),
+                                        const SizedBox(width: 24),
+                                        Expanded(flex: 7, child: poetry),
+                                      ],
+                                    )
+                                  : Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        brand,
+                                        const SizedBox(height: 24),
+                                        poetry,
+                                      ],
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: isTvTarget ? 64 : 52,
+                        child: _canContinue
+                            ? FilledButton.icon(
+                                key: const Key('najd-intro-continue'),
+                                autofocus: true,
+                                onPressed: _dismiss,
+                                icon: const Icon(Icons.arrow_forward),
+                                label: const Text('متابعة'),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ),
