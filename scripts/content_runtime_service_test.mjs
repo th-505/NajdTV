@@ -187,7 +187,7 @@ const status = service.status();
 assert.equal(status.status, "ok");
 assert.equal(status.version, PRODUCT_VERSION);
 assert.equal(status.resilience.fetch_attempts, 2);
-assert.equal(status.resilience.stale_if_error_ms, 300_000);
+assert.equal(status.resilience.stale_if_error_ms, 1_800_000);
 assert.ok(status.cache_entries >= 2);
 assert.ok(status.providers.some((provider) => provider.name === "basri-direct"));
 assert.ok(status.providers.some((provider) => provider.name === "basri-worker"));
