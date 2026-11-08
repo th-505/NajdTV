@@ -10,6 +10,7 @@ import { fetchSafeResponse } from "../scrapers/shared/http.mjs";
 import {
   directCandidate,
   identityTitle,
+  titleIdentityMatches,
 } from "../scrapers/content-discovery.mjs";
 import { probeHarvestMedia } from "../harvest/media-probe.mjs";
 import { runInBrowserLane, runInDiagnosticLane } from "../browser/traffic.mjs";
@@ -73,7 +74,7 @@ export function createServiceChecks({
               options,
             );
             if (hits?._meta?.errorCode) throw Error(hits._meta.errorCode);
-            if (!Array.isArray(hits) || !hits.some(hit=>identityTitle(hit.title)===identityTitle(sample.title)))
+            if (!Array.isArray(hits) || !hits.some(hit=>titleIdentityMatches(hit.title,sample.title)))
               throw Error("SEARCH_UNCONFIRMED");
             const negative=await entry.module.scrapeSearch('najd_probe_'+randomUUID().replaceAll('-',''),1,options);
             if(!Array.isArray(negative)||negative.length||(negative?._meta?.errorCode&&negative._meta.errorCode!=='EMPTY_RESULT'))throw Error('SEARCH_QUERY_NOT_RESPECTED');
@@ -88,7 +89,7 @@ export function createServiceChecks({
         await step("media", async () => {
           const episode = details.episodes?.find((e) => e.ref || e.url),
             target = episode?.ref || episode?.url || source;
-          const accepted=await resolveProviderMedia(entry,target,{details:episode?{}:details,network:options,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
+          const accepted=await resolveProviderMedia(entry,target,{details:episode?{}:details,network:{...options,timeoutMs:30000},resolverBudgetMs:60000,collectAll:false,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
            for(const candidate of candidates){const result=await probe(candidate,{platform:'native'});if(result.playable&&result.container_verified)return[candidate]}return[];
           }});
           if(!accepted.length)throw Error('DIRECT_MEDIA_NOT_FOUND');
