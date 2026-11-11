@@ -487,7 +487,7 @@ class CloudLibrarySync with WidgetsBindingObserver {
     LibraryCloudTransport transport, {
     SharedPreferences? preferences,
     DateTime Function()? clock,
-    Duration historyInterval = const Duration(seconds: 5),
+    Duration historyInterval = const Duration(seconds: 30),
     Duration pollInterval = const Duration(seconds: 30),
     bool observeLifecycle = true,
     bool syncImmediately = true,
