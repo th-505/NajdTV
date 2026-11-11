@@ -102,7 +102,7 @@ test('persisted enqueue notifications give the worker exact durable keys for twe
  const store={onQueued:fn=>{notify=fn},claimLane:async()=>[],claimKnown:async(w,n,lane,keys)=>{
   assert.equal(lane,'search');assert.equal(n,20);claimedKeys=keys;return keys.map(job_key=>({job_key,stage:'provider'}));
  },heartbeat:async()=>{},complete:async()=>{},fail:async()=>{}};
- const worker=createHarvestWorker({store,handlers:{provider:()=>{started++;return new Promise(r=>release.push(r))}},pollMs:60000});
+ const worker=createHarvestWorker({store,handlers:{provider:()=>{started++;return new Promise(r=>release.push(r))}},pollMs:60000,scanBacklog:false});
  worker.start();await new Promise(r=>setImmediate(r));
  for(let i=0;i<20;i++)notify({job_key:'durable-'+i,stage:'provider',payload:{phase:'search'}});
  await new Promise(r=>setImmediate(r));assert.equal(claimedKeys.length,20);assert.equal(started,20);
