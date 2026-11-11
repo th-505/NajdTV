@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 /** Atomic DB leases, bounded work, heartbeat and restart recovery. No in-memory-only queue. */
-export function createHarvestWorker({store,handlers,concurrency=2,indexConcurrency=1,mediaConcurrency=1,pollMs=3000,backgroundPollMs=30000,scanBacklog=true,now=Date.now,logger=()=>{}}={}){
+export function createHarvestWorker({store,handlers,concurrency=2,indexConcurrency=1,mediaConcurrency=1,pollMs=3000,backgroundPollMs=30000,scanBacklog=false,now=Date.now,logger=()=>{}}={}){
  const worker=randomUUID();let active=0,polling=false,stopped=true,timer=null;const running=new Set();
  const cap=(value,max)=>Number.isInteger(Number(value))&&Number(value)>0?Math.min(max,Number(value)):1;
  let lanes=typeof store?.claimLane==='function'?{search:20,index:cap(indexConcurrency,4),media:cap(mediaConcurrency,2)}:null;
