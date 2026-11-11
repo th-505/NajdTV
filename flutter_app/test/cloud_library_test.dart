@@ -201,7 +201,7 @@ void main() {
     expect(store.pendingCloudRows, isEmpty);
   });
 
-  test('history sends every5seconds and cadence survives restart', () async {
+  test('history sends every30seconds and cadence survives restart', () async {
     await store.recordProgress(
       item: item,
       position: const Duration(seconds: 5),
