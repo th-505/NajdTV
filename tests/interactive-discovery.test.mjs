@@ -191,3 +191,14 @@ test('foreground indexing goes ahead of queued candidate indexing after the curr
  releases.get('candidate')();await worker.stop();
  assert.equal(worker.metrics().concurrency,22);
 });
+
+test('worker defaults to on-demand claims and still accepts exact durable keys',async()=>{
+ let sweeps=0,claimed=[];
+ const store={claimLane:async()=>{sweeps++;return[]},claimKnown:async(w,n,lane,keys)=>{claimed.push(...keys);return[]},heartbeat:async()=>{},complete:async()=>{},fail:async()=>{}};
+ const worker=createHarvestWorker({store,handlers:{},pollMs:60000});
+ worker.start();await new Promise(r=>setImmediate(r));worker.wake();await new Promise(r=>setImmediate(r));
+ assert.equal(sweeps,0);
+ worker.wake({jobs:[{job_key:'exact-work',stage:'work'}]});await new Promise(r=>setImmediate(r));
+ assert.deepEqual(claimed,['exact-work']);assert.equal(sweeps,0);
+ await worker.stop();
+});
