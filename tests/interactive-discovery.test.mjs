@@ -16,7 +16,7 @@ test('twenty source searches start before any finishes while index and media ret
   return[];
  },heartbeat:async()=>{},complete:async()=>{},fail:async()=>{}};
  const wait=job=>{started.push(job.job_key);return new Promise(r=>release.push(r))};
- const worker=createHarvestWorker({store,handlers:{provider:wait,work:wait,episode:wait},pollMs:60000});
+ const worker=createHarvestWorker({store,handlers:{provider:wait,work:wait,episode:wait},pollMs:60000,scanBacklog:true});
  worker.start();await new Promise(r=>setImmediate(r));
  assert.equal(started.filter(x=>x.startsWith('s')).length,20);assert(started.includes('i')&&started.includes('m'));
  for(const r of release)r({});await worker.stop();assert.equal(worker.metrics().active,0);
@@ -62,7 +62,7 @@ test('browser emits compact numeric ratings for already installed clients',async
 test('a not-yet-updated DB retains the compatible worker instead of stalling the queue',async()=>{
  let legacy=0;
  const store={claimLane:async()=>{throw Error('HARVEST_DB_HTTP_404')},claim:async()=>{legacy++;return[]},heartbeat:async()=>{},complete:async()=>{},fail:async()=>{}};
- const worker=createHarvestWorker({store,handlers:{},pollMs:60000});worker.start();await new Promise(r=>setImmediate(r));
+ const worker=createHarvestWorker({store,handlers:{},pollMs:60000,scanBacklog:true});worker.start();await new Promise(r=>setImmediate(r));
  worker.wake();await new Promise(r=>setImmediate(r));await worker.stop();assert.equal(legacy,1);assert.equal(worker.metrics().concurrency,2);
 });
 
@@ -74,7 +74,7 @@ test('a slow media DB claim does not hold up the next search batch',async()=>{
   if(lane==='media')await new Promise(r=>{releaseMedia=r});
   return[];
  },heartbeat:async()=>{},complete:async()=>{},fail:async()=>{}};
- const worker=createHarvestWorker({store,handlers:{},pollMs:60000});
+ const worker=createHarvestWorker({store,handlers:{},pollMs:60000,scanBacklog:true});
  worker.start();await new Promise(r=>setImmediate(r));
  worker.wake();await new Promise(r=>setImmediate(r));
  assert.equal(searches,2);releaseMedia();await worker.stop();
@@ -128,7 +128,7 @@ test('a missing keyed RPC retains twenty-slot lane claims without enabling the o
 test('database failures back off despite repeated interactive wakes and recover after the deadline',async()=>{
  let clock=1000,calls=0,fail=true;
  const store={claimLane:async()=>{calls++;if(fail)throw Error('HARVEST_DB_HTTP_503');return[]}};
- const worker=createHarvestWorker({store,handlers:{},now:()=>clock,pollMs:60000});
+ const worker=createHarvestWorker({store,handlers:{},now:()=>clock,pollMs:60000,scanBacklog:true});
  worker.start();await new Promise(r=>setImmediate(r));assert.equal(calls,3);
  for(let i=0;i<10;i++)worker.wake();await new Promise(r=>setImmediate(r));assert.equal(calls,3);
  clock+=5001;fail=false;worker.wake();await new Promise(r=>setImmediate(r));assert.equal(calls,6);
@@ -138,7 +138,7 @@ test('database failures back off despite repeated interactive wakes and recover 
 test('successful task completion does not immediately rescan every durable backlog lane',async()=>{
  let notify,calls=0,clock=1000;
  const store={onQueued:fn=>{notify=fn},claimLane:async()=>{calls++;return[]},claimKnown:async(w,n,lane,keys)=>keys.map(job_key=>({job_key,stage:'provider'})),complete:async()=>{},fail:async()=>{},heartbeat:async()=>{}};
- const worker=createHarvestWorker({store,handlers:{provider:async()=>({})},now:()=>clock,pollMs:60000});
+ const worker=createHarvestWorker({store,handlers:{provider:async()=>({})},now:()=>clock,pollMs:60000,scanBacklog:true});
  worker.start();await new Promise(r=>setImmediate(r));assert.equal(calls,3);
  notify({job_key:'interactive',stage:'provider',payload:{phase:'search'}});
  await new Promise(r=>setImmediate(r));await new Promise(r=>setImmediate(r));assert.equal(calls,3);
@@ -169,7 +169,7 @@ test('on-demand indexing does not resolve all background episode media; an expli
 test('background catalogue and media each get one slot without reducing twenty interactive searches',async()=>{
  const limits={};
  const store={claimLane:async(w,limit,lane)=>{limits[lane]=limit;return[]}, heartbeat:async()=>{},complete:async()=>{},fail:async()=>{}};
- const worker=createHarvestWorker({store,handlers:{},pollMs:60000});
+ const worker=createHarvestWorker({store,handlers:{},pollMs:60000,scanBacklog:true});
  worker.start();await new Promise(r=>setImmediate(r));await worker.stop();
  assert.deepEqual(limits,{search:20,index:1,media:1});
  assert.equal(worker.metrics().concurrency,22);
