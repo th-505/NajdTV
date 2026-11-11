@@ -13,7 +13,7 @@ This note records the implementation guardrails for the free/current deployment.
 
 ## 2. Cache policy already present
 
-- Node catalog metadata cache: in-process LRU-like bounded map (128 entries), at most 16 pending loads, 10-minute refresh TTL, with persisted demand/metadata writes coalesced; storage retry backoff is 30 seconds.
+- Node catalog metadata cache: in-process bounded map (128 entries), at most 16 pending loads, 10-minute refresh TTL, with persisted demand/metadata writes coalesced; storage retry backoff is 30 seconds.
 - Cloudflare Edge cache: category/search metadata 300 seconds, details 120 seconds, match/list metadata 15 seconds, playback/resolve responses up to 60 seconds and always bounded by the earliest source expiry minus a safety margin.
 - Signed media URLs, authorization material and resolver headers must never enter catalog metadata cache. Do not add Redis or another cache service.
 - Do not lengthen playback TTL beyond the source expiry. Metadata TTLs can be tuned only from cache-hit and provider-load measurements.
