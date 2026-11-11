@@ -36,7 +36,7 @@ test('domain rotation strips old credentials and preserves third-party embed ori
 test('a synchronous handler failure releases the worker slot and records a failed job',async()=>{
  let claimed=false,failures=0;
  const store={claim:async()=>claimed?[]:(claimed=true,[{job_key:'a',stage:'work',attempts:1}]),heartbeat:async()=>{},complete:async()=>{},fail:async()=>{failures++}};
- const worker=createHarvestWorker({store,handlers:{work:()=>{throw Error('FIXTURE_FAILURE')}},pollMs:60000});
+ const worker=createHarvestWorker({store,handlers:{work:()=>{throw Error('FIXTURE_FAILURE')}},pollMs:60000,scanBacklog:true});
  worker.start();await new Promise(r=>setImmediate(r));await worker.stop();
  assert.equal(failures,1);assert.equal(worker.metrics().active,0);
 });
