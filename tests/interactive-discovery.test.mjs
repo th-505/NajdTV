@@ -120,7 +120,7 @@ test('the store only announces durable keys after a successful enqueue RPC',asyn
 
 test('a missing keyed RPC retains twenty-slot lane claims without enabling the old two-slot worker',async()=>{
  let lanes=0;const store={claimKnown:async()=>{throw Error('HARVEST_DB_HTTP_404')},claimLane:async()=>{lanes++;return[]},heartbeat:async()=>{},complete:async()=>{},fail:async()=>{}};
- const worker=createHarvestWorker({store,handlers:{},pollMs:60000});
+ const worker=createHarvestWorker({store,handlers:{},pollMs:60000,scanBacklog:true});
  worker.wake({jobs:[{job_key:'known-work',stage:'work'}]});await new Promise(r=>setImmediate(r));
  assert(lanes>=3);assert.equal(worker.metrics().concurrency,22);await worker.stop();
 });
