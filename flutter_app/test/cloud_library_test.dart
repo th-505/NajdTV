@@ -209,7 +209,7 @@ void main() {
     );
     await start();
     await sync!.syncNow();
-    now = now.add(const Duration(seconds: 4));
+    now = now.add(const Duration(seconds: 29));
     await store.recordProgress(
       item: item,
       position: const Duration(seconds: 10),
