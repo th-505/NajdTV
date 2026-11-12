@@ -388,6 +388,7 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
     referer = '',
     cookies = '',
     timeoutMs = 10000,
+    omitOrigin = false,
     maxRedirects = 5,
     maxRetries = 1,
     allowHttp = true,
@@ -433,6 +434,7 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
             ...buildAntiBanHeaders(hopUrl, referer),
             ...customHeaders
           };
+          if(omitOrigin)for(const key of Object.keys(reqHeaders))if(key.toLowerCase()==='origin')delete reqHeaders[key];
           if (cookies && credentialsAllowed) reqHeaders['Cookie'] = cookies;
           for(const key of Object.keys(reqHeaders)){
             if(!credentialsAllowed&&['authorization','cookie','proxy-authorization','x-csrf-token','x-xsrf-token'].includes(key.toLowerCase()))delete reqHeaders[key];
