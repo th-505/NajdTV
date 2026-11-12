@@ -1,6 +1,7 @@
 import test from'node:test';import assert from'node:assert/strict';import{readFile}from'node:fs/promises';
 import{createHarvestPipeline}from'../server/harvest/pipeline.mjs';import{createSourceApi}from'../server/harvest/source-api.mjs';
 import{workReference}from'../server/harvest/work-reference.mjs';
+import{probeHarvestMedia}from'../server/harvest/media-probe.mjs';
 import{decideSourceCatalog,observedRuntimeMinutes}from'../server/scrapers/shared/catalog-decision.mjs';
 import*as isk from'../server/scrapers/sites/3isk.mjs';import*as ck from'../server/scrapers/sites/3cktv.mjs';
 const fixture=name=>readFile(new URL('./fixtures/valley-wolves/'+name,import.meta.url),'utf8');
@@ -137,4 +138,28 @@ test('polling a blocked source preserves worker backoff while promoting the requ
  await store.setEpisode(ref,'ahwak','ahwak:e1',{state:'unavailable',last_checked_at:failedAt});
  for(let poll=0;poll<3;poll++)assert.equal((await api.sourcePlayback(ref,{season:11,episode:1,platform:'web'})).state,'queued');
  assert.equal(job.refresh_after,retryAt);assert.equal(job.updated_at,failedAt);assert.equal(job.priority,10);assert.equal(job.payload.platform,'web');
+});
+
+test('Akwam old native caches recover through the real web extraction pipeline for two episodes and a different movie',async()=>{
+ for(const scenario of [{name:'Test Show',type:'series',season:3,episode:1},{name:'Test Show',type:'series',season:3,episode:2},{name:'Other Movie',type:'movie',season:0,episode:0}]){
+  const clock=100000,store=memoryStore(),original='akwam:'+Buffer.from('https://akwam.ss/'+(scenario.type==='movie'?'movie':'series')+'/123/test').toString('base64url'),ref=workReference(original);
+  const source='akwam:'+Buffer.from('https://akwam.ss/episode/123/episode-'+scenario.episode).toString('base64url');
+  const title=scenario.type==='movie'?scenario.name:scenario.name+' الموسم الثالث الحلقة '+scenario.episode;
+  store.works.set(ref,{ref,title:scenario.name,type:scenario.type,metadata:{identity_scope:'source',title:scenario.name}});
+  await store.putEpisodes([{work_ref:ref,provider:'akwam',source_ref:source,season:scenario.season,episode:scenario.episode,state:'pending',media:[]}]);
+  const probes=[];
+  const pipeline=createHarvestPipeline({store,now:()=>clock,entries:[{meta:{id:'akwam',domains:['https://akwam.ss'],capabilities:{search:true,details:true}},module:{scrapeDetails:async()=>({title,type:scenario.type,season_number:scenario.season,episode_number:scenario.episode,sourceUrl:'https://akwam.ss/episode/123/test',servers:[{url:'https://cdn.example/video.mp4',kind:'direct'}]})}}],probe:async(candidate,options)=>{
+   probes.push(options.platform);
+   return probeHarvestMedia(candidate,{...options,headProbe:async()=>({statusCode:200,webPlayable:false,container:null}),fetchImpl:async()=>({status:206,headers:new Headers({'content-type':'application/octet-stream','access-control-allow-origin':'*'}),bytes:Buffer.from('000000186674797069736f6d00000001','hex')})});
+  }});
+  const api=createSourceApi({store,worker:{wake:()=>{}},now:()=>clock});
+  await api.sourcePlayback(ref,{season:scenario.season,episode:scenario.episode});
+  let job=[...store.jobs.values()][0];await pipeline.episode(job);Object.assign(job,{status:'ready',updated_at:new Date(clock).toISOString()});
+  assert.equal([...store.episodeRows.values()][0].media[0].web_playable,false);
+  assert.equal((await api.sourcePlayback(ref,{season:scenario.season,episode:scenario.episode,platform:'web'})).state,'queued');
+  job=[...store.jobs.values()][0];assert.equal(job.payload.platform,'web');
+  await pipeline.episode(job);Object.assign(job,{status:'ready',updated_at:new Date(clock).toISOString()});
+  const ready=await api.sourcePlayback(ref,{season:scenario.season,episode:scenario.episode,platform:'web'});
+  assert.equal(ready.state,'ready');assert.equal(ready.servers.length,1);assert.equal(ready.servers[0].web_playable,true);assert.deepEqual(probes,['native','web']);
+ }
 });
