@@ -125,3 +125,16 @@ test('a recent negative cache cannot hide an already queued or running extractor
  assert.equal((await api.sourcePlayback(ref)).state,'queued');
  job.status='running';assert.equal((await api.sourcePlayback(ref)).state,'running');assert.equal(wakes.length,3);
 });
+
+test('polling a blocked source preserves worker backoff while promoting the requested platform',async()=>{
+ const clock=100000,store=memoryStore();
+ const api=createSourceApi({store,worker:{wake:()=>{}},now:()=>clock}),ref=workReference('ahwak:blocked-episode');
+ store.works.set(ref,{ref,title:'The Walking Dead',metadata:{}});
+ await store.putEpisodes([{work_ref:ref,provider:'ahwak',source_ref:'ahwak:e1',season:11,episode:1,state:'pending',media:[]}]);
+ await api.sourcePlayback(ref,{season:11,episode:1});const job=[...store.jobs.values()][0];
+ const retryAt=new Date(clock+120000).toISOString(),failedAt=new Date(clock-1000).toISOString();
+ Object.assign(job,{status:'queued',error_code:'ACCESS_BLOCKED',refresh_after:retryAt,updated_at:failedAt});
+ await store.setEpisode(ref,'ahwak','ahwak:e1',{state:'unavailable',last_checked_at:failedAt});
+ for(let poll=0;poll<3;poll++)assert.equal((await api.sourcePlayback(ref,{season:11,episode:1,platform:'web'})).state,'queued');
+ assert.equal(job.refresh_after,retryAt);assert.equal(job.updated_at,failedAt);assert.equal(job.priority,10);assert.equal(job.payload.platform,'web');
+});
