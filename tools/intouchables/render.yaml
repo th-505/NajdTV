@@ -3,7 +3,7 @@ services:
     name: Aloush
     runtime: docker
     repo: https://github.com/th-505/NajdTV
-    branch: deploy/aloush-intouchables
+    branch: aloush
     plan: free
     region: frankfurt
     dockerfilePath: tools/intouchables/Dockerfile
