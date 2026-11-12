@@ -79,3 +79,49 @@ test('refresh while a non-forced job is running cannot expose its rejected cache
  await store.setEpisode(ref,'3cktv','3cktv:e1',{state:'playable',media:[{url:'https://cdn.example/old.mp4',kind:'direct',expires_at:new Date(200000).toISOString(),identity_verified:true,observed_identity:{season:1,episode:1}}]});
  assert.equal((await api.sourcePlayback(ref,{refresh:true})).state,'running');assert.equal((await api.sourcePlayback(ref)).state,'running');assert.equal([...store.episodeRows.values()][0].media.length,0);
 });
+
+test('an ordinary Watch retries an old failed extraction but respects persisted backoff and deduplicates polls',async()=>{
+ let clock=100000;const store=memoryStore(),wakes=[];
+ const api=createSourceApi({store,worker:{wake:input=>wakes.push(input)},now:()=>clock}),ref=workReference('3cktv:retry-watch');
+ store.works.set(ref,{ref,title:'مسلسل',metadata:{}});
+ await store.putEpisodes([{work_ref:ref,provider:'3cktv',source_ref:'3cktv:e1',season:1,episode:1,state:'pending',media:[]}]);
+ await api.sourcePlayback(ref);const old=[...store.jobs.values()][0];
+ Object.assign(old,{status:'failed',error_code:'NETWORK_TIMEOUT',refresh_after:new Date(clock+60000).toISOString(),updated_at:new Date(clock).toISOString()});
+ const wakesBefore=wakes.length;
+ assert.equal((await api.sourcePlayback(ref)).state,'failed');assert.equal(wakes.length,wakesBefore);
+ clock+=60001;
+ assert.equal((await api.sourcePlayback(ref)).state,'queued');
+ const retry=store.jobs.get(old.job_key);assert.notEqual(retry,old);assert.equal(retry.priority,10);
+ assert.equal((await api.sourcePlayback(ref)).state,'queued');assert.equal(store.jobs.size,1);assert.equal(store.jobs.get(old.job_key),retry);
+ Object.assign(retry,{status:'failed',refresh_after:new Date(clock-1).toISOString()});
+ assert.equal((await api.sourcePlayback(ref)).state,'failed','local cooldown prevents a tight retry loop');
+});
+
+test('a native-only cache miss queues web extraction and reports incompatibility only after that attempt',async()=>{
+ let clock=100000;const store=memoryStore(),api=createSourceApi({store,worker:{wake:()=>{}},now:()=>clock}),ref=workReference('3cktv:web-watch');
+ store.works.set(ref,{ref,title:'مسلسل',metadata:{}});
+ const row={work_ref:ref,provider:'3cktv',source_ref:'3cktv:e1',season:1,episode:1,state:'playable',media:[{url:'https://cdn.example/native.mp4',kind:'direct',web_playable:false,expires_at:new Date(clock+300000).toISOString(),identity_verified:true,observed_identity:{season:1,episode:1}}]};
+ await store.putEpisodes([row]);
+ assert.equal((await api.sourcePlayback(ref)).state,'ready','native playback keeps the cache hit');
+ assert.equal((await api.sourcePlayback(ref,{platform:'web'})).state,'queued');
+ const job=[...store.jobs.values()][0];assert.equal(job.payload.platform,'web');
+ job.payload.platform='native';
+ assert.equal((await api.sourcePlayback(ref,{platform:'web'})).state,'queued');
+ assert.equal(job.payload.platform,'web','an already queued native job is promoted to web extraction');
+ Object.assign(job,{status:'ready',updated_at:new Date(clock).toISOString()});
+ assert.equal((await api.sourcePlayback(ref,{platform:'web'})).reason,'PINNED_DIRECT_WEB_UNAVAILABLE');
+ clock+=60001;assert.equal((await api.sourcePlayback(ref,{platform:'web'})).state,'queued');
+ row.media[0].web_playable=true;
+ assert.equal((await api.sourcePlayback(ref,{platform:'web'})).state,'ready');
+});
+
+test('a recent negative cache cannot hide an already queued or running extractor',async()=>{
+ const clock=100000,store=memoryStore(),wakes=[];
+ const api=createSourceApi({store,worker:{wake:input=>wakes.push(input)},now:()=>clock}),ref=workReference('3cktv:pending-retry');
+ store.works.set(ref,{ref,title:'مسلسل',metadata:{}});
+ await store.putEpisodes([{work_ref:ref,provider:'3cktv',source_ref:'3cktv:e1',season:1,episode:1,state:'pending',media:[]}]);
+ await api.sourcePlayback(ref);const job=[...store.jobs.values()][0];
+ await store.setEpisode(ref,'3cktv','3cktv:e1',{state:'unavailable',last_checked_at:new Date(clock).toISOString()});
+ assert.equal((await api.sourcePlayback(ref)).state,'queued');
+ job.status='running';assert.equal((await api.sourcePlayback(ref)).state,'running');assert.equal(wakes.length,3);
+});
