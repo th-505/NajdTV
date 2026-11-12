@@ -145,6 +145,7 @@ class MitvApi implements MediaRepository {
       !{
         'tmdb',
         'source',
+        'match',
         'matches',
         'matchserver',
         'http',
