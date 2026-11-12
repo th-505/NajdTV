@@ -129,7 +129,7 @@ export function createPinnedPlayback({ loadDetails, probe = probePinnedPlaybackM
     const base = { provider, series_ref: seriesRef, episode_ref: null, season, episode, platform, servers: [] };
     const unavailable = reason => ({ ...base, status: 'unavailable', playback_unavailable: true, playback_reason: reason });
     let details;
-    try { details = unwrap(await loadDetails({ provider, ref: seriesRef, phase: 'metadata', platform })); }
+    try { details = unwrap(await loadDetails({ provider, ref: seriesRef, phase: 'metadata', platform, type })); }
     catch { return unavailable('PINNED_SOURCE_UNAVAILABLE'); }
     assertOwnership(details, provider);
     let mediaRef = seriesRef;
@@ -145,7 +145,7 @@ export function createPinnedPlayback({ loadDetails, probe = probePinnedPlaybackM
       }
       if (refs.size !== 1) return unavailable('PINNED_EPISODE_AMBIGUOUS');
       mediaRef = [...refs][0]; base.episode_ref = mediaRef;
-      try { details = unwrap(await loadDetails({ provider, ref: mediaRef, phase: 'episode', platform })); }
+      try { details = unwrap(await loadDetails({ provider, ref: mediaRef, phase: 'episode', platform, type })); }
       catch { return unavailable('PINNED_SOURCE_UNAVAILABLE'); }
       assertOwnership(details, provider);
       // Explicit metadata contradictions can never be papered over by a playable URL.
