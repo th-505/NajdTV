@@ -184,10 +184,20 @@ for (let i = 0; i < serversFromPlayer.length; i++) {
   const s = serversFromPlayer[i];
   assert.equal(s.code, `AK-${i + 1}`, `Server code must be AK-${i + 1}`);
   assert.equal(s.provider, 'akwam');
-  assert.equal(s.type, 'mp4');
+  assert.equal(s.type, new URL(s.url).pathname.endsWith('.m3u8') ? 'm3u8' : 'mp4');
   assert.ok(s.url.startsWith('https://s201d1.downet.net/'));
   assert.ok(s.headers?.Referer);
 }
+// Current main preserves every observed alternative, including the HLS literal
+// in DOWNET_BRIDGE_HTML. Assert exact provenance rather than hiding it as MP4.
+assert.deepEqual(new Set(serversFromPlayer.map(s=>new URL(s.url).pathname)),new Set([
+  '/media/token123/hulm-ashraf-1-1080p.mp4',
+  '/media/token123/hulm-ashraf-1-720p.mp4',
+  '/media/token123/hulm-ashraf-1-480p.mp4',
+  '/download/token123/hulm-ashraf-1-1080p.mp4',
+  '/download/token123/hulm-ashraf-1-720p.mp4',
+  '/media/token123/master.m3u8',
+]));
 assert.equal(serversFromPlayer[0].quality, '1080p');
 assert.equal(serversFromPlayer[1].quality, '720p');
 assert.equal(serversFromPlayer[2].quality, '480p');
@@ -195,7 +205,7 @@ assert.ok(serversFromPlayer._meta?.ok);
 
 console.log('8b. Testing Multi-step Server Bridge via fixtures map...');
 const serversMultiStep = await scrapeServers('https://akwam.ss/episode/89517/hulm-ashraf/الحلقة-1', {
-  fixtures: FIXTURE_URL_MAP
+  fixtures: {...FIXTURE_URL_MAP, 'https://akwam.ss/download/9904/hulm-ashraf-1-1080p': DOWNET_BRIDGE_HTML}
 });
 assert.ok(Array.isArray(serversMultiStep));
 assert.ok(serversMultiStep.length >= 1, `Multi-step server extraction returned ${serversMultiStep.length} servers`);

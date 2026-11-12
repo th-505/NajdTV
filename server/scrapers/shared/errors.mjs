@@ -1,3 +1,4 @@
+import {providerErrorCode} from '../../../shared/provider-contract.js';
 // server/scrapers/shared/errors.mjs
 // Unified error classification and diagnostic result wrappers for MATV providers
 
@@ -6,6 +7,8 @@ export const SCRAPER_ERROR_CODES = Object.freeze({
   UNSUPPORTED_CAPABILITY: 'UNSUPPORTED_CAPABILITY',
   NOT_IMPLEMENTED: 'NOT_IMPLEMENTED',
   NETWORK_TIMEOUT: 'NETWORK_TIMEOUT',
+  TIMEOUT: 'TIMEOUT',
+  UPSTREAM_UNAVAILABLE: 'UPSTREAM_UNAVAILABLE',
   ACCESS_BLOCKED: 'ACCESS_BLOCKED',
   STRUCTURE_CHANGED: 'STRUCTURE_CHANGED',
   SERVER_EXTRACTION_FAILED: 'SERVER_EXTRACTION_FAILED',
@@ -19,6 +22,8 @@ export class ScraperError extends Error {
     super(message || validCode);
     this.name = 'ScraperError';
     this.code = validCode;
+    this.error_code = providerErrorCode(validCode);
+    this.state = 'unavailable';
     this.providerId = details.providerId || null;
     this.url = details.url || null;
     this.status = details.status ?? null;
@@ -30,6 +35,8 @@ export class ScraperError extends Error {
     return {
       name: this.name,
       code: this.code,
+      error_code: this.error_code,
+      state: this.state,
       message: this.message,
       providerId: this.providerId,
       url: this.url,
@@ -123,6 +130,8 @@ export function attachResultMeta(target, meta = {}) {
     ok: meta.ok ?? (!meta.errorCode || meta.errorCode === SCRAPER_ERROR_CODES.EMPTY_RESULT),
     errorCode: meta.errorCode || null,
     errorMessage: meta.errorMessage || null,
+    error_code:meta.errorCode?providerErrorCode(meta.errorCode):null,
+    state:meta.errorCode && meta.errorCode!=='EMPTY_RESULT'?'unavailable':meta.errorCode==='EMPTY_RESULT'?'empty':'ready',
     providerId: meta.providerId || null,
     url: meta.url || null,
     timestamp: meta.timestamp || new Date().toISOString(),

@@ -42,28 +42,28 @@ assert.equal(PROVIDER_META.capabilities.episodes, true);
 assert.equal(PROVIDER_META.capabilities.servers, true);
 assert.equal(PROVIDER_META.capabilities.resolve, true);
 assert.equal(PROVIDER_META.capabilities.live, false);
-assert.equal(PROVIDER_META.searchSpec.queryParam, 'find');
-assert.equal(PROVIDER_META.searchSpec.pathTemplate, '/find/?find={query}');
+assert.equal(PROVIDER_META.searchSpec.queryParam, 'word');
+assert.equal(PROVIDER_META.searchSpec.pathTemplate, '/find/?word={query}');
 
 // 2. DOMAIN REWRITING & REF RESOLUTION
 console.log('2. Testing Domain Rewriting & Target Resolution...');
 assert.equal(
   rewriteToActiveArabSeedDomain('https://arabseed.show/movies/test/'),
-  'https://www.arabseed.wine/movies/test/'
+  'https://m.myseed.tv/movies/test/'
 );
 assert.equal(
   rewriteToActiveArabSeedDomain('https://asd.homes/watch/test-1/'),
-  'https://www.arabseed.wine/watch/test-1/'
+  'https://m.myseed.tv/watch/test-1/'
 );
 assert.equal(
   rewriteToActiveArabSeedDomain('/movies/demo/'),
-  'https://www.arabseed.wine/movies/demo/'
+  'https://m.myseed.tv/movies/demo/'
 );
 
 const ref = encodeArabSeedRef('https://www.arabseed.wine/series/test-series/');
 assert.ok(ref.startsWith('arabseed:'));
 const resolvedUrl = resolveArabSeedTargetUrl(ref);
-assert.equal(resolvedUrl, 'https://www.arabseed.wine/series/test-series/');
+assert.equal(resolvedUrl, 'https://m.myseed.tv/series/test-series/');
 
 // 3. CATALOG FIXTURE SCRAPING
 console.log('3. Testing Catalog Fixture Scraping...');
@@ -77,7 +77,7 @@ assert.equal(catalogItems[0].serverPrefix, 'AD');
 assert.equal(catalogItems[0].type, 'movie');
 assert.equal(catalogItems[0].is_series, false);
 assert.ok(catalogItems[0].ref.startsWith('arabseed:'));
-assert.ok(catalogItems[0].url.startsWith('https://www.arabseed.wine/movies/'));
+assert.ok(catalogItems[0].url.startsWith('https://m.myseed.tv/movies/'));
 assert.ok(catalogItems[0].poster.startsWith('https://www.arabseed.wine/wp-content/'));
 assert.ok(catalogItems[0].title.includes('Batman Part II 2026'));
 assert.equal(catalogItems[0].year, '2026');
@@ -139,7 +139,7 @@ for (let i = 0; i < episodes.length; i++) {
   assert.equal(episodes[i].number, i + 1);
   assert.equal(episodes[i].season, 6);
   assert.equal(episodes[i].source, 'arabseed');
-  assert.ok(episodes[i].url.startsWith('https://www.arabseed.wine/watch/'));
+  assert.ok(episodes[i].url.startsWith('https://m.myseed.tv/watch/'));
   assert.ok(episodes[i].ref.startsWith('arabseed:'));
 }
 assert.ok(episodes._meta?.ok);

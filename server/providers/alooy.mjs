@@ -1,3 +1,5 @@
+import {guardedProviderFetch} from '../scrapers/shared/http.mjs';
+import { providerContract, parsedCollection } from '../../shared/provider-contract.js';
 import { load } from "cheerio";
 import { sourcePublishedAt } from '../source-publication.mjs';
 import { TtlCache } from "../content-runtime.mjs";
@@ -144,7 +146,7 @@ export function parseAlooyDetails(html, pageUrl) {
         : {}),
   };
 }
-export function createAlooyProvider({ fetchImpl = globalThis.fetch } = {}) {
+function createAlooyProviderRaw({ fetchImpl = globalThis.fetch } = {}) {
   const cache = new TtlCache({ maxEntries: 96 }),
     pending = new Map();
   async function page(u, refresh = false) {
@@ -152,10 +154,12 @@ export function createAlooyProvider({ fetchImpl = globalThis.fetch } = {}) {
     if (!refresh && cache.get(key)) return cache.get(key);
     if (pending.has(key)) return pending.get(key);
     const job = (async () => {
-      const res = await fetchImpl(key, {
+      const res = await guardedProviderFetch(key, {
         redirect: "error",
         signal: AbortSignal.timeout(20000),
         headers: { "User-Agent": ALOOY_UA, Referer: ALOOY_ORIGIN + "/" },
+      }, {fetchImpl,errorPrefix:'ALOOY',providerId:'alooy',timeoutMs:20000,maxBytes:2*1024*1024,
+        validateUrl:u=>{if(u.origin!==ALOOY_ORIGIN)throw Error('ALOOY_BAD_REFERENCE');}
       });
       if (!res.ok) {
         await res.body?.cancel();
@@ -188,10 +192,11 @@ export function createAlooyProvider({ fetchImpl = globalThis.fetch } = {}) {
         p === 1 ? "/tv-series.html" : `/tvseries/home/${(p - 1) * 24}.html`,
         ALOOY_ORIGIN,
       );
+      const html=await page(u);
       return {
         status: "success",
         source: "alooy",
-        data: parseAlooyCatalog(await page(u)),
+        data: parsedCollection(parseAlooyCatalog(html),html),
       };
     },
     async details(ref, { refresh = false } = {}) {
@@ -206,6 +211,7 @@ export function createAlooyProvider({ fetchImpl = globalThis.fetch } = {}) {
       const u = new URL("/home/autocompleteajax", ALOOY_ORIGIN);
       u.searchParams.set("term", q);
       const json = JSON.parse(await page(u));
+      if(!Array.isArray(json))throw Error('ALOOY_BAD_SEARCH_RESPONSE');
       const rows = [];
       for (const row of Array.isArray(json) ? json : []) {
         try {
@@ -220,6 +226,7 @@ export function createAlooyProvider({ fetchImpl = globalThis.fetch } = {}) {
           });
         } catch {}
       }
+      if(json.length && !rows.length)throw Error('ALOOY_BAD_SEARCH_RESPONSE');
       return { status: "success", source: "alooy", data: rows };
     },
     async metadata(ref) {
@@ -238,3 +245,5 @@ export function createAlooyProvider({ fetchImpl = globalThis.fetch } = {}) {
     },
   };
 }
+
+export function createAlooyProvider(options) { return providerContract(createAlooyProviderRaw(options), 'alooy'); }

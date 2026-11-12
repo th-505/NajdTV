@@ -1,0 +1,473 @@
+{
+  "requested_base": "7317d9c86e85770cf4fff6f9da5b69fd3352f9c6",
+  "integrated_main": "6ebb30ec36db12ef5fd427a00d2faa262d8e5047",
+  "scope": "local commands; not native/device or live playback certification",
+  "stages": {
+    "baseline": [
+      {
+        "suite": "check",
+        "exit": 0,
+        "seconds": 21.23,
+        "log": "/workspace/audit/baseline-check.log"
+      },
+      {
+        "suite": "test:continuation",
+        "exit": 0,
+        "seconds": 2.05,
+        "log": "/workspace/audit/baseline-test-continuation.log"
+      },
+      {
+        "suite": "test:unified",
+        "exit": 0,
+        "seconds": 18.19,
+        "log": "/workspace/audit/baseline-test-unified.log"
+      },
+      {
+        "suite": "test:3isk",
+        "exit": 0,
+        "seconds": 0.54,
+        "log": "/workspace/audit/baseline-test-3isk.log"
+      },
+      {
+        "suite": "test:phase2",
+        "exit": 0,
+        "seconds": 0.11,
+        "log": "/workspace/audit/baseline-test-phase2.log"
+      },
+      {
+        "suite": "test:alooy",
+        "exit": 0,
+        "seconds": 0.28,
+        "log": "/workspace/audit/baseline-test-alooy.log"
+      }
+    ],
+    "stage1": [
+      {
+        "suite": "check",
+        "exit": 0,
+        "seconds": 26.12,
+        "log": "/workspace/audit/stage1-final-check.log"
+      },
+      {
+        "suite": "test:continuation",
+        "exit": 0,
+        "seconds": 2.08,
+        "log": "/workspace/audit/stage1-final-test-continuation.log"
+      },
+      {
+        "suite": "test:unified",
+        "exit": 0,
+        "seconds": 18.76,
+        "log": "/workspace/audit/stage1-final-test-unified.log"
+      },
+      {
+        "suite": "test:3isk",
+        "exit": 0,
+        "seconds": 0.54,
+        "log": "/workspace/audit/stage1-final-test-3isk.log"
+      },
+      {
+        "suite": "test:phase2",
+        "exit": 0,
+        "seconds": 0.11,
+        "log": "/workspace/audit/stage1-final-test-phase2.log"
+      },
+      {
+        "suite": "test:alooy",
+        "exit": 0,
+        "seconds": 0.28,
+        "log": "/workspace/audit/stage1-final-test-alooy.log"
+      }
+    ],
+    "stage2": [
+      {
+        "suite": "check",
+        "exit": 0,
+        "seconds": 25.49,
+        "log": "/workspace/audit/stage2-check.log"
+      },
+      {
+        "suite": "test:continuation",
+        "exit": 0,
+        "seconds": 2.03,
+        "log": "/workspace/audit/stage2-test-continuation.log"
+      },
+      {
+        "suite": "test:unified",
+        "exit": 0,
+        "seconds": 18.76,
+        "log": "/workspace/audit/stage2-test-unified.log"
+      },
+      {
+        "suite": "test:3isk",
+        "exit": 0,
+        "seconds": 0.8,
+        "log": "/workspace/audit/stage2-test-3isk.log"
+      },
+      {
+        "suite": "test:phase2",
+        "exit": 0,
+        "seconds": 0.12,
+        "log": "/workspace/audit/stage2-test-phase2.log"
+      },
+      {
+        "suite": "test:alooy",
+        "exit": 0,
+        "seconds": 0.3,
+        "log": "/workspace/audit/stage2-test-alooy.log"
+      }
+    ],
+    "stage3": [
+      {
+        "suite": "check",
+        "exit": 0,
+        "seconds": 27.02,
+        "log": "/workspace/audit/stage3-check.log"
+      },
+      {
+        "suite": "test:continuation",
+        "exit": 0,
+        "seconds": 2.1,
+        "log": "/workspace/audit/stage3-test-continuation.log"
+      },
+      {
+        "suite": "test:unified",
+        "exit": 0,
+        "seconds": 18.97,
+        "log": "/workspace/audit/stage3-test-unified.log"
+      },
+      {
+        "suite": "test:3isk",
+        "exit": 0,
+        "seconds": 1.76,
+        "log": "/workspace/audit/stage3-test-3isk.log"
+      },
+      {
+        "suite": "test:phase2",
+        "exit": 0,
+        "seconds": 0.55,
+        "log": "/workspace/audit/stage3-test-phase2.log"
+      },
+      {
+        "suite": "test:alooy",
+        "exit": 0,
+        "seconds": 0.47,
+        "log": "/workspace/audit/stage3-test-alooy.log"
+      }
+    ],
+    "stage4": [
+      {
+        "suite": "check",
+        "exit": 0,
+        "seconds": 28.35,
+        "log": "/workspace/audit/stage4-check.log"
+      },
+      {
+        "suite": "test:continuation",
+        "exit": 0,
+        "seconds": 2.03,
+        "log": "/workspace/audit/stage4-test-continuation.log"
+      },
+      {
+        "suite": "test:unified",
+        "exit": 0,
+        "seconds": 18.43,
+        "log": "/workspace/audit/stage4-test-unified.log"
+      },
+      {
+        "suite": "test:3isk",
+        "exit": 0,
+        "seconds": 1.77,
+        "log": "/workspace/audit/stage4-test-3isk.log"
+      },
+      {
+        "suite": "test:phase2",
+        "exit": 0,
+        "seconds": 0.53,
+        "log": "/workspace/audit/stage4-test-phase2.log"
+      },
+      {
+        "suite": "test:alooy",
+        "exit": 0,
+        "seconds": 0.46,
+        "log": "/workspace/audit/stage4-test-alooy.log"
+      }
+    ],
+    "stage5": [
+      {
+        "suite": "check",
+        "exit": 0,
+        "seconds": 30.36,
+        "log": "/workspace/audit/stage5-check.log"
+      },
+      {
+        "suite": "test:continuation",
+        "exit": 0,
+        "seconds": 1.97,
+        "log": "/workspace/audit/stage5-test-continuation.log"
+      },
+      {
+        "suite": "test:unified",
+        "exit": 0,
+        "seconds": 18.92,
+        "log": "/workspace/audit/stage5-test-unified.log"
+      },
+      {
+        "suite": "test:3isk",
+        "exit": 0,
+        "seconds": 1.69,
+        "log": "/workspace/audit/stage5-test-3isk.log"
+      },
+      {
+        "suite": "test:phase2",
+        "exit": 0,
+        "seconds": 0.53,
+        "log": "/workspace/audit/stage5-test-phase2.log"
+      },
+      {
+        "suite": "test:alooy",
+        "exit": 0,
+        "seconds": 0.53,
+        "log": "/workspace/audit/stage5-test-alooy.log"
+      }
+    ],
+    "stage6": [
+      {
+        "suite": "check",
+        "exit": 0,
+        "seconds": 27.99,
+        "log": "/workspace/audit/stage6-final-check.log"
+      },
+      {
+        "suite": "test:continuation",
+        "exit": 0,
+        "seconds": 1.94,
+        "log": "/workspace/audit/stage6-final-test-continuation.log"
+      },
+      {
+        "suite": "test:unified",
+        "exit": 0,
+        "seconds": 18.4,
+        "log": "/workspace/audit/stage6-final-test-unified.log"
+      },
+      {
+        "suite": "test:3isk",
+        "exit": 0,
+        "seconds": 1.7,
+        "log": "/workspace/audit/stage6-final-test-3isk.log"
+      },
+      {
+        "suite": "test:phase2",
+        "exit": 0,
+        "seconds": 0.56,
+        "log": "/workspace/audit/stage6-final-test-phase2.log"
+      },
+      {
+        "suite": "test:alooy",
+        "exit": 0,
+        "seconds": 0.55,
+        "log": "/workspace/audit/stage6-final-test-alooy.log"
+      }
+    ],
+    "stage7": [
+      {
+        "suite": "check",
+        "exit": 0,
+        "seconds": 29.83,
+        "log": "/workspace/audit/ci-integrated-check.log"
+      },
+      {
+        "suite": "test:continuation",
+        "exit": 0,
+        "seconds": 1.97,
+        "log": "/workspace/audit/ci-integrated-test-continuation.log"
+      },
+      {
+        "suite": "test:unified",
+        "exit": 0,
+        "seconds": 20.52,
+        "log": "/workspace/audit/ci-integrated-test-unified.log"
+      },
+      {
+        "suite": "test:3isk",
+        "exit": 0,
+        "seconds": 1.7,
+        "log": "/workspace/audit/ci-integrated-test-3isk.log"
+      },
+      {
+        "suite": "test:phase2",
+        "exit": 0,
+        "seconds": 0.54,
+        "log": "/workspace/audit/ci-integrated-test-phase2.log"
+      },
+      {
+        "suite": "test:alooy",
+        "exit": 0,
+        "seconds": 0.48,
+        "log": "/workspace/audit/ci-integrated-test-alooy.log"
+      }
+    ]
+  },
+  "fixture_baseline": {
+    "pass": 12,
+    "fail": 6,
+    "reference": "7317d9c86e85770cf4fff6f9da5b69fd3352f9c6"
+  },
+  "fixture_stage5": [
+    {
+      "file": "scripts/providers/3cktv.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/3isk.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/akwam.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/alooy.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/anime4up.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/arabseed.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/cimanow.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/egydead.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/ipauniverse.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/laroza.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/mewsry.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/moviztime.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/mycima.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/qfilm.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/ristoanime.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/shahid4u.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/witanime.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/yallashoot.fixture.test.mjs",
+      "exit": 0
+    }
+  ],
+  "final_fixture_files": [
+    {
+      "file": "scripts/providers/3cktv.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/3isk.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/akwam.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/alooy.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/anime4up.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/arabseed.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/cimanow.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/egydead.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/ipauniverse.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/laroza.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/mewsry.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/moviztime.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/mycima.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/qfilm.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/ristoanime.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/shahid4u.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/witanime.fixture.test.mjs",
+      "exit": 0
+    },
+    {
+      "file": "scripts/providers/yallashoot.fixture.test.mjs",
+      "exit": 0
+    }
+  ],
+  "unified_node_tests": 301,
+  "unified_node_failures": 0,
+  "no_cleanup_deletions": true,
+  "tested_code_sha256": "896471837d85b23504a11d22e428acc74bf277c8eac0a8b4185433f3a42fe420",
+  "github_ci_initial_head": {
+    "sha": "2f9340e90676a44aa02309b36cdc6d2d83007917",
+    "content_runtime": "success",
+    "repository_health": "success"
+  }
+}

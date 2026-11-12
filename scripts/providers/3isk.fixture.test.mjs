@@ -48,19 +48,19 @@ assert.equal(PROVIDER_META.searchSpec.queryParam, 's');
 console.log('2. Testing Domain Rewriting & Target Resolution...');
 assert.equal(
   rewriteToActive3iskDomain('https://ww5.3ick.club/watch/episodes/test-1/'),
-  'https://ww4.3ick.club/watch/episodes/test-1/'
+  'https://3iskk.xyz/watch/episodes/test-1/'
 );
 assert.equal(
   rewriteToActive3iskDomain('https://3isk.onl/watch/tvshows/test-series/'),
-  'https://ww4.3ick.club/watch/tvshows/test-series/'
+  'https://3iskk.xyz/watch/tvshows/test-series/'
 );
 assert.equal(
   rewriteToActive3iskDomain('/watch/movies/test/'),
-  'https://ww4.3ick.club/watch/movies/test/'
+  'https://3iskk.xyz/watch/movies/test/'
 );
 
 const encodedRef = resolve3iskTargetUrl('3isk:L3dhdGNoL3R2c2hvd3Mvc2VyaWUtZGVtby8');
-assert.equal(encodedRef, 'https://ww4.3ick.club/watch/tvshows/serie-demo/');
+assert.equal(encodedRef, 'https://3iskk.xyz/watch/tvshows/serie-demo/');
 
 // 3. CATALOG FIXTURE SCRAPING
 console.log('3. Testing Catalog Fixture Scraping...');

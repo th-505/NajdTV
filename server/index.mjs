@@ -1,3 +1,4 @@
+import {sourceResponse,providerErrorCode} from '../shared/provider-contract.js';
 import { pathToFileURL } from "node:url";
 import { createServer } from "./app.mjs";
 import { createNewsRuntime } from "./news-runtime.mjs";
@@ -94,6 +95,7 @@ async function proxyMatchLogo(req, res, url) {
 }
 
 function sendRuntimeJson(req, res, status, payload) {
+  if(payload && !Array.isArray(payload) && (payload.source || payload.state || payload.status==='error')) payload=sourceResponse(payload);
   applyRuntimeCors(req, res);
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   return res.end(JSON.stringify(payload));

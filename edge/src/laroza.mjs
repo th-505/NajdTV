@@ -1,3 +1,5 @@
+import {sourceResponse,providerErrorCode} from '../../shared/provider-contract.js';
+import { boundedPage, validOffset } from '../../shared/provider-pagination.js';
 import { limitedText, unpack } from "./provider.mjs";
 
 const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1";
@@ -181,10 +183,9 @@ export function parseLarozaCatalog(html, config = LAROZA_CONFIG, section = "late
   for (const m of clean.matchAll(/<article\b[^>]*\bclass=["'][^"']*\bls-card\b[^"']*["'][^>]*>([\s\S]*?)<\/article\s*>/gi)) cards.push(m[1]);
   const sliderStarts = [...clean.matchAll(/<div\b[^>]*\bclass=["'][^"']*\bsub-card\b[^"']*["'][^>]*>/gi)];
   for (let i = 0; i < sliderStarts.length; i++) cards.push(clean.slice(sliderStarts[i].index, Math.min(sliderStarts[i + 1]?.index || clean.length, sliderStarts[i].index + 12000)));
-  for (const card of cards.slice(0, 300)) {
+  for (const card of cards) {
     const item = rawCardItem(card, config, section);
     if (item && !seen.has(item.ref)) { data.push(item); seen.add(item.ref); }
-    if (data.length >= 60) break;
   }
   return data;
 }
@@ -219,7 +220,8 @@ function publicationTime(root) {
   }
   return null;
 }
-export function parseLarozaDetails(html, ref, config = LAROZA_CONFIG) {
+export function parseLarozaDetails(html, ref, config = LAROZA_CONFIG, offset = 0) {
+  validOffset(offset);
   const u = decodeLarozaRef(ref, config), root = tree(html);
   const main = nodes(root, (n) => n.a.id === "content")[0] || nodes(root, (n) => hasClass(n, "pm-video-watch-main"))[0] || nodes(root, (n) => hasClass(n, "pm-section-highlighted"))[0] || root;
   const title = (text(nodes(main, (n) => n.tag === "h1")[0]) || text(nodes(root, (n) => n.tag === "h1")[0]) || meta(root, "og:title") || text(nodes(root, (n) => n.tag === "title")[0]).replace(/\s*-\s*فيديو لاروزا\s*$/, "")).slice(0, 300);
@@ -244,13 +246,12 @@ export function parseLarozaDetails(html, ref, config = LAROZA_CONFIG) {
       if (!number || number < 1 || number > 9999 || seen.has(episodeRef)) continue;
       seen.add(episodeRef);
       episodes.push({ id: episodeUrl.searchParams.get("vid"), episode_id: episodeUrl.searchParams.get("vid"), title: episodeTitle || `الحلقة ${number}`, ref: episodeRef, source: "laroza", episode_number: number, season_number: info.season_number || areaSeason || null, watch_available: true, edition: info.edition === "unknown" ? base.edition : info.edition });
-      if (episodes.length >= 200) break;
     }
   }
   episodes.sort((a, b) => (a.season_number || 0) - (b.season_number || 0) || a.episode_number - b.episode_number);
   // Only an explicit IMDb link inside this work's main content proves identity.
   const imdb = nodes(main, (n) => n.tag === "a" && n.a.href && /^https:\/\/(?:www\.)?imdb\.com\/title\/tt\d{7,10}\/?(?:\?[^#]*)?$/.test(n.a.href))[0]?.a.href.match(/tt\d{7,10}/)?.[0] || null;
-  return { ...base, imdb_id: imdb, work_identity_verified: imdb !== null, identity_verified: false, timeline_verified: false, description: meta(root, "description").slice(0, 2000), backdrop: base.poster, episodes, subtitles: [], download_available: false };
+  return { ...base, imdb_id: imdb, work_identity_verified: imdb !== null, identity_verified: false, timeline_verified: false, description: meta(root, "description").slice(0, 2000), backdrop: base.poster, ...boundedPage(episodes, offset, 200, "episodes"), subtitles: [], download_available: false };
 }
 function format(url) { const path = url.pathname.toLowerCase(); return path.endsWith(".m3u8") ? "hls" : path.endsWith(".webm") ? "webm" : "mp4"; }
 function mediaUrl(raw, config, base) {
@@ -332,7 +333,9 @@ export function createLarozaEdge({ fetchImpl = fetch, config = LAROZA_CONFIG, no
       if ([301, 302, 303, 307, 308].includes(r.status)) {
         await r.body?.cancel();
         if (depth === 3 || !r.headers.get("location")) throw Error("LAROZA_REDIRECT_LIMIT");
-        current = pageUrl(new URL(r.headers.get("location"), current), metadataOnly);
+        const redirected = new URL(r.headers.get("location"), current);
+        if(metadataOnly && redirected.origin !== origin.origin) throw Error("LAROZA_SOURCE_REDIRECT_REQUIRES_REVIEW");
+        current = pageUrl(redirected, metadataOnly);
         continue;
       }
       if (!r.ok) { await r.body?.cancel(); throw Error("LAROZA_UPSTREAM_HTTP_" + r.status); }
@@ -342,7 +345,7 @@ export function createLarozaEdge({ fetchImpl = fetch, config = LAROZA_CONFIG, no
     }
   }
   function pageNumber(value) { if (!/^[1-9]\d{0,3}$/.test(String(value)) || Number(value) > 1000) throw Error("BAD_LAROZA_PAGE"); return Number(value); }
-  async function category(section = "latest", number = 1) {
+  async function category(section = "latest", number = 1, offset = 0) {
     const p = pageNumber(number);
     const paths = { latest: ["/newvideos1.php"], series: ["/moslslat4.php"], anime: ["/category.php?cat=6-anime-series", "/category.php?cat=anime-movies-7"], movies: [] }[section];
     if (!paths) throw Error("BAD_LAROZA_SECTION");
@@ -356,21 +359,26 @@ export function createLarozaEdge({ fetchImpl = fetch, config = LAROZA_CONFIG, no
       const items = parseLarozaCatalog(r.html, config, section).map((item) => genre ? { ...item, feed: u.searchParams.get("cat"), genres: [...new Set([...item.genres, genre])] } : item);
       return { items, has_more: hasNextPage(r.html, u) };
     }));
-    if (results.every((r) => r.status === "rejected")) throw Error("LAROZA_CATALOG_UNAVAILABLE");
+    if (results.every((r) => r.status === "rejected")) {
+      const error=Error("LAROZA_CATALOG_UNAVAILABLE");
+      error.upstream_reason=results[0].reason?.message;
+      throw error;
+    }
     const complete = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
-    const data = [...new Map(complete.flatMap((r) => r.items).map((i) => [i.ref, i])).values()].slice(0, 60);
+    const items = [...new Map(complete.flatMap((r) => r.items).map((i) => [i.ref, i])).values()];
+    const batch = boundedPage(items, offset, 60);
     const hasMore = complete.some((r) => r.has_more || (section === "movies" && r.items.length > 0));
-    return { status: "success", source: "laroza", data, page: p, section, has_more: hasMore, pagination: { page: p, has_more: hasMore, next_page: p < 1000 ? p + 1 : null, ...(section === "movies" ? { bounded_feed_rotation: true } : {}) } };
+    return { status: "success", source: "laroza", ...batch, partial: batch.partial || complete.length < results.length, page: p, section, has_more: hasMore, pagination: { page: p, has_more: hasMore, next_page: p < 1000 ? p + 1 : null, ...(section === "movies" ? { bounded_feed_rotation: true } : {}) } };
   }
-  async function search(query, number = 1) {
+  async function search(query, number = 1, offset = 0) {
     if (!validQuery(query)) throw Error("BAD_LAROZA_QUERY");
     const p = pageNumber(number), u = new URL("/search.php", origin);
     u.searchParams.set("keywords", query.trim()); u.searchParams.set("page", String(p));
     const r = await page(u, origin.href, true);
     const hasMore = hasNextPage(r.html, u);
-    return { status: "success", source: "laroza", data: parseLarozaCatalog(r.html, config), page: p, has_more: hasMore, pagination: { page: p, has_more: hasMore, next_page: hasMore && p < 1000 ? p + 1 : null } };
+    return { status: "success", source: "laroza", ...boundedPage(parseLarozaCatalog(r.html, config), offset, 60), page: p, has_more: hasMore, pagination: { page: p, has_more: hasMore, next_page: hasMore && p < 1000 ? p + 1 : null } };
   }
-  async function details(ref) { const u = decodeLarozaRef(ref, config), r = await page(u, origin.href, true); return { status: "success", source: "laroza", data: parseLarozaDetails(r.html, ref, config) }; }
+  async function details(ref, offset = 0) { const u = decodeLarozaRef(ref, config), r = await page(u, origin.href, true); return { status: "success", source: "laroza", data: parseLarozaDetails(r.html, ref, config, offset) }; }
   async function mediaHead(raw, headers) {
     let u = mediaUrl(raw, config), response;
     for (let depth = 0; depth <= 3; depth++) {
@@ -429,17 +437,18 @@ export default {
   async fetch(request, env) {
     const u = new URL(request.url);
     if (request.method !== "GET") return Response.json({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
-    const keys = { "/category": ["section", "page"], "/search": ["q", "page"], "/details": ["ref"], "/resolve": ["ref"] }[u.pathname];
+    const keys = { "/category": ["section", "page", "offset"], "/search": ["q", "page", "offset"], "/details": ["ref", "offset"], "/resolve": ["ref"] }[u.pathname];
     if (!keys) return Response.json({ error: "NOT_FOUND" }, { status: 404 });
     if ([...u.searchParams.keys()].some((k) => !keys.includes(k) || u.searchParams.getAll(k).length !== 1)) return Response.json({ error: "BAD_LAROZA_QUERY" }, { status: 400 });
     try {
       const config = typeof env.PROVIDER_CONFIG === "string" ? JSON.parse(env.PROVIDER_CONFIG) : env.PROVIDER_CONFIG;
       const engine = createLarozaEdge({ config });
-      const body = u.pathname === "/category" ? await engine.category(u.searchParams.get("section") || "latest", u.searchParams.get("page") || "1") : u.pathname === "/search" ? await engine.search(u.searchParams.get("q") || "", u.searchParams.get("page") || "1") : u.pathname === "/details" ? await engine.details(u.searchParams.get("ref") || "") : await engine.resolve(u.searchParams.get("ref") || "");
-      return Response.json(body, { headers: { "Cache-Control": "no-store" } });
+      const offset = validOffset(u.searchParams.get("offset") ?? 0);
+      const body = u.pathname === "/category" ? await engine.category(u.searchParams.get("section") || "latest", u.searchParams.get("page") || "1", offset) : u.pathname === "/search" ? await engine.search(u.searchParams.get("q") || "", u.searchParams.get("page") || "1", offset) : u.pathname === "/details" ? await engine.details(u.searchParams.get("ref") || "", offset) : await engine.resolve(u.searchParams.get("ref") || "");
+      return Response.json(sourceResponse(body,"laroza"), { headers: { "Cache-Control": "no-store" } });
     } catch (e) {
       const error = /^[A-Z_0-9]+$/.test(e.message || "") ? e.message : "LAROZA_PROVIDER_UNAVAILABLE";
-      return Response.json({ error }, { status: /^(BAD_|LAROZA_SERIES_METADATA_ONLY)/.test(error) ? 400 : 503 });
+      return Response.json({ error, error_code:providerErrorCode(e.upstream_reason || error),state:"unavailable",...(e.upstream_reason && /^[A-Z_0-9]+$/.test(e.upstream_reason)?{upstream_reason:e.upstream_reason}:{}) }, { status: /^(BAD_|LAROZA_SERIES_METADATA_ONLY)/.test(error) ? 400 : 503 });
     }
   },
 };

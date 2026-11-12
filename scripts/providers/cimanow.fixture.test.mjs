@@ -58,23 +58,23 @@ assert.equal(PROVIDER_META.searchSpec.queryParam, 's');
 console.log('2. Testing Domain Rewriting & Target Resolution...');
 assert.equal(
   rewriteToActiveCimaNowDomain('https://vip.cimanowinc.com/film/test-movie/'),
-  'https://cimanow.me/film/test-movie/'
+  'https://cimanow.info/film/test-movie/'
 );
 assert.equal(
   rewriteToActiveCimaNowDomain('https://cimanow.cc/watch/test-episode/'),
-  'https://cimanow.me/watch/test-episode/'
+  'https://cimanow.info/watch/test-episode/'
 );
 assert.equal(
   rewriteToActiveCimaNowDomain('https://cimanow.net/category/movies/'),
-  'https://cimanow.me/category/movies/'
+  'https://cimanow.info/category/movies/'
 );
 assert.equal(
   rewriteToActiveCimaNowDomain('/watch/movie-1/'),
-  'https://cimanow.me/watch/movie-1/'
+  'https://cimanow.info/watch/movie-1/'
 );
 
 const encodedRef = resolveCimaNowTargetUrl(`cimanow:${Buffer.from('https://cimanow.me/film/demo/').toString('base64url')}`);
-assert.equal(encodedRef, 'https://cimanow.me/film/demo/');
+assert.equal(encodedRef, 'https://cimanow.info/film/demo/');
 
 // 3. CATALOG FIXTURE SCRAPING
 console.log('3. Testing Catalog Fixture Scraping...');
@@ -88,8 +88,8 @@ assert.equal(catalogItems[0].serverPrefix, 'CW');
 assert.equal(catalogItems[0].type, 'movie');
 assert.equal(catalogItems[0].is_series, false);
 assert.ok(catalogItems[0].ref.startsWith('cimanow:'));
-assert.ok(catalogItems[0].url.startsWith('https://cimanow.me/film/'));
-assert.ok(catalogItems[0].poster.startsWith('https://cimanow.me/photos/'));
+assert.ok(catalogItems[0].url.startsWith('https://cimanow.info/film/'));
+assert.ok(catalogItems[0].poster.startsWith('https://cimanow.info/photos/'));
 assert.equal(catalogItems[0].title, 'فيلم Masterplan 2026 مدبلج');
 assert.ok(catalogItems._meta?.ok, 'Catalog _meta.ok must be true');
 
@@ -153,7 +153,7 @@ assert.deepEqual(epNumbers, [1, 2, 3, 4, 5], 'Episodes must be strictly sorted a
 for (const ep of episodes) {
   assert.equal(ep.season, 4, 'Observed season four in the episode URL must not reset to season one');
   assert.ok(ep.ref.startsWith('cimanow:'));
-  assert.ok(ep.url.startsWith('https://cimanow.me/episode/'));
+  assert.ok(ep.url.startsWith('https://cimanow.info/episode/'));
   assert.equal(ep.watch_available, true);
 }
 

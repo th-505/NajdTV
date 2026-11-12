@@ -1,3 +1,4 @@
+import {sourceResponse,providerErrorCode} from '../shared/provider-contract.js';
 import { allowedOrigin, protectServer } from './security-boundary.mjs';
 import { searchTraceEvent } from './diagnostics/search-trace.mjs';
 import { pathToFileURL } from "node:url";
@@ -42,6 +43,7 @@ function applyCors(req, res) {
 }
 
 function sendJson(req, res, status, payload) {
+  if(payload && !Array.isArray(payload) && (payload.source || payload.state || payload.status==='error')) payload=sourceResponse(payload);
   applyCors(req, res);
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",

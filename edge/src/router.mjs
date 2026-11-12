@@ -180,10 +180,10 @@ function larozaTarget(url) {
   if (!route) return null;
   const allowed =
     route === "/category"
-      ? ["section", "page", "refresh"]
+      ? ["section", "page", "offset", "refresh"]
       : route === "/search"
-        ? ["q", "page", "refresh"]
-        : ["ref", "refresh"];
+        ? ["q", "page", "offset", "refresh"]
+        : ["ref", "offset", "refresh"];
   for (const [key] of url.searchParams)
     if (!allowed.includes(key) || url.searchParams.getAll(key).length !== 1)
       throw Error("BAD_CATALOG_QUERY");
@@ -209,6 +209,11 @@ function larozaTarget(url) {
       target.searchParams.set("q", query);
     }
     target.searchParams.set("page", page);
+  }
+  if (url.searchParams.has("offset")) {
+    const offset = url.searchParams.get("offset");
+    if (!/^(0|[1-9][0-9]{0,5})$/.test(offset) || Number(offset) > 100000) throw Error("BAD_CATALOG_QUERY");
+    target.searchParams.set("offset", offset);
   }
   return target;
 }

@@ -51,7 +51,7 @@ assert.equal(PROVIDER_META.capabilities.resolve, true);
 assert.equal(PROVIDER_META.capabilities.live, false);
 
 assert.equal(PROVIDER_META.searchSpec.method, 'GET');
-assert.equal(PROVIDER_META.searchSpec.queryParam, 's');
+assert.equal(PROVIDER_META.searchSpec.queryParam, 'keywords');
 assert.equal(PROVIDER_META.searchSpec.encoding, 'utf-8');
 
 assert.equal(QFILM_CONFIG.id, 'qfilm');

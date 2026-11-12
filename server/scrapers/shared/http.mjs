@@ -14,6 +14,7 @@ import {
   isCloudflareOrAccessBlock
 } from './errors.mjs';
 
+const PLATFORM_FETCH = globalThis.fetch;
 const HOST_SEMAPHORES = new Map();
 const HOST_COOLDOWNS = new Map();
 const MAX_COOLDOWN_MS = 15 * 60 * 1000;
@@ -269,13 +270,16 @@ export async function assertSafeResolvedHost(hostname, options = {}) {
   }
 
   const lookupFn = options.dnsLookupImpl || ((host) => dns.promises.lookup(host, { all: true, verbatim: true }));
-  let records;
+  let records,timer;
   try {
-    records = await lookupFn(cleanHost);
+    const timeout=Math.min(30000,Math.max(1,Number(options.timeoutMs)||10000));
+    records = await Promise.race([lookupFn(cleanHost),new Promise((_,reject)=>{
+      timer=setTimeout(()=>reject(new ScraperError(SCRAPER_ERROR_CODES.NETWORK_TIMEOUT,'DNS_TIMEOUT')),timeout);
+    })]);
   } catch (err) {
     // DNS failure (ENOTFOUND / EAI_AGAIN) is a network/access error, not an SSRF bypass
     throw classifyNetworkError(err, { url: `https://${cleanHost}` });
-  }
+  } finally { clearTimeout(timer); }
 
   const list = Array.isArray(records) ? records : records ? [records] : [];
   if (list.length === 0) {
@@ -399,9 +403,14 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
     skipDnsResolution = false,
     responseType = 'text',
     maxBytes = 8 * 1024 * 1024,
-    prefixBytes = 0
+    prefixBytes = 0,
+    redirectMode = 'follow',
+    validateUrl = null,
+    compatibilityHeaders = true,
+    returnHttpErrors = false
   } = options;
 
+  validateUrl?.(new URL(targetUrl));
   let currentUrl = assertSafeScraperUrl(targetUrl, { allowHttp, allowedHosts }).toString();
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -413,12 +422,13 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
       while (redirects <= maxRedirects) {
         searchTraceEvent('upstream_prepare', { url: hopUrl, method:hopMethod, attempt });
         const parsedHop = assertSafeScraperUrl(hopUrl, { allowHttp, allowedHosts });
-        assertHostAvailable(parsedHop.hostname, providerId);
+        validateUrl?.(parsedHop);
+        if(fetchImpl === PLATFORM_FETCH) assertHostAvailable(parsedHop.hostname, providerId);
         // Enforce DNS resolution SSRF check at initial request and every redirect hop
         // (unless a custom mock fetchImpl is injected without dnsLookupImpl in offline unit tests)
-        const shouldCheckDns = dnsLookupImpl !== null || (fetchImpl === globalThis.fetch && !skipDnsResolution);
+        const shouldCheckDns = dnsLookupImpl !== null || (fetchImpl === PLATFORM_FETCH && !skipDnsResolution);
         if (shouldCheckDns) {
-          await assertSafeResolvedHost(parsedHop.hostname, { dnsLookupImpl, skipDnsResolution });
+          await assertSafeResolvedHost(parsedHop.hostname, { dnsLookupImpl, skipDnsResolution, timeoutMs });
           searchTraceEvent('dns_resolved',{url:hopUrl});
         }
 
@@ -431,7 +441,7 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
 
         try {
           const reqHeaders = {
-            ...buildAntiBanHeaders(hopUrl, referer),
+            ...(compatibilityHeaders ? buildAntiBanHeaders(hopUrl, referer) : {}),
             ...customHeaders
           };
           if(omitOrigin)for(const key of Object.keys(reqHeaders))if(key.toLowerCase()==='origin')delete reqHeaders[key];
@@ -446,7 +456,7 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
             method: hopMethod,
             headers: reqHeaders,
             body: hopBody,
-            redirect: 'manual',
+            redirect: redirectMode === 'error' ? 'error' : 'manual',
             signal: controller.signal
           });
 
@@ -462,7 +472,10 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
               });
             }
             const nextParsed = new URL(location, hopUrl);
+            validateUrl?.(nextParsed);
             assertSafeScraperUrl(nextParsed.toString(), { allowHttp, allowedHosts });
+            if(redirectMode === 'error') throw new ScraperError(SCRAPER_ERROR_CODES.UNSAFE_URL,'REDIRECT_NOT_ALLOWED',{providerId,url:hopUrl});
+            if(redirectMode === 'manual') return {ok:res.ok,status:res.status,html:'',url:hopUrl,headers:res.headers};
             if([301,302].includes(res.status)&&hopMethod==='POST'||res.status===303&&hopMethod!=='HEAD'){hopMethod='GET';hopBody=undefined;}
             if(nextParsed.origin!==parsedHop.origin){
               credentialsAllowed=false;
@@ -491,7 +504,7 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
             throw new ScraperError(SCRAPER_ERROR_CODES.ACCESS_BLOCKED,suspended?'DOMAIN_SUSPENDED':'LOGIN_REQUIRED',{providerId,url:hopUrl,status:res.status});
           }
           if (isCloudflareOrAccessBlock(res.status, text, res.headers)) {
-            noteHostBlock(parsedHop.hostname, res.headers, res.status);
+            if(fetchImpl === PLATFORM_FETCH) noteHostBlock(parsedHop.hostname, res.headers, res.status);
             throw new ScraperError(
               SCRAPER_ERROR_CODES.ACCESS_BLOCKED,
               `CLOUDFLARE_OR_WAF_CHALLENGE_HTTP_${res.status}`,
@@ -500,14 +513,15 @@ export async function fetchSafeResponse(targetUrl, options = {}) {
           }
 
           if (!res.ok) {
-            if (res.status === 429 || res.status === 403) noteHostBlock(parsedHop.hostname, res.headers, res.status);
+            if(returnHttpErrors) return {ok:false,status:res.status,html:text,url:hopUrl,headers:res.headers};
+            if (fetchImpl === PLATFORM_FETCH && (res.status === 429 || res.status === 403)) noteHostBlock(parsedHop.hostname, res.headers, res.status);
             if (res.status === 404 || res.status === 410) {
               return { ok: false, status: res.status, html: text, url: hopUrl, headers: res.headers };
             }
             throw new ScraperError(
               res.status === 403 || res.status === 429 || res.status >= 520
                 ? SCRAPER_ERROR_CODES.ACCESS_BLOCKED
-                : SCRAPER_ERROR_CODES.NETWORK_TIMEOUT,
+                : [408,504].includes(res.status) ? SCRAPER_ERROR_CODES.NETWORK_TIMEOUT : SCRAPER_ERROR_CODES.UPSTREAM_UNAVAILABLE,
               `HTTP_${res.status}_FETCHING_${hopUrl}`,
               { providerId, url: hopUrl, status: res.status }
             );
@@ -582,4 +596,20 @@ export async function fetchProviderHtml(targetUrl, options = {}) {
   }
 
   return observe(await fetchSafeResponse(targetUrl, options));
+}
+
+// Compatibility facade for older Response consumers. Network validation, timeout
+// and body bounds finish in the shared client before exposing a buffered Response.
+export async function guardedProviderFetch(target, init = {}, policy = {}) {
+  let result;
+  try { result = await fetchSafeResponse(String(target), {
+    ...policy, method:init.method || 'GET', headers:init.headers || {},
+    redirectMode:init.redirect === 'error' ? 'error' : 'manual',
+    compatibilityHeaders:false, allowHttp:false, maxRetries:0,
+  }); } catch(error) {
+    if(policy.errorPrefix && error.status) error.message=policy.errorPrefix+'_HTTP_'+error.status;
+    throw error;
+  }
+  return new Response(result.status === 204 || init.method === 'HEAD' ? null : result.html,
+    {status:result.status,headers:result.headers});
 }
