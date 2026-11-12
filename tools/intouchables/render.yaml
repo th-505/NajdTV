@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: Aloush
+    runtime: docker
+    repo: https://github.com/th-505/NajdTV
+    branch: deploy/aloush-intouchables
+    plan: free
+    region: frankfurt
+    dockerfilePath: tools/intouchables/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
