@@ -158,7 +158,7 @@ function createAlooyProviderRaw({ fetchImpl = globalThis.fetch } = {}) {
         redirect: "error",
         signal: AbortSignal.timeout(20000),
         headers: { "User-Agent": ALOOY_UA, Referer: ALOOY_ORIGIN + "/" },
-      }, {fetchImpl,providerId:'alooy',timeoutMs:20000,maxBytes:2*1024*1024,
+      }, {fetchImpl,errorPrefix:'ALOOY',providerId:'alooy',timeoutMs:20000,maxBytes:2*1024*1024,
         validateUrl:u=>{if(u.origin!==ALOOY_ORIGIN)throw Error('ALOOY_BAD_REFERENCE');}
       });
       if (!res.ok) {

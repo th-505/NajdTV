@@ -91,9 +91,10 @@ function candidateOf(value, provider) {
 
 /** A bounded HEAD response check, not a guarantee that HLS segments or codecs work. */
 export async function probePinnedMedia(candidate, { platform, origin = DEFAULT_ORIGIN } = {}) {
+  const plainVideo=['mp4','m4v','webm','ogv'].includes(mediaFormatFromUrl(candidate.url));
   const response = await fetchSafeResponse(candidate.url, { method: 'HEAD', allowHttp: false,
-    maxRetries: 0, maxRedirects: 2, timeoutMs: 4000,
-    headers: platform === 'web' ? { Origin: origin, Referer: origin + '/' } : candidate.headers });
+    maxRetries: 0, maxRedirects: 2, timeoutMs: 4000, omitOrigin:platform==='web'&&plainVideo,
+    headers: platform === 'web' ? { ...(plainVideo?{}:{Origin:origin}), Referer: origin + '/' } : candidate.headers });
   const classified = classifyFallbackProbeResponse({ status: response.status, contentType: response.headers?.get?.('content-type') });
   const allowedOrigin = response.headers?.get?.('access-control-allow-origin');
   return { ...classified, statusCode: response.status,
@@ -129,7 +130,7 @@ export function createPinnedPlayback({ loadDetails, probe = probePinnedPlaybackM
     const base = { provider, series_ref: seriesRef, episode_ref: null, season, episode, platform, servers: [] };
     const unavailable = reason => ({ ...base, status: 'unavailable', playback_unavailable: true, playback_reason: reason });
     let details;
-    try { details = unwrap(await loadDetails({ provider, ref: seriesRef, phase: 'metadata', platform })); }
+    try { details = unwrap(await loadDetails({ provider, ref: seriesRef, phase: 'metadata', platform, type })); }
     catch { return unavailable('PINNED_SOURCE_UNAVAILABLE'); }
     assertOwnership(details, provider);
     let mediaRef = seriesRef;
@@ -145,7 +146,7 @@ export function createPinnedPlayback({ loadDetails, probe = probePinnedPlaybackM
       }
       if (refs.size !== 1) return unavailable('PINNED_EPISODE_AMBIGUOUS');
       mediaRef = [...refs][0]; base.episode_ref = mediaRef;
-      try { details = unwrap(await loadDetails({ provider, ref: mediaRef, phase: 'episode', platform })); }
+      try { details = unwrap(await loadDetails({ provider, ref: mediaRef, phase: 'episode', platform, type })); }
       catch { return unavailable('PINNED_SOURCE_UNAVAILABLE'); }
       assertOwnership(details, provider);
       // Explicit metadata contradictions can never be papered over by a playable URL.

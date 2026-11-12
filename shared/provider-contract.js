@@ -45,7 +45,9 @@ export function sourceResponse(raw, source = '') {
 export function providerContract(provider, source) {
   const result={...provider};
   for(const name of ['category','search','metadata','details','resolve']) if(typeof provider[name]==='function') result[name]=async(...args)=>{
-    try { return sourceResponse(await provider[name](...args),source); }
+    try { const value=sourceResponse(await provider[name](...args),source);
+      if(value && !Array.isArray(value) && value.ref===null && ['metadata','details','resolve'].includes(name)) value.ref=typeof args[0]==='string'?args[0]:null;
+      return value; }
     catch(error) { error.error_code=providerErrorCode(error);error.state='unavailable';throw error; }
   };
   return result;

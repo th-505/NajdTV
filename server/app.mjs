@@ -103,7 +103,7 @@ function appendVary(res, value) {
 }
 
 function sendJson(req, res, status, data) {
-  if(data && !Array.isArray(data) && (data.source || data.state || data.status==='error')) data=sourceResponse(data);
+  if(data && !Array.isArray(data) && (data.source || data.state || data.data?.state || data.data?.partial || data.status==='error')) data=sourceResponse(data);
   const payload = JSON.stringify(data);
   const compressed = maybeCompress(req, payload);
   appendVary(res, "Accept-Encoding");
@@ -520,7 +520,7 @@ export function assertCatalogReference(ref) {
 
 export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = createAlooyProvider(), larozaRuntime = createLarozaProvider(),
   traceStore=createSearchTraces({logger:data=>log(data.event,data)}), searchPinned=scrapePinnedSource,
-  catalogStore=createSupabaseCatalogStore(), catalogNow=Date.now,
+  catalogStore=createSupabaseCatalogStore(), catalogNow=Date.now, pinnedProviderLookup=getProvider,
   catalogLoader=null, harvestService=null, browserWorkService=null, browserConfigurationService=null, systemCheckService=null, runtimeService = createIntegratedContentRuntime(iskRuntime, { alooyRuntime, larozaRuntime }) } = {}) {
   const catalog=createCatalogMetadataCache({store:catalogStore,now:catalogNow,validateRef:assertCatalogReference,
     load:catalogLoader || (async(provider,ref)=>{
@@ -530,19 +530,21 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
       const data=await akoamMetadata(assertSourceUrl(decodeURIComponent(ref.slice(7))).href);
       return {...data,episodes:wrapEpisodes(data.episodes || [])};
     })});
-  const pinnedPlayback=createPinnedPlayback({loadDetails:async({provider,ref,phase})=>{
+  const pinnedPlayback=createPinnedPlayback({loadDetails:async({provider,ref,phase,platform,type})=>{
     const runtime=provider==='3isk'?iskRuntime:provider==='alooy'?alooyRuntime:provider==='laroza'?larozaRuntime:null;
     if(runtime){
-      if(phase==='metadata' && typeof runtime.metadata==='function')return runtime.metadata(ref);
-      return runtime.details(ref,{platform:'web'});
+      if(phase==='metadata' && type==='series' && typeof runtime.metadata==='function')return runtime.metadata(ref);
+      return runtime.details(ref,{platform});
     }
-    const entry=getProvider(provider);
+    const entry=pinnedProviderLookup(provider);
     const scraper=entry?.module;
     if(!scraper?.scrapeDetails)throw Error('PINNED_SOURCE_NOT_SUPPORTED');
     const details = await scraper.scrapeDetails(ref,{strict:true,timeoutMs:6000,maxRetries:0});
-    if (entry.meta.resolveOnDetails === true && (phase !== 'metadata' || details.type === 'movie')) {
+    if (typeof scraper.resolveStream==='function' && entry.meta.capabilities?.resolve===true && (phase !== 'metadata' || details.type === 'movie')) {
       const resolved = await scraper.resolveStream(ref,{strict:true,timeoutMs:6000,maxRetries:0});
-      return { ...details, ...resolved, media_sources: resolved.servers || [] };
+      const sources=[...(resolved.servers||[]),...(resolved.media_sources||[]),...(resolved.sources||[])];
+      if(resolved.url||resolved.streamUrl)sources.push({...resolved,url:resolved.url||resolved.streamUrl});
+      return { ...details, ...resolved, media_sources:sources };
     }
     return details;
   }});

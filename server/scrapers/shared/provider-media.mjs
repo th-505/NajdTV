@@ -5,9 +5,9 @@ import {assertSafeScraperUrl} from './http.mjs';
 export async function resolveProviderMedia(entry,source,{details={},network={},accept=async rows=>rows,maxResolverTargets=64,resolverConcurrency=2,resolverBudgetMs=40000,collectAll=true,resolveEmbed=null,now=Date.now}={}){
  const deadline=now()+Math.max(1000,Math.min(60000,resolverBudgetMs));
  const probes=createConcurrencyQueue({concurrency:Math.min(4,Math.max(1,resolverConcurrency)),maxQueued:256});let inspected=0,scheduled=0;
- const module=entry.module,seen=new Set(),raw=[...(details.media_sources||[]),...(details.servers||[])];let lastError=null;const collected=[];
+ const module=entry.module,seen=new Set(),raw=[...(details.media_sources||[]),...(details.servers||[])];let lastError=null,providerScanComplete=true;const collected=[];
  function keep(rows){collected.push(...rows);return rows;}
- function finish(observed=0,attempted=0){Object.defineProperty(collected,'_meta',{value:{resolver_targets:observed,resolver_attempted:attempted,server_scan_complete:attempted===observed&&inspected===seen.size,observed_media_candidates:seen.size,inspected_media_candidates:inspected},enumerable:false});return collected;}
+ function finish(observed=0,attempted=0){Object.defineProperty(collected,'_meta',{value:{resolver_targets:observed,resolver_attempted:attempted,server_scan_complete:providerScanComplete&&attempted===observed&&inspected===seen.size,observed_media_candidates:seen.size,inspected_media_candidates:inspected},enumerable:false});return collected;}
  async function attempt(rows){
   const candidates=(Array.isArray(rows)?rows:[]).filter(directCandidate).filter(row=>{const key=JSON.stringify([row.url,Object.entries(row.headers||{}).map(([k,v])=>[k.toLowerCase(),v]).sort(([a],[b])=>a.localeCompare(b))]);if(seen.has(key))return false;seen.add(key);return true});
   if(!candidates.length)return[];
@@ -21,7 +21,7 @@ export async function resolveProviderMedia(entry,source,{details={},network={},a
  }
  let approved=keep(await attempt(raw));if(approved.length&&!collectAll)return finish();
  if(typeof module.scrapeServers==='function'){
-  try{const servers=await module.scrapeServers(source,network);if(Array.isArray(servers))raw.push(...servers);if(servers?._meta?.errorCode&&servers._meta.errorCode!=='EMPTY_RESULT')lastError=Object.assign(Error(servers._meta.errorCode),{code:servers._meta.errorCode});approved=keep(await attempt(servers));if(approved.length&&!collectAll)return finish()}catch(error){lastError=error}
+  try{const servers=await module.scrapeServers(source,network);if(servers?._meta?.server_scan_complete===false)providerScanComplete=false;if(Array.isArray(servers))raw.push(...servers);if(servers?._meta?.errorCode&&servers._meta.errorCode!=='EMPTY_RESULT')lastError=Object.assign(Error(servers._meta.errorCode),{code:servers._meta.errorCode});approved=keep(await attempt(servers));if(approved.length&&!collectAll)return finish()}catch(error){lastError=error}
  }
  if(typeof module.resolveStream==='function'||resolveEmbed){
   const embedded=raw.filter(row=>row?.url&&!directCandidate(row)).map(row=>row.url).filter(url=>{try{assertSafeScraperUrl(url,{allowHttp:false});return true}catch{return false}});
@@ -61,5 +61,5 @@ export async function resolveProviderMedia(entry,source,{details={},network={},a
   if(attempted<observed.length||inspected<seen.size)throw Object.assign(Error('MEDIA_SERVER_SCAN_PARTIAL'),{code:'MEDIA_SERVER_SCAN_PARTIAL',observed_targets:observed.length,attempted_targets:attempted});
 
  }
- if(collected.length)return finish();if(inspected<seen.size)throw Object.assign(Error('MEDIA_SERVER_SCAN_PARTIAL'),{code:'MEDIA_SERVER_SCAN_PARTIAL'});if(lastError)throw lastError;return[];
+ if(collected.length)return finish();if(!providerScanComplete||inspected<seen.size)throw Object.assign(Error('MEDIA_SERVER_SCAN_PARTIAL'),{code:'MEDIA_SERVER_SCAN_PARTIAL'});if(lastError)throw lastError;return[];
 }

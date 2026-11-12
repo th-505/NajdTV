@@ -9,6 +9,9 @@ test('legacy Akwam preserves large, missing and alternate source episode numbers
   assert.deepEqual(result.episodes.map(e => e.episode_number), [1216,1217,1217,null]);
   assert.deepEqual(result.episodes.map(e => e.episode_id), ['88','89','90','91']);
   assert.equal(result.episodes.at(-1).watch_available, false);
+  const conflict=parseDetails('<a href="/episode/92/episode-1217" title="الحلقة 1216">الحلقة 1216</a>');
+  assert.equal(conflict.episodes[0].episode_number,null);
+  assert.equal(conflict.episodes[0].watch_available,false);
 });
 test('Laroza episode offset resumes beyond 200, including multiple source areas', () => {
   const html = '<h1>مسلسل</h1><div class="SeasonsEpisodes">' + Array.from({length:205},(_,i)=>`<a href="/play.php?vid=e${i+1}">الحلقة ${i+1}</a>`).join('') + '</div>';

@@ -1,7 +1,10 @@
 {
-  "base_sha": "7317d9c86e85770cf4fff6f9da5b69fd3352f9c6",
+  "requested_base": "7317d9c86e85770cf4fff6f9da5b69fd3352f9c6",
+  "integrated_main": "6ebb30ec36db12ef5fd427a00d2faa262d8e5047",
+  "snapshot_includes_working_tree": true,
+  "base_sha": "3f37377d1eb9279c36b10c5dcd0ff4bad6570292",
   "method": "conservative static imports + literal filesystem/command/native references + runtime/test/CI reachability; no deletion is authorized by this report",
-  "files_scanned": 1523,
+  "files_scanned": 1531,
   "roots": [
     ".github/workflows/content-runtime.yml",
     ".github/workflows/cross-platform-gate.yml",
@@ -87,6 +90,7 @@
     "flutter_app/test/private_font_import_test.dart",
     "flutter_app/test/provider_browser_regression_test.dart",
     "flutter_app/test/provider_catalogue_handoff_test.dart",
+    "flutter_app/test/provider_movie_playback_test.dart",
     "flutter_app/test/route_focus_restorer_test.dart",
     "flutter_app/test/search_diagnostics_test.dart",
     "flutter_app/test/search_group_navigation_test.dart",
@@ -222,6 +226,7 @@
     "server/index-runtime.mjs",
     "tests/3cktv-valley-wolves.test.mjs",
     "tests/ahwak.test.mjs",
+    "tests/akwam-server-discovery.test.mjs",
     "tests/browser-config-isolation.test.mjs",
     "tests/browser-http-isolation.test.mjs",
     "tests/browser-isolation.test.mjs",
@@ -257,6 +262,7 @@
     "tests/najd-search-pages.test.mjs",
     "tests/observed-domain-migration.test.mjs",
     "tests/pinned-playback.test.mjs",
+    "tests/pinned-provider-http.test.mjs",
     "tests/playback-client.test.mjs",
     "tests/provider-browser.test.mjs",
     "tests/provider-compatibility-headers.test.mjs",
@@ -273,6 +279,7 @@
     "tests/source-index-refresh.test.mjs",
     "tests/source-manifest.test.mjs",
     "tests/source-parent-episode-evidence.test.mjs",
+    "tests/source-revision.test.mjs",
     "tests/source-work-policy.test.mjs",
     "tests/support-report.test.mjs",
     "tests/tmdb-failover.test.mjs",
@@ -306,7 +313,7 @@
       "text_references": [
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:1745",
         "docs/najd/assets/javascript-functions.json:1049",
-        "server/app.mjs:5"
+        "server/app.mjs:7"
       ],
       "decision": "KEEP",
       "reason": "reachable from runtime/tests/CI"
@@ -346,6 +353,7 @@
       ],
       "text_references": [
         "Dockerfile:20",
+        "docs/EXECUTION_REPORT_AR.md:54",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3049",
         "docs/najd/SCRAPER_FAMILIES.md:14",
         "docs/najd/assets/javascript-functions.json:8609",
@@ -356,7 +364,7 @@
         "scripts/laroza_runtime_test.mjs:3",
         "scripts/providers/laroza.fixture.test.mjs:30",
         "scripts/providers/laroza.live.test.mjs:16",
-        "server/app.mjs:51",
+        "server/app.mjs:53",
         "server/browser/providers/sites/laroza.mjs:2",
         "server/browser/registry.mjs:30",
         "server/scrapers/index.mjs:400",
@@ -414,7 +422,7 @@
         "server/browser/providers/legacy/3isk.mjs:8",
         "server/providers/3isk-playback/router.mjs:4",
         "server/providers/3isk.mjs:9",
-        "server/providers/akoam.mjs:2",
+        "server/providers/akoam.mjs:3",
         "supabase/functions/matv-miravd-metadata/index.mjs:1",
         "مهام/تقارير/المصادر.json:1157",
         "مهام/تقارير/المصادر.md:83"
@@ -430,6 +438,7 @@
       ],
       "text_references": [
         ".agents/skills/matv-master-blueprint/SKILL.md:35",
+        "docs/EXECUTION_REPORT_AR.md:55",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:2925",
         "docs/najd/assets/javascript-functions.json:7853",
         "edge/wrangler.jsonc:3",
@@ -468,6 +477,7 @@
         "server/browser/providers/sites/3isk.mjs"
       ],
       "text_references": [
+        "docs/EXECUTION_REPORT_AR.md:72",
         "docs/PHASE1_3ISK_VALIDATION.md:16",
         "docs/PHASE2_3ISK_INTEGRATION.md:13",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:2944",
@@ -483,7 +493,7 @@
         "scripts/providers/3isk.fixture.test.mjs:26",
         "scripts/providers/3isk.live.test.mjs:14",
         "server/3isk-runtime.mjs:1",
-        "server/app.mjs:52",
+        "server/app.mjs:54",
         "server/browser/providers/sites/3isk.mjs:2",
         "server/browser/registry.mjs:28",
         "server/scrapers/index.mjs:386",
@@ -504,13 +514,14 @@
         "server/browser/providers/sites/alooy.mjs"
       ],
       "text_references": [
+        "docs/EXECUTION_REPORT_AR.md:74",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3020",
         "docs/najd/assets/javascript-functions.json:8420",
         "scripts/alooy_provider_test.mjs:9",
         "scripts/app_path_e2e_verification.mjs:7",
         "scripts/providers/alooy.fixture.test.mjs:31",
         "scripts/providers/alooy.live.test.mjs:14",
-        "server/app.mjs:50",
+        "server/app.mjs:52",
         "server/browser/providers/sites/alooy.mjs:2",
         "server/browser/registry.mjs:29",
         "server/scrapers/index.mjs:393",
@@ -532,6 +543,7 @@
       ],
       "text_references": [
         "Dockerfile:20",
+        "docs/EXECUTION_REPORT_AR.md:54",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3049",
         "docs/najd/SCRAPER_FAMILIES.md:14",
         "docs/najd/assets/javascript-functions.json:8609",
@@ -542,7 +554,7 @@
         "scripts/laroza_runtime_test.mjs:3",
         "scripts/providers/laroza.fixture.test.mjs:30",
         "scripts/providers/laroza.live.test.mjs:16",
-        "server/app.mjs:51",
+        "server/app.mjs:53",
         "server/browser/providers/sites/laroza.mjs:2",
         "server/browser/registry.mjs:30",
         "server/scrapers/index.mjs:400",
@@ -592,6 +604,7 @@
         "مهام/تقارير/المصادر.json"
       ],
       "text_references": [
+        "docs/EXECUTION_REPORT_AR.md:72",
         "docs/PHASE1_3ISK_VALIDATION.md:16",
         "docs/PHASE2_3ISK_INTEGRATION.md:13",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:2944",
@@ -607,7 +620,7 @@
         "scripts/providers/3isk.fixture.test.mjs:26",
         "scripts/providers/3isk.live.test.mjs:14",
         "server/3isk-runtime.mjs:1",
-        "server/app.mjs:52",
+        "server/app.mjs:54",
         "server/browser/registry.mjs:28",
         "server/scrapers/index.mjs:386",
         "server/scrapers/registry.mjs:26",
@@ -659,6 +672,7 @@
       "reachable": true,
       "import_or_literal_users": [
         "server/browser/registry.mjs",
+        "tests/akwam-server-discovery.test.mjs",
         "مهام/تقارير/المصادر.json"
       ],
       "text_references": [
@@ -671,6 +685,7 @@
         "server/scrapers/registry.mjs:9",
         "server/scrapers/sites/akwam.mjs:1",
         "server/scrapers/supervisor1-mycima.mjs:21",
+        "tests/akwam-server-discovery.test.mjs:3",
         "tests/underground-harvest.test.mjs:24",
         "مهام/تقارير/المصادر.json:132",
         "مهام/تقارير/المصادر.md:19"
@@ -686,13 +701,14 @@
         "مهام/تقارير/المصادر.json"
       ],
       "text_references": [
+        "docs/EXECUTION_REPORT_AR.md:74",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3020",
         "docs/najd/assets/javascript-functions.json:8420",
         "scripts/alooy_provider_test.mjs:9",
         "scripts/app_path_e2e_verification.mjs:7",
         "scripts/providers/alooy.fixture.test.mjs:31",
         "scripts/providers/alooy.live.test.mjs:14",
-        "server/app.mjs:50",
+        "server/app.mjs:52",
         "server/browser/registry.mjs:29",
         "server/scrapers/index.mjs:393",
         "server/scrapers/registry.mjs:27",
@@ -969,6 +985,7 @@
       ],
       "text_references": [
         "Dockerfile:20",
+        "docs/EXECUTION_REPORT_AR.md:54",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3049",
         "docs/najd/SCRAPER_FAMILIES.md:14",
         "docs/najd/assets/javascript-functions.json:8609",
@@ -979,7 +996,7 @@
         "scripts/laroza_runtime_test.mjs:3",
         "scripts/providers/laroza.fixture.test.mjs:30",
         "scripts/providers/laroza.live.test.mjs:16",
-        "server/app.mjs:51",
+        "server/app.mjs:53",
         "server/browser/registry.mjs:30",
         "server/scrapers/index.mjs:400",
         "server/scrapers/registry.mjs:28",
@@ -1288,7 +1305,7 @@
         "scripts/pinned_source_test.mjs:2",
         "scripts/provider_inventory.py:65",
         "scripts/providers_unit_and_integration_test.mjs:69",
-        "server/app.mjs:11",
+        "server/app.mjs:13",
         "server/browser/configuration.mjs:8",
         "server/browser/references.mjs:2",
         "server/browser/service.mjs:6",
@@ -1307,6 +1324,7 @@
         "tests/browser-config-isolation.test.mjs:12",
         "tests/fivetv-provider.test.mjs:5",
         "tests/observed-domain-migration.test.mjs:2",
+        "tests/pinned-provider-http.test.mjs:4",
         "tests/provider-recovery-observed.test.mjs:2",
         "tests/scraper-family-isolation.test.mjs:5",
         "tests/search-diagnostics.test.mjs:6",
@@ -1328,11 +1346,12 @@
       "text_references": [
         ".github/workflows/content-runtime.yml:25",
         "docs/CONTENT_RUNTIME_1.0.1.md:9",
+        "docs/EXECUTION_REPORT_AR.md:68",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:1763",
         "docs/najd/assets/javascript-functions.json:1139",
         "scripts/content_runtime_service_test.mjs:3",
         "scripts/local_load_profiles.mjs:4",
-        "server/app.mjs:9",
+        "server/app.mjs:11",
         "tests/browser-isolation.test.mjs:4",
         "tests/najd-harvest-foundation.test.mjs:67"
       ],
@@ -1374,7 +1393,7 @@
         "scripts/3isk_runtime_test.mjs:4",
         "scripts/catalog_metadata_cache_test.mjs:3",
         "server/3isk-runtime.mjs:2",
-        "server/app.mjs:8",
+        "server/app.mjs:10",
         "server/browser/configuration.mjs:1",
         "server/browser/service.mjs:25",
         "server/catalog-metadata-cache.mjs:1",
@@ -1410,7 +1429,7 @@
       "text_references": [
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:1862",
         "docs/najd/assets/javascript-functions.json:1814",
-        "server/app.mjs:6",
+        "server/app.mjs:8",
         "server/browser/configuration.mjs:6",
         "server/browser/registry.mjs:2",
         "server/browser/service.mjs:26",
@@ -1474,7 +1493,7 @@
         "server/browser/providers/legacy/3isk.mjs:8",
         "server/providers/3isk-playback/router.mjs:4",
         "server/providers/3isk.mjs:9",
-        "server/providers/akoam.mjs:2",
+        "server/providers/akoam.mjs:3",
         "supabase/functions/matv-miravd-metadata/index.mjs:1",
         "مهام/تقارير/المصادر.json:1157",
         "مهام/تقارير/المصادر.md:83"
@@ -1493,6 +1512,7 @@
       ],
       "text_references": [
         ".agents/skills/matv-master-blueprint/SKILL.md:35",
+        "docs/EXECUTION_REPORT_AR.md:55",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:2925",
         "docs/najd/assets/javascript-functions.json:7853",
         "edge/wrangler.jsonc:3",
@@ -1544,6 +1564,7 @@
         "مهام/تقارير/المصادر.json"
       ],
       "text_references": [
+        "docs/EXECUTION_REPORT_AR.md:72",
         "docs/PHASE1_3ISK_VALIDATION.md:16",
         "docs/PHASE2_3ISK_INTEGRATION.md:13",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:2944",
@@ -1559,7 +1580,7 @@
         "scripts/providers/3isk.fixture.test.mjs:26",
         "scripts/providers/3isk.live.test.mjs:14",
         "server/3isk-runtime.mjs:1",
-        "server/app.mjs:52",
+        "server/app.mjs:54",
         "server/browser/providers/sites/3isk.mjs:2",
         "server/browser/registry.mjs:28",
         "server/scrapers/index.mjs:386",
@@ -1587,6 +1608,7 @@
         "مهام/تقارير/المصادر.json"
       ],
       "text_references": [
+        "docs/EXECUTION_REPORT_AR.md:73",
         "docs/PHASE1_3ISK_VALIDATION.md:13",
         "docs/PHASE2_3ISK_INTEGRATION.md:20",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:2971",
@@ -1594,7 +1616,7 @@
         "package.json:7",
         "scripts/hls_manifest_proxy_test.mjs:8",
         "scripts/phase2_provider_test.mjs:2",
-        "server/app.mjs:47",
+        "server/app.mjs:49",
         "server/basri-source.mjs:3",
         "tests/provider-numbering-pagination.test.mjs:3",
         "مهام/تقارير/المصادر.json:1124",
@@ -1616,13 +1638,14 @@
         "مهام/تقارير/المصادر.json"
       ],
       "text_references": [
+        "docs/EXECUTION_REPORT_AR.md:74",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3020",
         "docs/najd/assets/javascript-functions.json:8420",
         "scripts/alooy_provider_test.mjs:9",
         "scripts/app_path_e2e_verification.mjs:7",
         "scripts/providers/alooy.fixture.test.mjs:31",
         "scripts/providers/alooy.live.test.mjs:14",
-        "server/app.mjs:50",
+        "server/app.mjs:52",
         "server/browser/providers/sites/alooy.mjs:2",
         "server/browser/registry.mjs:29",
         "server/scrapers/index.mjs:393",
@@ -1652,6 +1675,7 @@
       ],
       "text_references": [
         "Dockerfile:20",
+        "docs/EXECUTION_REPORT_AR.md:54",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3049",
         "docs/najd/SCRAPER_FAMILIES.md:14",
         "docs/najd/assets/javascript-functions.json:8609",
@@ -1662,7 +1686,7 @@
         "scripts/laroza_runtime_test.mjs:3",
         "scripts/providers/laroza.fixture.test.mjs:30",
         "scripts/providers/laroza.live.test.mjs:16",
-        "server/app.mjs:51",
+        "server/app.mjs:53",
         "server/browser/providers/sites/laroza.mjs:2",
         "server/browser/registry.mjs:30",
         "server/scrapers/index.mjs:400",
@@ -1737,6 +1761,7 @@
       ],
       "text_references": [
         ".github/workflows/provider-health-audit.yml:25",
+        "docs/EXECUTION_REPORT_AR.md:76",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3085",
         "docs/najd/assets/javascript-functions.json:8789",
         "server/browser/registry.mjs:1",
@@ -1770,7 +1795,7 @@
       "text_references": [
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3104",
         "docs/najd/assets/javascript-functions.json:8888",
-        "server/app.mjs:33",
+        "server/app.mjs:35",
         "server/browser/episode-index.mjs:5",
         "server/browser/service.mjs:18",
         "server/browser/source-graph.mjs:7",
@@ -1838,6 +1863,7 @@
       "text_references": [
         ".agents/skills/matv-master-blueprint/SKILL.md:34",
         ".github/workflows/content-runtime.yml:28",
+        "docs/EXECUTION_REPORT_AR.md:71",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:56",
         "docs/najd/SCRAPER_FAMILIES.md:17",
         "docs/najd/assets/javascript-functions.json:4649",
@@ -1855,9 +1881,9 @@
         "scripts/providers/witanime.fixture.test.mjs:160",
         "scripts/repository_inventory.py:22",
         "scripts/scraper_quota_test.mjs:8",
-        "server/app.mjs:59",
+        "server/app.mjs:61",
         "server/browser/providers/sites/3cktv.mjs:743",
-        "server/browser/providers/sites/akwam.mjs:978",
+        "server/browser/providers/sites/akwam.mjs:994",
         "server/browser/providers/sites/alooy.mjs:933",
         "server/browser/providers/sites/anime4up.mjs:1189",
         "server/browser/providers/sites/egydead.mjs:836",
@@ -1870,7 +1896,7 @@
         "server/index-runtime.mjs:5",
         "server/scrapers/shared/source-episode-evidence.mjs:1",
         "server/scrapers/sites/3cktv.mjs:742",
-        "server/scrapers/sites/akwam.mjs:977",
+        "server/scrapers/sites/akwam.mjs:993",
         "server/scrapers/sites/alooy.mjs:932",
         "server/scrapers/sites/anime4up.mjs:1188",
         "server/scrapers/sites/egydead.mjs:835",
@@ -1905,7 +1931,7 @@
       "text_references": [
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3181",
         "docs/najd/assets/javascript-functions.json:9365",
-        "server/app.mjs:13",
+        "server/app.mjs:15",
         "tests/fivetv-provider.test.mjs:8",
         "tests/interactive-discovery.test.mjs:8",
         "tests/provider-browser.test.mjs:3",
@@ -1951,6 +1977,7 @@
         "tests/browser-config-isolation.test.mjs",
         "tests/fivetv-provider.test.mjs",
         "tests/observed-domain-migration.test.mjs",
+        "tests/pinned-provider-http.test.mjs",
         "tests/provider-recovery-observed.test.mjs",
         "tests/scraper-family-isolation.test.mjs"
       ],
@@ -1971,7 +1998,7 @@
         "scripts/pinned_source_test.mjs:2",
         "scripts/provider_inventory.py:65",
         "scripts/providers_unit_and_integration_test.mjs:69",
-        "server/app.mjs:11",
+        "server/app.mjs:13",
         "server/browser/configuration.mjs:8",
         "server/browser/references.mjs:2",
         "server/browser/registry.mjs:4",
@@ -1990,6 +2017,7 @@
         "tests/browser-config-isolation.test.mjs:12",
         "tests/fivetv-provider.test.mjs:5",
         "tests/observed-domain-migration.test.mjs:2",
+        "tests/pinned-provider-http.test.mjs:4",
         "tests/provider-recovery-observed.test.mjs:2",
         "tests/scraper-family-isolation.test.mjs:5",
         "tests/search-diagnostics.test.mjs:6",
@@ -2161,6 +2189,7 @@
       ],
       "text_references": [
         ".agents/skills/matv-master-blueprint/SKILL.md:66",
+        "docs/EXECUTION_REPORT_AR.md:77",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3270",
         "docs/najd/assets/javascript-functions.json:9806",
         "scripts/providers/3cktv.fixture.test.mjs:32",
@@ -2341,6 +2370,7 @@
       ],
       "text_references": [
         ".agents/skills/matv-master-blueprint/SKILL.md:30",
+        "docs/EXECUTION_REPORT_AR.md:78",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3286",
         "docs/najd/assets/javascript-functions.json:9878",
         "scratch/test_shahid.mjs:1",
@@ -2391,7 +2421,7 @@
         "server/maintenance/github-identity.mjs:2",
         "server/pinned-playback.mjs:3",
         "server/providers/3isk.mjs:1",
-        "server/providers/akoam.mjs:1",
+        "server/providers/akoam.mjs:2",
         "server/providers/alooy.mjs:1",
         "server/providers/laroza.mjs:1",
         "server/scrapers/configurable-provider.mjs:4",
@@ -2571,7 +2601,7 @@
       "text_references": [
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3352",
         "docs/najd/assets/javascript-functions.json:10328",
-        "server/app.mjs:16",
+        "server/app.mjs:18",
         "server/browser/configuration.mjs:7",
         "server/browser/providers/sites/3cktv.mjs:6",
         "server/browser/providers/sites/brstej.mjs:1",
@@ -2606,6 +2636,7 @@
         "server/diagnostics/service-checks.mjs",
         "server/harvest/pipeline.mjs",
         "server/scrapers/content-discovery.mjs",
+        "tests/akwam-server-discovery.test.mjs",
         "tests/provider-header-context.test.mjs",
         "tests/provider-media-stages.test.mjs"
       ],
@@ -2616,6 +2647,7 @@
         "server/diagnostics/service-checks.mjs:2",
         "server/harvest/pipeline.mjs:3",
         "server/scrapers/content-discovery.mjs:3",
+        "tests/akwam-server-discovery.test.mjs:5",
         "tests/provider-header-context.test.mjs:4",
         "tests/provider-media-stages.test.mjs:2"
       ],
@@ -2700,6 +2732,7 @@
         "مهام/تقارير/المصادر.json"
       ],
       "text_references": [
+        "docs/EXECUTION_REPORT_AR.md:72",
         "docs/PHASE1_3ISK_VALIDATION.md:16",
         "docs/PHASE2_3ISK_INTEGRATION.md:13",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:2944",
@@ -2715,7 +2748,7 @@
         "scripts/providers/3isk.fixture.test.mjs:26",
         "scripts/providers/3isk.live.test.mjs:14",
         "server/3isk-runtime.mjs:1",
-        "server/app.mjs:52",
+        "server/app.mjs:54",
         "server/browser/providers/sites/3isk.mjs:2",
         "server/browser/registry.mjs:28",
         "server/scrapers/index.mjs:386",
@@ -2775,6 +2808,7 @@
         "server/scrapers/index.mjs",
         "server/scrapers/registry.mjs",
         "server/scrapers/supervisor1-mycima.mjs",
+        "tests/akwam-server-discovery.test.mjs",
         "tests/underground-harvest.test.mjs",
         "مهام/تقارير/المصادر.json"
       ],
@@ -2788,6 +2822,7 @@
         "server/scrapers/index.mjs:11",
         "server/scrapers/registry.mjs:9",
         "server/scrapers/supervisor1-mycima.mjs:21",
+        "tests/akwam-server-discovery.test.mjs:3",
         "tests/underground-harvest.test.mjs:24",
         "مهام/تقارير/المصادر.json:132",
         "مهام/تقارير/المصادر.md:19"
@@ -2809,13 +2844,14 @@
         "مهام/تقارير/المصادر.json"
       ],
       "text_references": [
+        "docs/EXECUTION_REPORT_AR.md:74",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3020",
         "docs/najd/assets/javascript-functions.json:8420",
         "scripts/alooy_provider_test.mjs:9",
         "scripts/app_path_e2e_verification.mjs:7",
         "scripts/providers/alooy.fixture.test.mjs:31",
         "scripts/providers/alooy.live.test.mjs:14",
-        "server/app.mjs:50",
+        "server/app.mjs:52",
         "server/browser/providers/sites/alooy.mjs:2",
         "server/browser/registry.mjs:29",
         "server/scrapers/index.mjs:393",
@@ -3133,6 +3169,7 @@
       ],
       "text_references": [
         "Dockerfile:20",
+        "docs/EXECUTION_REPORT_AR.md:54",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:3049",
         "docs/najd/SCRAPER_FAMILIES.md:14",
         "docs/najd/assets/javascript-functions.json:8609",
@@ -3143,7 +3180,7 @@
         "scripts/laroza_runtime_test.mjs:3",
         "scripts/providers/laroza.fixture.test.mjs:30",
         "scripts/providers/laroza.live.test.mjs:16",
-        "server/app.mjs:51",
+        "server/app.mjs:53",
         "server/browser/providers/sites/laroza.mjs:2",
         "server/browser/registry.mjs:30",
         "server/scrapers/index.mjs:400",
@@ -3467,7 +3504,7 @@
       "text_references": [
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:4189",
         "docs/najd/assets/javascript-functions.json:15917",
-        "server/app.mjs:12",
+        "server/app.mjs:14",
         "tests/source-manifest.test.mjs:3"
       ],
       "decision": "KEEP",
@@ -3495,7 +3532,7 @@
         "scripts/najd_provider_report_registry.mjs:3",
         "scripts/pinned_source_test.mjs:3",
         "scripts/provider_inventory.py:75",
-        "server/app.mjs:32",
+        "server/app.mjs:34",
         "server/harvest/source-api.mjs:4",
         "server/scrapers/index.mjs:5",
         "tests/fivetv-provider.test.mjs:7",
@@ -3569,11 +3606,11 @@
         "docs/najd/assets/javascript-functions.json:16160",
         "scripts/audit_provider_media_2_beta.mjs:7",
         "scripts/yalla_script_and_hash_test.mjs:3",
-        "server/app.mjs:60",
+        "server/app.mjs:62",
         "server/browser/providers/sites/3cktv.mjs:36",
         "server/browser/providers/sites/3isk.mjs:30",
         "server/browser/providers/sites/ahwak.mjs:8",
-        "server/browser/providers/sites/akwam.mjs:32",
+        "server/browser/providers/sites/akwam.mjs:33",
         "server/browser/providers/sites/alooy.mjs:27",
         "server/browser/providers/sites/anime4up.mjs:40",
         "server/browser/providers/sites/arabseed.mjs:32",
@@ -3599,7 +3636,7 @@
         "server/scrapers/sites/3cktv.mjs:35",
         "server/scrapers/sites/3isk.mjs:29",
         "server/scrapers/sites/ahwak.mjs:7",
-        "server/scrapers/sites/akwam.mjs:31",
+        "server/scrapers/sites/akwam.mjs:32",
         "server/scrapers/sites/alooy.mjs:26",
         "server/scrapers/sites/anime4up.mjs:39",
         "server/scrapers/sites/arabseed.mjs:31",
@@ -4475,6 +4512,7 @@
       "path": "docs/DOMAIN_REVIEW_2026-11-12.md",
       "classification": "KEEP_REFERENCE",
       "references": [
+        "docs/EXECUTION_REPORT_AR.md:42",
         "scripts/repository_inventory.py:56"
       ],
       "reason": "convention-loaded instruction/current reference or referenced document"
@@ -4492,6 +4530,12 @@
       "classification": "MERGE_REVIEW",
       "references": [],
       "reason": "unreferenced standalone documentation; review and consolidate, do not delete without content comparison"
+    },
+    {
+      "path": "docs/EXECUTION_REPORT_AR.md",
+      "classification": "KEEP_HISTORY",
+      "references": [],
+      "reason": "retained historical evidence; age does not prove obsolescence"
     },
     {
       "path": "docs/EXPLORATION_STORE_INTEGRATION.md",
@@ -4583,9 +4627,18 @@
       "reason": "convention-loaded instruction/current reference or referenced document"
     },
     {
+      "path": "docs/PRODUCTION_VERIFICATION.md",
+      "classification": "KEEP_REFERENCE",
+      "references": [
+        "docs/EXECUTION_REPORT_AR.md:42"
+      ],
+      "reason": "convention-loaded instruction/current reference or referenced document"
+    },
+    {
       "path": "docs/PROVIDER_CONTRACT.md",
       "classification": "KEEP_REFERENCE",
       "references": [
+        "docs/EXECUTION_REPORT_AR.md:49",
         "scripts/repository_inventory.py:56"
       ],
       "reason": "convention-loaded instruction/current reference or referenced document"
@@ -4594,6 +4647,7 @@
       "path": "docs/PROVIDER_FIXTURE_REVIEW.md",
       "classification": "KEEP_REFERENCE",
       "references": [
+        "docs/EXECUTION_REPORT_AR.md:50",
         "scripts/repository_inventory.py:56"
       ],
       "reason": "convention-loaded instruction/current reference or referenced document"
@@ -5091,6 +5145,7 @@
       "path": "مهام/12.md",
       "classification": "KEEP_REFERENCE",
       "references": [
+        "docs/EXECUTION_REPORT_AR.md:42",
         "scripts/repository_inventory.py:56",
         "مهام/README.md:6"
       ],
@@ -5232,6 +5287,7 @@
       "path": "مهام/رئيسية/12.md",
       "classification": "KEEP_REFERENCE",
       "references": [
+        "docs/EXECUTION_REPORT_AR.md:42",
         "scripts/repository_inventory.py:56",
         "مهام/README.md:6"
       ],
@@ -6042,7 +6098,9 @@
     },
     {
       "path": "flutter_app/test/library_backup_test.dart",
-      "references": [],
+      "references": [
+        "docs/EXECUTION_REPORT_AR.md:28"
+      ],
       "decision": "REVIEW_ONLY"
     }
   ],

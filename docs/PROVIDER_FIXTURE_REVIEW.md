@@ -16,3 +16,9 @@ All six failures predate these changes. No previously green assertion was remove
 guard that fails on accidental live requests, including swallowed failures.
 It is included in `npm run check`, so standard CI executes the corrected suites.
 These are deterministic contract checks, not live playback certification.
+
+Integration with newer main: Akwam's previously MP4-only assertion excluded the
+HLS literal already present in DOWNET_BRIDGE_HTML. Main now correctly collects
+all alternatives. The test asserts all six exact observed paths, each matching
+its MP4/HLS extension, while retaining server IDs, headers and original quality
+ordering. This seventh suite also runs under the offline CI guard.

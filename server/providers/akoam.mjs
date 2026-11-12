@@ -75,7 +75,7 @@ export async function fetchSourceHtml(value, { referer = SOURCE_ORIGIN + "/", ti
         method: current.hostname === SOURCE_HOST && mediaKindFromUrl(current.href) === "unknown" ? "GET" : "HEAD", redirect: "manual", cache: "no-store", signal: controller.signal,
         headers: { Accept: "text/html,application/xhtml+xml", "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
           "User-Agent": UA, Referer: safeHeaderUrl(referer) },
-      }, {fetchImpl:globalThis.fetch,providerId:'akwam',timeoutMs,maxBytes:2*1024*1024,
+      }, {fetchImpl:globalThis.fetch,errorPrefix:'CINEMA_SOURCE',providerId:'akwam',timeoutMs,maxBytes:2*1024*1024,
         validateUrl:u=>assertSourceUrl(u,{allowMedia:true})
       });
       if (![301,302,303,307,308].includes(response.status)) break;
@@ -182,13 +182,13 @@ function episodeIdentity(href = "", label = "") {
   let decoded = String(href || "");
   try { decoded = decodeURIComponent(decoded); } catch {}
   const cleanLabel = String(label || "");
-  const explicit = [
-    cleanLabel.match(/(?:الحلقة|episode)[\s\-_/:]*(\d{1,4})(?:\D|$)/i),
-    cleanLabel.trim().match(/^(\d{1,4})$/),
-    decoded.replace(/\/episode\/\d+(?=\/|$)/i, "").match(/(?:الحلقة|episode)[\s\-_/:]*(\d{1,4})(?:\D|$)/i),
-  ].find(Boolean);
+  const slug=decoded.replace(/\/episode\/\d+(?=\/|$)/i, "");
+  const pattern=/(?:الحلقة|episode)[\s\-_/:]*(\d{1,4})(?:\D|$)/gi;
+  const observed=[...cleanLabel.matchAll(pattern),...slug.matchAll(pattern)].map(m=>Number(m[1]));
+  if(/^\d{1,4}$/.test(cleanLabel.trim()))observed.push(Number(cleanLabel.trim()));
+  const numbers=new Set(observed.filter(n=>Number.isInteger(n)&&n>0));
   const idMatch = decoded.match(/\/episode\/(\d+)(?:\/|$)/i);
-  const number = Number(explicit?.[1] || 0);
+  const number = numbers.size===1 ? [...numbers][0] : null;
   return {
     episode_number: Number.isFinite(number) && number > 0 ? number : null,
     episode_id: idMatch?.[1] || null,

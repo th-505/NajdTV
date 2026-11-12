@@ -1,4 +1,4 @@
-// Preload for the six audited offline suites. Test-owned mocks may replace fetch;
+// Preload for the audited offline suites. Test-owned mocks may replace fetch;
 // any accidental live request fails the child, even if a scraper swallows it.
 let attempts=0;
 globalThis.fetch=async()=>{attempts++;throw Error('FIXTURE_UNEXPECTED_NETWORK');};

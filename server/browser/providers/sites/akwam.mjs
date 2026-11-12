@@ -28,6 +28,7 @@ import {
 } from '../../../scrapers/shared/errors.mjs';
 import {
   unwrapEmbedToDirectStreams,
+  cascadeResolveStream,
   isValidDirectMediaUrl
 } from '../../../scrapers/stream-unwrapper.mjs';
 
@@ -160,6 +161,11 @@ export function encodeAkwamRef(url) {
  * Fetches HTML from Akwam with fallback domain support and offline fixture injection.
  */
 async function fetchAkwamHtmlWithFallback(targetUrl, options = {}) {
+  if(options.deadlineMs){
+    const remaining=options.deadlineMs-Date.now();
+    if(remaining<=0)throw new ScraperError(SCRAPER_ERROR_CODES.NETWORK_TIMEOUT,'AKWAM_RESOLUTION_BUDGET');
+    options={...options,timeoutMs:Math.min(options.timeoutMs||10000,remaining)};
+  }
   // 1. Direct fixtureHtml injection
   if (typeof options.fixtureHtml === 'string') {
     return fetchProviderHtml(targetUrl, {
@@ -214,7 +220,7 @@ async function fetchAkwamHtmlWithFallback(targetUrl, options = {}) {
       }
     });
   } catch (err) {
-    if (fallbackUrl) {
+    if (fallbackUrl && (!options.deadlineMs || Date.now()<options.deadlineMs)) {
       try {
         return await fetchProviderHtml(fallbackUrl, {
           ...options,
@@ -517,8 +523,8 @@ export async function resolveAkwamBridgeToDirectMp4(bridgeLinkUrl, refererUrl = 
     }
 
     // Fallback: unwrap standard embed wrappers if no direct mp4 found
-    if (streams.length === 0) {
-      const unwrapped = await unwrapEmbedToDirectStreams(cleanUrl, refererUrl);
+    if (streams.length === 0 && !options.fixtureHtml && !options.fixtures && (!options.deadlineMs || Date.now()<options.deadlineMs)) {
+      const unwrapped = options.deadlineMs?await cascadeResolveStream(cleanUrl,refererUrl,0,new Set(),options.deadlineMs):await unwrapEmbedToDirectStreams(cleanUrl, refererUrl);
       if (Array.isArray(unwrapped)) {
         for (const item of unwrapped) {
           streams.push({
@@ -773,6 +779,7 @@ export async function scrapeServers(urlOrRef, options = {}) {
   }
 
   const rawServers = [];
+  let bridgeTargets=0,bridgeAttempted=0;
 
   try {
     // If the input is already a direct media stream
@@ -839,10 +846,16 @@ export async function scrapeServers(urlOrRef, options = {}) {
       // Extract watch and download bridge links
       const bridgeLinks = extractBridgeLinks(res.html, AKWAM_CONFIG.baseUrl);
 
-      // If no direct video on the page, unwrap each bridge link
-      if (rawServers.length === 0 && bridgeLinks.length > 0) {
-        for (const bridge of bridgeLinks.slice(0, 4)) {
-          const streams = await resolveAkwamBridgeToDirectMp4(bridge.url, cleanUrl, options);
+      // Direct links may belong to a dead CDN. Collect the other observed
+      // qualities as well; a first result must never hide later source links.
+      bridgeTargets=bridgeLinks.length;
+      const deadline=Date.now()+Math.max(1000,Math.min(45000,Number(options.bridgeBudgetMs)||30000));
+      const targetLimit=Math.max(1,Math.min(64,Number(options.maxBridgeTargets)||64));
+      if (bridgeLinks.length > 0) {
+        for (const bridge of bridgeLinks.slice(0, targetLimit)) {
+          if(Date.now()>=deadline)break;
+          bridgeAttempted++;
+          const streams = await resolveAkwamBridgeToDirectMp4(bridge.url, cleanUrl, {...options,deadlineMs:deadline,timeoutMs:Math.min(options.timeoutMs||10000,Math.max(250,deadline-Date.now()))});
           for (const s of streams) {
             rawServers.push({
               name: `أكوام مباشر (${s.quality || bridge.quality})`,
@@ -886,16 +899,18 @@ export async function scrapeServers(urlOrRef, options = {}) {
     if (normalized.length === 0) {
       return createEmptyArrayResult(
         PROVIDER_META.id,
-        SCRAPER_ERROR_CODES.SERVER_EXTRACTION_FAILED,
+        bridgeAttempted<bridgeTargets?'MEDIA_SERVER_SCAN_PARTIAL':SCRAPER_ERROR_CODES.SERVER_EXTRACTION_FAILED,
         'No playable servers extracted from Akwam page',
-        { url: cleanUrl }
+        { url: cleanUrl,bridge_targets:bridgeTargets,bridge_attempted:bridgeAttempted,server_scan_complete:bridgeAttempted===bridgeTargets }
       );
     }
 
     return attachResultMeta(normalized, {
       ok: true,
       providerId: PROVIDER_META.id,
-      url: cleanUrl
+      url: cleanUrl,
+      bridge_targets:bridgeTargets,bridge_attempted:bridgeAttempted,
+      server_scan_complete:bridgeAttempted===bridgeTargets
     });
   } catch (err) {
     const classified = classifyNetworkError(err, { providerId: PROVIDER_META.id, url: cleanUrl });
@@ -943,6 +958,7 @@ export async function resolveStream(urlOrRef, options = {}) {
       type: direct.type,
       streamType: direct.streamType,
       quality: direct.quality,
+      servers,
       headers: direct.headers || { Referer: cleanUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
     };
   }

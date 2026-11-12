@@ -1,3 +1,4 @@
+import {createServer} from '../server/app.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {sourceResponse,sourceItem,providerErrorCode,providerContract,parsedCollection} from '../shared/provider-contract.js';
 test('canonical source fields preserve editions and never promote legacy default seasons',()=>{
@@ -19,4 +20,20 @@ test('unrecognized markup and JSON syntax failures are not successful empty resu
   assert.deepEqual(parsedCollection([], '<div class="no-results">لا توجد نتائج</div>'),[]);
   assert.equal(providerErrorCode(new SyntaxError('Unexpected token')), 'STRUCTURE_CHANGED');
   assert.equal(sourceResponse({data:{state:'queued'}}).state,'queued');
+});
+
+test('real HTTP boundary resumes catalog offsets and preserves typed failures',async()=>{
+  const ref='laroza:'+Buffer.from('/play.php?vid=fixture').toString('base64url');
+  const server=createServer({larozaRuntime:{category:async(_id,_page,{offset})=>{
+    if(offset!==60)throw Object.assign(Error('gateway unavailable'),{error_code:'ACCESS_BLOCKED'});
+    return {source:'laroza',data:[{ref,title:'Continuation'}],partial:false,next_offset:null,next_cursor:null};
+  }}});
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  try{
+    const base=`http://127.0.0.1:${server.address().port}`;
+    const next=await (await fetch(base+'/api/v1/category?ref=laroza-series&offset=60')).json();
+    assert.equal(next.data[0].title,'Continuation');assert.equal(next.partial,false);
+    const blocked=await fetch(base+'/api/v1/category?ref=laroza-series');
+    const body=await blocked.json();assert.equal(blocked.status,502);assert.equal(body.error_code,'ACCESS_BLOCKED');assert.equal(body.state,'unavailable');assert.equal(body.data,undefined);
+  }finally{server.closeAllConnections();await new Promise(r=>server.close(r))}
 });

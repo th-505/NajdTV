@@ -32,7 +32,7 @@ test('trusted browser-verified sources do not inherit forbidden native headers',
 
 test('a pinned source with native header hints can recover through browser bytes despite generic MIME',async()=>{
  const runtime=createPinnedPlayback({browserOrigin:'https://example.org',loadDetails:async()=>({servers:[{...media,web_playable:false,headers:{Referer:'https://wecima.show/',Cookie:'private-session'}}]}),probe:(candidate,options)=>probeHarvestMedia(candidate,{...options,headProbe:async()=>({statusCode:200,playable:false,webPlayable:false}),fetchImpl:async(_url,request)=>{
-  assert.equal(request.headers.Origin,'https://example.org');assert.equal(request.headers.Referer,'https://example.org/');assert.equal(request.headers.Cookie,undefined);
+  assert.equal(request.headers.Origin,undefined);assert.equal(request.headers.Referer,'https://example.org/');assert.equal(request.headers.Cookie,undefined);
   return{status:206,headers:new Headers({'content-type':'application/octet-stream','access-control-allow-origin':'https://example.org'}),bytes:Buffer.from('000000186674797069736f6d00000001','hex')};
  }})});
  const result=await runtime.resolve({...input,type:'movie'});assert.equal(result.status,'success');assert.deepEqual(result.servers[0].headers,{});assert.equal(result.servers[0].web_playable,true);

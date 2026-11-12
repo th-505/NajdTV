@@ -21,3 +21,14 @@ test('Alooy and Laroza validate JSON structure despite HTML Content-Type',async(
   const invalid=createLarozaProvider({edgeBase:'https://edge.example',fetchImpl:async()=>new Response('<html>broken</html>',{headers:{'content-type':'application/json'}})});
   await assert.rejects(invalid.category(),/BAD_EDGE_RESPONSE/);
 });
+
+test('a stalled DNS lookup has a deadline and never starts an HTTP request',async()=>{
+  let calls=0;
+  await assert.rejects(guardedProviderFetch('https://dns.example/',{}, {timeoutMs:5,dnsLookupImpl:async()=>new Promise(()=>{}),fetchImpl:async()=>{calls++;return new Response('not reached')}}),e=>e.code==='NETWORK_TIMEOUT'&&/DNS_TIMEOUT/.test(e.message));
+  assert.equal(calls,0);
+});
+
+test('legacy HTTP errors retain safe codes without echoing source query values',async()=>{
+  const p=createAlooyProvider({fetchImpl:async()=>new Response('upstream failed',{status:500})});
+  await assert.rejects(p.search('private-query'),e=>e.message==='ALOOY_HTTP_500'&&e.error_code==='UPSTREAM_UNAVAILABLE'&&!e.message.includes('private-query'));
+});

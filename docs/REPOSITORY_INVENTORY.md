@@ -1,6 +1,6 @@
 Repository cleanup inventory — no deletions
 
-Base: `7317d9c86e85770cf4fff6f9da5b69fd3352f9c6`. Files scanned: 1523. Scope includes both registered families, legacy providers, source seed config, tests, CI, package scripts and literal filesystem/native references.
+Base: `3f37377d1eb9279c36b10c5dcd0ff4bad6570292`. Files scanned: 1531. Scope includes both registered families, legacy providers, source seed config, tests, CI, package scripts and literal filesystem/native references.
 
 This is a conservative static inventory, not a proof that unreferenced code is unused. Dynamic expressions, convention-loaded skills, native entry points and manually invoked tools remain blockers. All approved-deletion lists are empty. No cleanup commit is permitted before owner approval.
 
@@ -22,7 +22,7 @@ Code and configuration inventory
 |`server/browser/providers/sites/3isk.mjs`|True|KEEP: reachable from runtime/tests/CI; users: server/browser/registry.mjs, مهام/تقارير/المصادر.json|
 |`server/browser/providers/sites/ahwak-categories.mjs`|True|KEEP: reachable from runtime/tests/CI; users: server/browser/providers/sites/ahwak.mjs|
 |`server/browser/providers/sites/ahwak.mjs`|True|KEEP: reachable from runtime/tests/CI; users: server/browser/registry.mjs, مهام/تقارير/المصادر.json|
-|`server/browser/providers/sites/akwam.mjs`|True|KEEP: reachable from runtime/tests/CI; users: server/browser/registry.mjs, مهام/تقارير/المصادر.json|
+|`server/browser/providers/sites/akwam.mjs`|True|KEEP: reachable from runtime/tests/CI; users: server/browser/registry.mjs, tests/akwam-server-discovery.test.mjs, مهام/تقارير/المصادر.json|
 |`server/browser/providers/sites/alooy.mjs`|True|KEEP: reachable from runtime/tests/CI; users: server/browser/registry.mjs, مهام/تقارير/المصادر.json|
 |`server/browser/providers/sites/anime4up.mjs`|True|KEEP: reachable from runtime/tests/CI; users: server/browser/providers/sites/anime4up_rest.mjs, server/browser/registry.mjs, مهام/تقارير/المصادر.json|
 |`server/browser/providers/sites/anime4up_rest.mjs`|True|KEEP: reachable from runtime/tests/CI; users: server/browser/registry.mjs, مهام/تقارير/المصادر.json|
@@ -193,9 +193,10 @@ Markdown inventory — every file
 |`docs/BATCH1_IOS_PHYSICAL_HARDENING.md`|KEEP_HISTORY|retained historical evidence; age does not prove obsolescence; |
 |`docs/BATCH1_LOCAL_STORAGE_GATES.md`|KEEP_HISTORY|retained historical evidence; age does not prove obsolescence; |
 |`docs/CONTENT_RUNTIME_1.0.1.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; scripts/repository_inventory.py:80|
-|`docs/DOMAIN_REVIEW_2026-11-12.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; scripts/repository_inventory.py:56|
+|`docs/DOMAIN_REVIEW_2026-11-12.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; docs/EXECUTION_REPORT_AR.md:42, scripts/repository_inventory.py:56|
 |`docs/EDGE_RESOLVER_1.0.41.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; docs/EDGE_RESOLVER_1.0.42.md:3|
 |`docs/EDGE_RESOLVER_1.0.42.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
+|`docs/EXECUTION_REPORT_AR.md`|KEEP_HISTORY|retained historical evidence; age does not prove obsolescence; |
 |`docs/EXPLORATION_STORE_INTEGRATION.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; مهام/تقارير/تنفيذ-2026-10-24.md:38, مهام/فرعية/05.01.md:31|
 |`docs/HLS_FALLBACK_GAP_AUDIT.md`|KEEP_HISTORY|retained historical evidence; age does not prove obsolescence; |
 |`docs/IDENTITY_V1_0_13.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; scripts/repository_inventory.py:80|
@@ -209,8 +210,9 @@ Markdown inventory — every file
 |`docs/PHASE2_PLAYER_AND_AKOAM.md`|KEEP_HISTORY|retained historical evidence; age does not prove obsolescence; |
 |`docs/PHASE3_7_1.0.40.md`|KEEP_HISTORY|retained historical evidence; age does not prove obsolescence; |
 |`docs/PLATFORM_PARITY.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; مهام/README.md:55|
-|`docs/PROVIDER_CONTRACT.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; scripts/repository_inventory.py:56|
-|`docs/PROVIDER_FIXTURE_REVIEW.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; scripts/repository_inventory.py:56|
+|`docs/PRODUCTION_VERIFICATION.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; docs/EXECUTION_REPORT_AR.md:42|
+|`docs/PROVIDER_CONTRACT.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; docs/EXECUTION_REPORT_AR.md:49, scripts/repository_inventory.py:56|
+|`docs/PROVIDER_FIXTURE_REVIEW.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; docs/EXECUTION_REPORT_AR.md:50, scripts/repository_inventory.py:56|
 |`docs/PROVIDER_INVENTORY.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
 |`docs/RENDER_DEPLOYMENT.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; docs/KOYEB_DEPLOYMENT.md:3|
 |`docs/SEARCH_DIAGNOSTICS.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; .agents/skills/najd-scraper-maintenance/SKILL.md:7|
@@ -275,7 +277,7 @@ Markdown inventory — every file
 |`مهام/09.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
 |`مهام/10.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
 |`مهام/11.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
-|`مهام/12.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; scripts/repository_inventory.py:56, مهام/README.md:6|
+|`مهام/12.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; docs/EXECUTION_REPORT_AR.md:42, scripts/repository_inventory.py:56, مهام/README.md:6|
 |`مهام/README.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; .agents/skills/graphify/references/extraction-spec.md:61, .agents/skills/hermes-spike/SKILL.md:85, README.md:20|
 |`مهام/الثوابت.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; design/najd-ui/planning/PLAN.md:11, مهام/README.md:49|
 |`مهام/تقارير/المصادر.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; scripts/provider_inventory.py:18, مهام/README.md:39, مهام/تقارير/تنفيذ-2026-10-24.md:6|
@@ -293,7 +295,7 @@ Markdown inventory — every file
 |`مهام/رئيسية/09.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
 |`مهام/رئيسية/10.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
 |`مهام/رئيسية/11.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
-|`مهام/رئيسية/12.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; scripts/repository_inventory.py:56, مهام/README.md:6|
+|`مهام/رئيسية/12.md`|KEEP_REFERENCE|convention-loaded instruction/current reference or referenced document; docs/EXECUTION_REPORT_AR.md:42, scripts/repository_inventory.py:56, مهام/README.md:6|
 |`مهام/فرعية/01.01.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
 |`مهام/فرعية/01.02.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
 |`مهام/فرعية/01.03.md`|MERGE_REVIEW|unreferenced standalone documentation; review and consolidate, do not delete without content comparison; |
@@ -394,7 +396,7 @@ Backup-name candidates
 - `flutter_app/lib/src/library_backup_control.dart`: name match only; references flutter_app/lib/src/account_settings.dart:2; not approved for deletion.
 - `flutter_app/lib/src/library_backup_export_native.dart`: name match only; references flutter_app/lib/src/library_backup_control.dart:7; not approved for deletion.
 - `flutter_app/lib/src/library_backup_export_web.dart`: name match only; references flutter_app/lib/src/library_backup_control.dart:8; not approved for deletion.
-- `flutter_app/test/library_backup_test.dart`: name match only; references ; not approved for deletion.
+- `flutter_app/test/library_backup_test.dart`: name match only; references docs/EXECUTION_REPORT_AR.md:28; not approved for deletion.
 
 Exact byte duplicates — not deletion proof
 
