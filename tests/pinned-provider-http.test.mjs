@@ -17,12 +17,22 @@ test('registered Akwam, MyCima and Fosta resolvers run for the exact episode wit
   const series=ref('/series/observed'),episode=ref('/episode/2'),calls=[];
   const entry={meta:{capabilities:{resolve:true}},module:{
    scrapeDetails:async selected=>{calls.push(['details',selected]);return selected===series?{type:'series',episodes:[{season:3,number:2,ref:episode}]}:{type:'series',season_number:3,episode_number:2,servers:[]}},
-   resolveStream:async selected=>{calls.push(['resolve',selected]);return{servers:[{url:'https://cdn.example/2.mp4',kind:'direct',web_playable:true}]}}
+   resolveStream:async selected=>{calls.push(['resolve',selected]);const stream={url:'https://cdn.example/2.mp4',kind:'direct',web_playable:true};return provider==='akwam'?{...stream,type:'mp4',streamType:'mp4'}:{servers:[stream]}}
   }};
   await run({pinnedProviderLookup:()=>entry},async base=>{
    const response=await fetch(base+'/api/v1/playback?'+new URLSearchParams({ref:series,type:'series',season:'3',episode:'2',platform:'web'}));
    const result=await response.json();assert.equal(result.status,'success',JSON.stringify(result));assert.equal(result.servers.length,1);
    assert.deepEqual(calls,[['details',series],['details',episode],['resolve',episode]]);
+  });
+ }
+});
+
+test('primary url and streamUrl resolver contracts are normalized into validated source candidates',async()=>{
+ const ref='akwam:'+Buffer.from('https://akwam.ss/movie/42/observed').toString('base64url');
+ for(const field of ['url','streamUrl']){
+  await run({pinnedProviderLookup:()=>({meta:{capabilities:{resolve:true}},module:{scrapeDetails:async()=>({type:'movie',servers:[]}),resolveStream:async()=>({[field]:'https://cdn.example/movie.mp4',type:'mp4',web_playable:true})}})},async base=>{
+   const result=await(await fetch(base+'/api/v1/playback?'+new URLSearchParams({ref,type:'movie',platform:'web'}))).json();
+   assert.equal(result.status,'success');assert.equal(result.servers[0].url,'https://cdn.example/movie.mp4');
   });
  }
 });
