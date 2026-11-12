@@ -46,6 +46,18 @@ test('provider-specific resolver is called before the generic page unwrapper',as
  assert.equal(resolved,1);assert.equal(patch.media.length,1);assert.equal(patch.media[0].identity_verified,true);
 });
 
+test('a web job extracts again instead of accepting a native-only cached link',async()=>{
+ let resolved=0,patch;const clock=100000;
+ const cached={state:'playable',media_expires_at:new Date(clock+300000).toISOString(),media:[{url:'https://cdn.example/native.mp4',web_playable:false,observed_identity:{season:0,episode:0}}]};
+ const store={getEpisode:async()=>cached,getWork:async()=>({metadata:{identity_scope:'source',title:'Test Movie'}}),setEpisode:async(r,p,s,value)=>{patch=value},request:async()=>[],event:async()=>{}};
+ const entry={meta:PROVIDER_META,module:{scrapeDetails:async()=>({title:'Test Movie',type:'movie',sourceUrl:'https://mycima.gdn/watch/test/',servers:[]}),scrapeServers:async()=>[],resolveStream:async()=>{resolved++;return{url:'https://cdn.example/web.mp4'}}}};
+ const pipeline=createHarvestPipeline({store,entries:[entry],now:()=>clock,probe:async(_candidate,options)=>{assert.equal(options.platform,'web');return{playable:true,container_verified:true,webPlayable:true}}});
+ const input={content_ref:'source:mycima:'+'a'.repeat(24),provider:'mycima',season_number:0,episode_number:0,payload:{source_ref:'mycima:'+Buffer.from('https://mycima.gdn/watch/test/').toString('base64url'),observed_episode:{season:0,episode:0}}};
+ assert.equal((await pipeline.episode(input)).progress.outcome,'valid_cached_media');assert.equal(resolved,0);
+ await pipeline.episode({...input,payload:{...input.payload,platform:'web'}});
+ assert.equal(resolved,1);assert.equal(patch.media[0].url,'https://cdn.example/web.mp4');assert.equal(patch.media[0].web_playable,true);
+});
+
 test('browser retains actual blocked/timeout codes instead of flattening all failures',async()=>{
  const meta={id:'one',domains:['https://one.example'],capabilities:{catalog:true}};
  const entry={meta,module:{CONFIG:{categories:{all:'/'}},scrapeCatalog:async()=>{throw Object.assign(Error('timeout'),{code:'NETWORK_TIMEOUT'})}}};

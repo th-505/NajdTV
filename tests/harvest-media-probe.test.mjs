@@ -22,3 +22,20 @@ test('a real MP4 container is accepted when a CDN omits both MIME headers',async
  const result=await probeHarvestMedia(candidate,{headProbe:async()=>({playable:false,container:null,statusCode:200,webPlayable:false}),fetchImpl:async()=>({status:200,bytes:Buffer.from('000000186674797069736f6d00000001','hex')})});
  assert.equal(result.playable,true);assert.equal(result.container,'mp4');assert.equal(result.container_verified,true);assert.equal(result.webPlayable,false);
 });
+
+test('browser-context bytes and CORS certify an octet-stream MP4 without source-only headers',async()=>{
+ const result=await probeHarvestMedia({...candidate,headers:{Referer:'https://source.example/',Cookie:'private-session','User-Agent':'source-agent'}},{platform:'web',
+  headProbe:async(_candidate,options)=>{assert.equal(options.platform,'web');return{playable:false,container:null,statusCode:200,webPlayable:false}},
+  fetchImpl:async(_url,options)=>{
+   assert.deepEqual(options.headers,{Origin:'https://th-505.github.io',Referer:'https://th-505.github.io/',Range:'bytes=0-32767'});
+   return{status:206,headers:new Headers({'content-type':'application/octet-stream','access-control-allow-origin':'*'}),bytes:Buffer.from('000000186674797069736f6d00000001','hex')};
+  }});
+ assert.equal(result.container,'mp4');assert.equal(result.playable,true);assert.equal(result.webPlayable,true);
+});
+
+test('generic MIME never makes missing CORS, HTML or a native-only format web playable',async()=>{
+ for(const [bytes,cors]of [[Buffer.from('000000186674797069736f6d00000001','hex'),null],[Buffer.from('<html>access denied</html>'),'*'],[Buffer.from('RIFF0000AVI '),'*']]){
+  const result=await probeHarvestMedia(candidate,{platform:'web',headProbe:async()=>({statusCode:200,webPlayable:true}),fetchImpl:async()=>({status:206,headers:new Headers(cors?{'access-control-allow-origin':cors}:{}),bytes})});
+  assert.equal(result.webPlayable,false);
+ }
+});

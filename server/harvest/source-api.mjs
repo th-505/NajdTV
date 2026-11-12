@@ -66,18 +66,29 @@ export function createSourceApi({store,worker,now=Date.now}){
    if(refresh||row.state!=='playable'||!directCandidate(media)||media.identity_verified!==true||!(Date.parse(media.expires_at)>now()+30000)||(platform==='web'&&media.web_playable!==true)||Number(media.observed_identity?.season)!==season||Number(media.observed_identity?.episode)!==episode||seen.has(media.url))continue;
    seen.add(media.url);servers.push({...media,provider_id:row.provider,source_ref:row.source_ref,edition:work.metadata.edition,label:work.metadata.source_edition==='dubbed'?'مدبلج':work.metadata.source_edition==='subtitled'?'مترجم':media.quality||'المصدر'});
   }
-  if(platform==='web'&&!servers.length&&rows.some(r=>r.state==='playable'&&r.media?.some(m=>m.identity_verified&&Date.parse(m.expires_at)>now()+30000)))return{state:'unavailable',reason:'PINNED_DIRECT_WEB_UNAVAILABLE'};
   if(servers.length)return{state:'ready',servers,cache_hit:true,source:'najd-source-edition-cache'};
+  // A native-only cached link is a web cache miss. Try the source extractor
+  // once before concluding that this provider cannot serve the browser.
+  if(platform==='web'&&!refresh&&(matching||[]).some(j=>j.status==='ready'&&j.payload?.platform==='web'&&Date.parse(j.updated_at)>now()-60000))return{state:'unavailable',reason:'PINNED_DIRECT_WEB_UNAVAILABLE'};
   const row=rows.find(r=>r.state!=='unavailable')||rows[0];const jobKey=[key,'episode',row.provider,shortHash(row.source_ref)].join(':');
-  const current=(await store.request('matv_discovery_jobs',{job_key:'eq.'+jobKey,select:'status,error_code,payload',limit:1}))?.[0];
-  if(current?.status==='failed'&&(!refresh||now()-(playbackRetries.get(jobKey)||0)<10000))return{state:'failed',reason:current.error_code||'DIRECT_MEDIA_NOT_FOUND'};
+  const current=(await store.request('matv_discovery_jobs',{job_key:'eq.'+jobKey,select:'status,error_code,payload,updated_at,refresh_after',limit:1}))?.[0];
+  // A failed extraction is a temporary negative cache, never a permanent veto
+  // on a later Watch request. Keep DB backoff and a local retry cooldown.
+  if(current?.status==='failed'){
+   const lastRetry=playbackRetries.get(jobKey);
+   const retryAfter=Date.parse(current.refresh_after)||((Date.parse(current.updated_at)||0)+60000);
+   if((lastRetry!==undefined&&now()-lastRetry<10000)||(!refresh&&now()<retryAfter))return{state:'failed',reason:current.error_code||'DIRECT_MEDIA_NOT_FOUND'};
+   playbackRetries.set(jobKey,now());if(playbackRetries.size>256)playbackRetries.delete(playbackRetries.keys().next().value);
+  }
   // Invalidate only this requested episode so an already-running cache-hit job
   // cannot make the next ordinary poll return the link the user rejected.
   if(refresh)for(const candidate of rows)await store.setEpisode(key,candidate.provider,candidate.source_ref,{state:'pending',media:[],media_expires_at:null});
   if(refresh){playbackRetries.set(jobKey,now());if(playbackRetries.size>256)playbackRetries.delete(playbackRetries.keys().next().value);}
-  if(current?.status==='queued')await store.request('matv_discovery_jobs',{job_key:'eq.'+jobKey,status:'eq.queued'},'PATCH',{priority:10,refresh_after:stamp(),updated_at:stamp(),...(refresh?{payload:{...current.payload,force_refresh:true}}:{})});
-  if(!refresh&&row.state==='unavailable'&&Date.parse(row.last_checked_at)>now()-60000)return{state:'unavailable',reason:'DIRECT_MEDIA_NOT_FOUND'};
-  if(!current||!['queued','running'].includes(current.status))await store.enqueue({job_key:jobKey,content_ref:key,title:work.title.length>=2?work.title:'عمل '+work.title,provider:row.provider,stage:'episode',priority:10,status:'queued',season_number:season,episode_number:episode,payload:{source_ref:row.source_ref,cycle:Math.floor(now()/10000),force_refresh:refresh,identity_scope:'source',observed_identity:{title:work.title,year:work.year||null},observed_episode:{season,episode,source_season:season,source_episode:episode,numbering_basis:'source-season'}},last_activity_at:stamp(),refresh_after:stamp()},{refresh:true});
+  // Polls may promote priority/platform, but must not erase the worker's
+  // persisted backoff after a source timeout or access failure.
+  if(current?.status==='queued')await store.request('matv_discovery_jobs',{job_key:'eq.'+jobKey,status:'eq.queued'},'PATCH',{priority:10,...((refresh||!current.error_code)?{refresh_after:stamp(),updated_at:stamp()}:{}),...((refresh||platform==='web')?{payload:{...current.payload,...(refresh?{force_refresh:true}:{}),...(platform==='web'?{platform:'web'}:{})}}:{})});
+  if(!refresh&&!['queued','running'].includes(current?.status)&&row.state==='unavailable'&&Date.parse(row.last_checked_at)>now()-60000)return{state:'unavailable',reason:'DIRECT_MEDIA_NOT_FOUND'};
+  if(!current||!['queued','running'].includes(current.status))await store.enqueue({job_key:jobKey,content_ref:key,title:work.title.length>=2?work.title:'عمل '+work.title,provider:row.provider,stage:'episode',priority:10,status:'queued',season_number:season,episode_number:episode,payload:{source_ref:row.source_ref,cycle:Math.floor(now()/10000)+':'+platform,force_refresh:refresh,platform,identity_scope:'source',observed_identity:{title:work.title,year:work.year||null},observed_episode:{season,episode,source_season:season,source_episode:episode,numbering_basis:'source-season'}},last_activity_at:stamp(),refresh_after:stamp()},{refresh:true});
   worker.wake({jobs:[{job_key:jobKey,stage:'episode'}]});return{state:current?.status==='running'?'running':'queued',poll_after_ms:1500};
  }
  return{requestWork:request,workStatus:status,sourceDetails:details,sourcePlayback:playback};

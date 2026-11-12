@@ -1,6 +1,7 @@
 import test from'node:test';import assert from'node:assert/strict';import{readFile}from'node:fs/promises';
 import{createHarvestPipeline}from'../server/harvest/pipeline.mjs';import{createSourceApi}from'../server/harvest/source-api.mjs';
 import{workReference}from'../server/harvest/work-reference.mjs';
+import{probeHarvestMedia}from'../server/harvest/media-probe.mjs';
 import{decideSourceCatalog,observedRuntimeMinutes}from'../server/scrapers/shared/catalog-decision.mjs';
 import*as isk from'../server/scrapers/sites/3isk.mjs';import*as ck from'../server/scrapers/sites/3cktv.mjs';
 const fixture=name=>readFile(new URL('./fixtures/valley-wolves/'+name,import.meta.url),'utf8');
@@ -78,4 +79,87 @@ test('refresh while a non-forced job is running cannot expose its rejected cache
  await api.sourcePlayback(ref,{refresh:true});const job=[...store.jobs.values()][0];job.status='running';job.payload.force_refresh=false;
  await store.setEpisode(ref,'3cktv','3cktv:e1',{state:'playable',media:[{url:'https://cdn.example/old.mp4',kind:'direct',expires_at:new Date(200000).toISOString(),identity_verified:true,observed_identity:{season:1,episode:1}}]});
  assert.equal((await api.sourcePlayback(ref,{refresh:true})).state,'running');assert.equal((await api.sourcePlayback(ref)).state,'running');assert.equal([...store.episodeRows.values()][0].media.length,0);
+});
+
+test('an ordinary Watch retries an old failed extraction but respects persisted backoff and deduplicates polls',async()=>{
+ let clock=100000;const store=memoryStore(),wakes=[];
+ const api=createSourceApi({store,worker:{wake:input=>wakes.push(input)},now:()=>clock}),ref=workReference('3cktv:retry-watch');
+ store.works.set(ref,{ref,title:'مسلسل',metadata:{}});
+ await store.putEpisodes([{work_ref:ref,provider:'3cktv',source_ref:'3cktv:e1',season:1,episode:1,state:'pending',media:[]}]);
+ await api.sourcePlayback(ref);const old=[...store.jobs.values()][0];
+ Object.assign(old,{status:'failed',error_code:'NETWORK_TIMEOUT',refresh_after:new Date(clock+60000).toISOString(),updated_at:new Date(clock).toISOString()});
+ const wakesBefore=wakes.length;
+ assert.equal((await api.sourcePlayback(ref)).state,'failed');assert.equal(wakes.length,wakesBefore);
+ clock+=60001;
+ assert.equal((await api.sourcePlayback(ref)).state,'queued');
+ const retry=store.jobs.get(old.job_key);assert.notEqual(retry,old);assert.equal(retry.priority,10);
+ assert.equal((await api.sourcePlayback(ref)).state,'queued');assert.equal(store.jobs.size,1);assert.equal(store.jobs.get(old.job_key),retry);
+ Object.assign(retry,{status:'failed',refresh_after:new Date(clock-1).toISOString()});
+ assert.equal((await api.sourcePlayback(ref)).state,'failed','local cooldown prevents a tight retry loop');
+});
+
+test('a native-only cache miss queues web extraction and reports incompatibility only after that attempt',async()=>{
+ let clock=100000;const store=memoryStore(),api=createSourceApi({store,worker:{wake:()=>{}},now:()=>clock}),ref=workReference('3cktv:web-watch');
+ store.works.set(ref,{ref,title:'مسلسل',metadata:{}});
+ const row={work_ref:ref,provider:'3cktv',source_ref:'3cktv:e1',season:1,episode:1,state:'playable',media:[{url:'https://cdn.example/native.mp4',kind:'direct',web_playable:false,expires_at:new Date(clock+300000).toISOString(),identity_verified:true,observed_identity:{season:1,episode:1}}]};
+ await store.putEpisodes([row]);
+ assert.equal((await api.sourcePlayback(ref)).state,'ready','native playback keeps the cache hit');
+ assert.equal((await api.sourcePlayback(ref,{platform:'web'})).state,'queued');
+ const job=[...store.jobs.values()][0];assert.equal(job.payload.platform,'web');
+ job.payload.platform='native';
+ assert.equal((await api.sourcePlayback(ref,{platform:'web'})).state,'queued');
+ assert.equal(job.payload.platform,'web','an already queued native job is promoted to web extraction');
+ Object.assign(job,{status:'ready',updated_at:new Date(clock).toISOString()});
+ assert.equal((await api.sourcePlayback(ref,{platform:'web'})).reason,'PINNED_DIRECT_WEB_UNAVAILABLE');
+ clock+=60001;assert.equal((await api.sourcePlayback(ref,{platform:'web'})).state,'queued');
+ row.media[0].web_playable=true;
+ assert.equal((await api.sourcePlayback(ref,{platform:'web'})).state,'ready');
+});
+
+test('a recent negative cache cannot hide an already queued or running extractor',async()=>{
+ const clock=100000,store=memoryStore(),wakes=[];
+ const api=createSourceApi({store,worker:{wake:input=>wakes.push(input)},now:()=>clock}),ref=workReference('3cktv:pending-retry');
+ store.works.set(ref,{ref,title:'مسلسل',metadata:{}});
+ await store.putEpisodes([{work_ref:ref,provider:'3cktv',source_ref:'3cktv:e1',season:1,episode:1,state:'pending',media:[]}]);
+ await api.sourcePlayback(ref);const job=[...store.jobs.values()][0];
+ await store.setEpisode(ref,'3cktv','3cktv:e1',{state:'unavailable',last_checked_at:new Date(clock).toISOString()});
+ assert.equal((await api.sourcePlayback(ref)).state,'queued');
+ job.status='running';assert.equal((await api.sourcePlayback(ref)).state,'running');assert.equal(wakes.length,3);
+});
+
+test('polling a blocked source preserves worker backoff while promoting the requested platform',async()=>{
+ const clock=100000,store=memoryStore();
+ const api=createSourceApi({store,worker:{wake:()=>{}},now:()=>clock}),ref=workReference('ahwak:blocked-episode');
+ store.works.set(ref,{ref,title:'The Walking Dead',metadata:{}});
+ await store.putEpisodes([{work_ref:ref,provider:'ahwak',source_ref:'ahwak:e1',season:11,episode:1,state:'pending',media:[]}]);
+ await api.sourcePlayback(ref,{season:11,episode:1});const job=[...store.jobs.values()][0];
+ const retryAt=new Date(clock+120000).toISOString(),failedAt=new Date(clock-1000).toISOString();
+ Object.assign(job,{status:'queued',error_code:'ACCESS_BLOCKED',refresh_after:retryAt,updated_at:failedAt});
+ await store.setEpisode(ref,'ahwak','ahwak:e1',{state:'unavailable',last_checked_at:failedAt});
+ for(let poll=0;poll<3;poll++)assert.equal((await api.sourcePlayback(ref,{season:11,episode:1,platform:'web'})).state,'queued');
+ assert.equal(job.refresh_after,retryAt);assert.equal(job.updated_at,failedAt);assert.equal(job.priority,10);assert.equal(job.payload.platform,'web');
+});
+
+test('Akwam old native caches recover through the real web extraction pipeline for two episodes and a different movie',async()=>{
+ for(const scenario of [{name:'Test Show',type:'series',season:3,episode:1},{name:'Test Show',type:'series',season:3,episode:2},{name:'Other Movie',type:'movie',season:0,episode:0}]){
+  const clock=100000,store=memoryStore(),original='akwam:'+Buffer.from('https://akwam.ss/'+(scenario.type==='movie'?'movie':'series')+'/123/test').toString('base64url'),ref=workReference(original);
+  const source='akwam:'+Buffer.from('https://akwam.ss/episode/123/episode-'+scenario.episode).toString('base64url');
+  const title=scenario.type==='movie'?scenario.name:scenario.name+' الموسم الثالث الحلقة '+scenario.episode;
+  store.works.set(ref,{ref,title:scenario.name,type:scenario.type,metadata:{identity_scope:'source',title:scenario.name}});
+  await store.putEpisodes([{work_ref:ref,provider:'akwam',source_ref:source,season:scenario.season,episode:scenario.episode,state:'pending',media:[]}]);
+  const probes=[];
+  const pipeline=createHarvestPipeline({store,now:()=>clock,entries:[{meta:{id:'akwam',domains:['https://akwam.ss'],capabilities:{search:true,details:true}},module:{scrapeDetails:async()=>({title,type:scenario.type,season_number:scenario.season,episode_number:scenario.episode,sourceUrl:'https://akwam.ss/episode/123/test',servers:[{url:'https://cdn.example/video.mp4',kind:'direct'}]})}}],probe:async(candidate,options)=>{
+   probes.push(options.platform);
+   return probeHarvestMedia(candidate,{...options,headProbe:async()=>({statusCode:200,webPlayable:false,container:null}),fetchImpl:async()=>({status:206,headers:new Headers({'content-type':'application/octet-stream','access-control-allow-origin':'*'}),bytes:Buffer.from('000000186674797069736f6d00000001','hex')})});
+  }});
+  const api=createSourceApi({store,worker:{wake:()=>{}},now:()=>clock});
+  await api.sourcePlayback(ref,{season:scenario.season,episode:scenario.episode});
+  let job=[...store.jobs.values()][0];await pipeline.episode(job);Object.assign(job,{status:'ready',updated_at:new Date(clock).toISOString()});
+  assert.equal([...store.episodeRows.values()][0].media[0].web_playable,false);
+  assert.equal((await api.sourcePlayback(ref,{season:scenario.season,episode:scenario.episode,platform:'web'})).state,'queued');
+  job=[...store.jobs.values()][0];assert.equal(job.payload.platform,'web');
+  await pipeline.episode(job);Object.assign(job,{status:'ready',updated_at:new Date(clock).toISOString()});
+  const ready=await api.sourcePlayback(ref,{season:scenario.season,episode:scenario.episode,platform:'web'});
+  assert.equal(ready.state,'ready');assert.equal(ready.servers.length,1);assert.equal(ready.servers[0].web_playable,true);assert.deepEqual(probes,['native','web']);
+ }
 });
