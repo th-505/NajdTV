@@ -1141,7 +1141,8 @@ class MitvApi implements MediaRepository {
     bool refresh = false,
   }) async {
     final generation = _cacheGeneration;
-    if (providerBrowser && _providerReference(ref)) {
+    if ((providerBrowser && _providerReference(ref)) ||
+        _serverCatalogReference(ref)) {
       final metadata = await _providerSourceMetadata(ref);
       final work = _sourceWorkPattern.firstMatch('${metadata['ref']}');
       if (work == null) {
