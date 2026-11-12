@@ -3,7 +3,7 @@
   "build": 402,
   "product": "Najd TV",
   "schema_version": 1,
-  "source_commit": "2128b393f0d09d7f82a66a6361d142df9e6b8cfd",
+  "source_commit": "5c3133b3a8c94bbc1f72228c2d533f6188c795d3",
   "target": "web",
   "version": "4.0.2"
 }
