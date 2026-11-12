@@ -433,6 +433,10 @@ class MitvApi implements MediaRepository {
     RegExpMatch source, {
     required bool refresh,
   }) async {
+    final playbackSession = List.generate(
+      32,
+      (_) => Random.secure().nextInt(16).toRadixString(16),
+    ).join();
     final generation = _cacheGeneration;
     final ref = source[1]!,
         season = source[2] ?? '0',
@@ -447,6 +451,7 @@ class MitvApi implements MediaRepository {
           '/api/v1/harvest/playback',
           {
             'ref': ref,
+            'playback_session': playbackSession,
             'season': season,
             'episode': episode,
             'platform': const bool.fromEnvironment('dart.library.js_interop')
@@ -1141,6 +1146,10 @@ class MitvApi implements MediaRepository {
     String ref, {
     bool refresh = false,
   }) async {
+    final playbackSession = List.generate(
+      32,
+      (_) => Random.secure().nextInt(16).toRadixString(16),
+    ).join();
     final generation = _cacheGeneration;
     if ((providerBrowser && _providerReference(ref)) ||
         _serverCatalogReference(ref)) {
@@ -1176,6 +1185,7 @@ class MitvApi implements MediaRepository {
                 '/api/v1/discovery/start',
                 {
                   'ref': base,
+                  'playback_session': playbackSession,
                   'title': 'TMDB',
                   'season': season,
                   'episode': episode,
@@ -1230,6 +1240,9 @@ class MitvApi implements MediaRepository {
                 : 'NO_PLAYABLE_SOURCE',
           );
         }
+        if (job['state'] == 'unavailable') {
+          throw ApiException('${job['reason'] ?? 'SESSION_MEDIA_UNAVAILABLE'}');
+        }
         if (job['state'] == 'failed' || job['state'] == 'busy') {
           throw ApiException('${job['error'] ?? 'DISCOVERY_BUSY'}');
         }
@@ -1237,6 +1250,7 @@ class MitvApi implements MediaRepository {
         job =
             (await _getJson('/api/v1/discovery/status', {
                   'ref': base,
+                  'playback_session': playbackSession,
                   'season': season,
                   'episode': episode,
                 }))['data']

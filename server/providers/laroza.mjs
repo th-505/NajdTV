@@ -64,6 +64,7 @@ function pagination(data, page) {
 // This facade makes bounded JSON requests to the private application gateway;
 // it never follows source pages, receives video bodies, or returns web embeds.
 function createLarozaProviderRaw({
+  enabled = true,
   edgeBase = process.env.MITV_EDGE_BASE || DEFAULT_EDGE,
   fetchImpl = globalThis.fetch,
   now = Date.now,
@@ -74,6 +75,7 @@ function createLarozaProviderRaw({
     throw Error('LAROZA_BAD_EDGE_ENDPOINT');
   const pending = new Map();
   async function request(path, params, refresh = false) {
+    if (!enabled) throw Object.assign(Error('LAROZA_CATALOG_UNAVAILABLE'),{error_code:'ACCESS_BLOCKED',state:'unavailable',upstream_reason:'LAROZA_SOURCE_REDIRECT_REQUIRES_REVIEW'});
     const target = new URL('/v1/laroza/' + path, base);
     for (const [key,value] of Object.entries(params)) target.searchParams.set(key, String(value));
     const cacheKey = target.href;
@@ -144,7 +146,7 @@ function createLarozaProviderRaw({
         ...(episodes.length ? {} : {playback_unavailable:true, playback_reason:'EDGE_DIRECT_RESOLUTION_REQUIRED'}) };
     },
     details(ref, options) { return this.metadata(ref, options); },
-    status() { return { provider:'laroza', playback_mode:'edge_direct', media_proxy:false, metadata_only:true, cache_entries:cache.size }; },
+    status() { return { provider:'laroza', enabled, availability_reason:enabled?null:'LAROZA_SOURCE_REDIRECT_REQUIRES_REVIEW', playback_mode:'edge_direct', media_proxy:false, metadata_only:true, cache_entries:cache.size }; },
   };
 }
 

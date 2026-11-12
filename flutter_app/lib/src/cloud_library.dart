@@ -501,6 +501,7 @@ class CloudLibrarySync with WidgetsBindingObserver {
       pollInterval,
       observeLifecycle,
     );
+    if (transport.ownerId.isNotEmpty) await store.bindOwner(transport.ownerId);
     sync._loadOwnerState();
     store.addListener(sync._onChange);
     if (observeLifecycle) WidgetsBinding.instance.addObserver(sync);
@@ -561,6 +562,7 @@ class CloudLibrarySync with WidgetsBindingObserver {
     if (transport is AnonymousLibraryTransport) {
       await (transport as AnonymousLibraryTransport).prepare();
     }
+    await store.bindOwner(transport.ownerId);
     final id = stableWatchEpisodeId(
       contentRef: contentRef,
       episodeId: episodeId,
@@ -628,6 +630,7 @@ class CloudLibrarySync with WidgetsBindingObserver {
       final adapter = transport;
       if (adapter is AnonymousLibraryTransport) await adapter.prepare();
       if (_closed) return;
+      await store.bindOwner(transport.ownerId);
       _loadOwnerState();
       // Pull first so an old local upgrade cannot resurrect a remote tombstone.
       // Server revisions measure arrival order, not potentially old device clocks.

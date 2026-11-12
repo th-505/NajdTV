@@ -1,3 +1,4 @@
+import {mediaExpiry} from './harvest/identity.mjs';
 import {mediaFormatFromUrl,containerForFormat,NATIVE_CONTAINERS} from '../shared/media-container.mjs';
 import { getProvider } from './scrapers/registry.mjs';
 import { assertSafeScraperUrl, fetchSafeResponse } from './scrapers/shared/http.mjs';
@@ -83,7 +84,9 @@ function candidateOf(value, provider) {
     if (!/^[!#$%&'*+.^_`|~\w-]{1,80}$/.test(key) || typeof raw !== 'string' || raw.length > 2048 || /[\r\n\u0000]/.test(raw)) return null;
     headers[key] = raw;
   }
-  return { provider, kind: 'direct', url: url.href, headers,
+  const expiry=mediaExpiry({...value,url:url.href});
+  if(!expiry)return null;
+  return { provider, kind: 'direct', url: url.href, headers, expires_at:new Date(expiry).toISOString(),
     quality: typeof value.quality === 'string' ? value.quality.slice(0, 40) : null,
     web_playable: value.web_playable === true,
     container: containerForFormat(mediaFormatFromUrl(url.href)) };

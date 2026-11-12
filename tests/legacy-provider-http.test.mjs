@@ -16,9 +16,9 @@ test('Alooy and Laroza validate JSON structure despite HTML Content-Type',async(
   const alooy=createAlooyProvider({fetchImpl:async()=>new Response(JSON.stringify([{title:'شباب',url:'https://fa.alooytv16.xyz/watch/abc.html',image:'/poster.jpg'}]),{headers:{'content-type':'text/html'}})});
   assert.equal((await alooy.search('شباب')).data.length,1);
   const ref='laroza:'+Buffer.from('/play.php?vid=abc').toString('base64url');
-  const laroza=createLarozaProvider({edgeBase:'https://edge.example',fetchImpl:async()=>new Response(JSON.stringify({status:'success',source:'laroza',data:[{ref,title:'مثال'}]}),{headers:{'content-type':'text/html'}})});
+  const laroza=createLarozaProvider({enabled:true,edgeBase:'https://edge.example',fetchImpl:async()=>new Response(JSON.stringify({status:'success',source:'laroza',data:[{ref,title:'مثال'}]}),{headers:{'content-type':'text/html'}})});
   assert.equal((await laroza.category()).data[0].ref,ref);
-  const invalid=createLarozaProvider({edgeBase:'https://edge.example',fetchImpl:async()=>new Response('<html>broken</html>',{headers:{'content-type':'application/json'}})});
+  const invalid=createLarozaProvider({enabled:true,edgeBase:'https://edge.example',fetchImpl:async()=>new Response('<html>broken</html>',{headers:{'content-type':'application/json'}})});
   await assert.rejects(invalid.category(),/BAD_EDGE_RESPONSE/);
 });
 

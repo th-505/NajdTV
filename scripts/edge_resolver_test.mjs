@@ -218,12 +218,13 @@ const story = await resolveProvider(isk, configs["3isk"], async (u, o) => {
 });
 assert.equal(story.sources[0].headers.Referer, "https://miravd.com/");
 // Exercise the public gateway, not only the provider aggregation helper. A cache
-// hit must consume neither a KV read nor an extraction service invocation.
+// metadata hit stays shared; playback credentials never enter that cache.
 const originalCaches = globalThis.caches;
 const entries = new Map();
 globalThis.caches = {
   default: {
     async match(key) {
+      if(key.url.includes("/resolve/"))throw Error("SHARED_PLAYBACK_CACHE_READ");
       return entries.get(key.url)?.clone();
     },
     async put(key, response) {
@@ -279,7 +280,7 @@ const env = {
           {
             provider_id: "3isk",
             format: "hls",
-            url: "https://video.test/master.m3u8",
+            url: "https://video.test/master.m3u8?token="+counts.extraction,
             headers: { Referer: "https://miravd.com/" },
             expires_at: new Date(Date.now() + 180000).toISOString(),
           },
@@ -312,51 +313,15 @@ try {
   );
   assert.equal(counts.kv, 1);
   assert.equal(counts.extraction, 1);
-  const cached = await send(
-    "ref=" + encodeURIComponent(isk) + "&refresh=1&cachebuster=anything",
-  );
-  assert.equal(cached.body.cached, true);
-  assert.equal(
-    counts.kv,
-    1,
-    "public refresh and cachebusters cannot trigger KV reads",
-  );
-  assert.equal(counts.extraction, 1);
-  assert.equal(
-    counts.misses,
-    1,
-    "cache hits do not consume the cold-resolution budget",
-  );
-
-  const key = [...entries.keys()][0];
-  const stale = await entries.get(key).json();
-  stale.sources[0].expires_at = new Date(Date.now() + 20000).toISOString();
-  entries.set(
-    key,
-    Response.json(stale, {
-      headers: { "X-MITV-Cache-Until": String(Date.now() + 60000) },
-    }),
-  );
-  const renewed = await send("ref=" + encodeURIComponent(isk));
-  assert.equal(renewed.response.status, 200);
-  assert.equal(renewed.body.cached, undefined);
-  assert.equal(counts.kv, 2, "a nearly expired source must resolve again");
-  assert.equal(counts.extraction, 2);
-  const ttlExpired = await entries.get(key).json();
-  entries.set(
-    key,
-    Response.json(ttlExpired, {
-      headers: { "X-MITV-Cache-Until": String(Date.now() - 1) },
-    }),
-  );
-  const freshAfterTtl = await send("ref=" + encodeURIComponent(isk));
-  assert.equal(freshAfterTtl.body.cached, undefined);
-  assert.equal(
-    counts.kv,
-    3,
-    "cache lifetime cannot outlive its freshness deadline",
-  );
-  assert.equal(counts.extraction, 3);
+  const [second,third] = await Promise.all([
+    send("ref="+encodeURIComponent(isk)),
+    send("ref="+encodeURIComponent(isk)+"&refresh=1&cachebuster=anything"),
+  ]);
+  for(const r of [second,third]){assert.equal(r.response.status,200);assert.equal(r.body.cached,undefined);}
+  assert.notEqual(second.body.sources[0].url,third.body.sources[0].url);
+  assert.notEqual(first.body.sources[0].url,second.body.sources[0].url);
+  assert.equal(counts.kv,3);assert.equal(counts.extraction,3);assert.equal(counts.misses,3);
+  assert.equal(entries.size,0,"viewer credentials must never be persisted in the shared Cache API");
 
   const dubbed = await send("episode_id=exact-dubbed");
   assert.equal(dubbed.body.edition, "arabic-dubbed-cut-b");
@@ -383,8 +348,8 @@ try {
   const allowedHit = await send("ref=" + encodeURIComponent(isk));
   assert.equal(
     allowedHit.response.status,
-    200,
-    "an exhausted miss budget still permits active cache hits",
+    429,
+    "every fresh playback extraction remains subject to the quota",
   );
   allowMisses = true;
 
@@ -426,6 +391,17 @@ try {
   );
   assert.equal(matchCalls, 1, "live list polling uses a short metadata cache");
   assert.equal((await send("", "/v1/matches/unknown")).response.status, 404);
+  let playbackCalls=0;
+  env.MATCHES={fetch:async()=>Response.json({status:'success',sources:[{
+    provider_id:'matches',format:'hls',url:'https://video.test/live.m3u8?token='+ (++playbackCalls),
+    expires_at:new Date(Date.now()+180000).toISOString(),headers:{}
+  }]})};
+  const [matchA,matchB]=await Promise.all([
+    send('ref=matchserver%3Asame','/v1/matches/playback'),
+    send('ref=matchserver%3Asame','/v1/matches/playback'),
+  ]);
+  assert.equal(matchA.response.status,200);assert.equal(matchB.response.status,200);
+  assert.equal(playbackCalls,2);assert.notEqual(matchA.body.sources[0].url,matchB.body.sources[0].url);
   const metadataRequests = [];
   env.LAROZA = {
     async fetch(input) {
@@ -567,5 +543,5 @@ try {
   globalThis.caches = originalCaches;
 }
 console.log(
-  "Edge tests: four-provider partial aggregation, exact edition timelines, metadata-only Laroza routes, bounded/validated queries, eight-source cap, HEAD-only validation, cache-before-KV, expiry renewal and quota guards passed",
+  "Edge tests: four-provider partial aggregation, exact edition timelines, metadata-only Laroza routes, bounded/validated queries, eight-source cap, HEAD-only validation, fresh per-viewer credentials, metadata caching and quota guards passed",
 );

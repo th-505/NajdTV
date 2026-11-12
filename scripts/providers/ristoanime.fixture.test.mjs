@@ -1,3 +1,5 @@
+import {installOfflineUpstreams} from '../fixtures/offline-upstream.mjs';
+installOfflineUpstreams(["https://vidmoly.org/embed-bq9rmr4qfeoy.html"]);
 // scripts/providers/ristoanime.fixture.test.mjs
 // Offline fixture test suite for RistoAnime (ristoanime, code: RE)
 

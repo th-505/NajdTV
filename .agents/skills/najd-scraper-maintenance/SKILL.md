@@ -4,7 +4,7 @@ description: Diagnose and repair Najd provider search, pagination, real episode 
 ---
 # Scraper maintenance protocol (human or Gemini)
 
-Read this file first, then only the affected provider, its registry/config entry and relevant fixture/test. Avoid re-reading the repository. Knowledge index: `docs/SEARCH_DIAGNOSTICS.md`, `docs/SECURITY_EPISODE_REVIEW_1.1.2.md`, `docs/ARCHITECTURE_ATTACHMENT_REVIEW.md`, `docs/najd/IMPLEMENTATION_1.1.3.md`.
+Read this file first, then only the affected provider, its registry/config entry and relevant fixture/test. Avoid re-reading the repository. Knowledge index: `docs/SEARCH_DIAGNOSTICS.md`, `docs/PROVIDER_CONTRACT.md`, `docs/PLAYBACK_ISOLATION.md`, `docs/najd/IMPLEMENTATION_1.1.5.md`.
 
 Provider selection is explicit. A mirror is an alias, not another independent provider. Domain/search config belongs outside episode/media parsing. Diagnose sent URL, redirects, HTTP status/content type/title, actual search form, raw parsed count and filtered count.403/WAF, login, suspended pages, DNS errors and timeouts are availability failures; empty extraction never proves absence. Do not bypass access controls, execute page scripts, manufacture a successful result, delete a failing source or substitute a different provider silently.
 

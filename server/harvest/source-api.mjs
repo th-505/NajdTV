@@ -1,10 +1,12 @@
+import {createPlaybackSessions} from '../playback-sessions.mjs';
 import {distinctSourceEditions,editionDisplayTitle} from './source-edition-identity.mjs';
 import {workReference,canonicalWorkRef,sourceWorkRef,providerForReference} from './work-reference.mjs';
 import {shortHash} from './episode-index.mjs';
 import {listSourceCapabilities} from '../scrapers/source-registry.mjs';
 import {directCandidate} from '../scrapers/content-discovery.mjs';
 
-export function createSourceApi({store,worker,now=Date.now}){
+export function createSourceApi({store,worker,now=Date.now,resolvePlayback=null}){
+ const sessions=createPlaybackSessions({now});
  const requests=new Map(),playbackRetries=new Map(),indexProofCache=new Map();
  const labels=new Map(listSourceCapabilities().map(s=>[s.id,{provider_name:s.name_ar,domain:s.domain}]));
  const stamp=()=>new Date(now()).toISOString();
@@ -52,12 +54,27 @@ export function createSourceApi({store,worker,now=Date.now}){
   const rows=work.type==='movie'?[]:await store.episodes(key,{season:selected,limit:100,offset,indexedSince:metadata.index_started_at});
   return{...metadata,ref:key,genres:work.genres||metadata.genres||[],source_title:metadata.title,source_poster:metadata.poster||'',title:metadata.catalog_metadata?.title||metadata.title,poster:metadata.catalog_metadata?.poster||metadata.poster||'',year:metadata.catalog_metadata?.year||metadata.year||null,observed_year:metadata.year||null,observed_overview:metadata.overview||'',overview:metadata.catalog_metadata?.overview||metadata.overview||'',plot:metadata.catalog_metadata?.overview||metadata.overview||'',available_seasons:seasons.map(s=>s.season_number),season_number:selected,episodes:(rows||[]).map(row=>({id:shortHash(row.source_ref),ref:key+':s'+row.season+':e'+row.episode,title:String(row.title||'الحلقة '+row.episode).slice(0,200),episode_number:row.episode,season_number:row.season,watch_available:row.episode>0})),episode_pagination:{has_more:rows?.length===100,next_offset:rows?.length===100?offset+100:null}};
  }
- async function playback(ref,{season=1,episode=1,platform='native',refresh=false}={}){
+ async function playback(ref,{season=1,episode=1,platform='native',refresh=false,playbackSession=''}={}){
   if(!store)throw Error('HARVEST_NOT_CONFIGURED');const key=workReference(ref);if(!sourceWorkRef(key))throw Error('SOURCE_WORK_REQUIRED');
   const work=await store.getWork(key);if(!work)return{state:'unavailable',reason:'SOURCE_INDEX_PENDING'};
   if(work.type==='movie'){season=0;episode=0;}
   if(![season,episode].every(Number.isSafeInteger)||season<0||season>100||episode<0||episode>100000)throw Error('HARVEST_BAD_EPISODE');
   const rows=await store.episodes(key,{season,episode,limit:100,indexedSince:work.metadata.index_started_at});if(!rows?.length)return{state:'unavailable',reason:'SOURCE_EPISODE_NOT_FOUND'};
+  if(resolvePlayback){
+   const extract=async()=>{
+   const servers=[];
+   for(const row of rows.slice(0,3)){
+    const fresh=await resolvePlayback({work,row,season,episode,platform});
+    servers.push(...fresh.map(media=>({...media,provider_id:row.provider,source_ref:row.source_ref,
+      edition:work.metadata.edition,label:work.metadata.source_edition==='dubbed'?'مدبلج':work.metadata.source_edition==='subtitled'?'مترجم':media.quality||'المصدر'})));
+   }
+   return servers;
+   };
+   if(playbackSession)return sessions(playbackSession,[key,season,episode,platform],extract);
+   const servers=await extract();
+   return servers.length?{state:'ready',servers,cache_hit:false,source:'request-extraction'}:
+    {state:'unavailable',reason:'DIRECT_MEDIA_NOT_FOUND'};
+  }
   const matching=await store.request('matv_discovery_jobs',{content_ref:'eq.'+key,stage:'eq.episode',season_number:'eq.'+season,episode_number:'eq.'+episode,select:'job_key,status,error_code,payload,updated_at',limit:100});
   const forcing=(matching||[]).find(j=>['queued','running'].includes(j.status)&&j.payload?.force_refresh===true);
   if(forcing){worker.wake({jobs:[{job_key:forcing.job_key,stage:'episode'}]});return{state:forcing.status,poll_after_ms:1500};}

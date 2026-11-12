@@ -1,3 +1,5 @@
+import {installOfflineUpstreams} from '../fixtures/offline-upstream.mjs';
+installOfflineUpstreams(["https://stream.example.org/embed/player?stream=live1", "https://embed.streamprovider.com/live/ch1", "https://www.mewsry.live/play.php?vid=abc1"]);
 // scripts/providers/mewsry.fixture.test.mjs
 // Offline fixture-based test suite for Syria Live / Mewsry scraper (MY)
 import assert from 'node:assert/strict';

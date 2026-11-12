@@ -201,6 +201,50 @@ void main() {
     expect(store.pendingCloudRows, isEmpty);
   });
 
+  test('owner snapshots isolate favorites, pending rows and 15:00 / 00:30 progress', () async {
+    await store.bindOwner('owner-a');
+    await store.toggleFavorite(item);
+    await store.recordProgress(
+      item: item,
+      position: const Duration(minutes: 15),
+      duration: const Duration(hours: 1),
+    );
+    await store.bindOwner('owner-b');
+    expect(store.favorites, isEmpty);
+    expect(store.history, isEmpty);
+    expect(store.pendingCloudRows, isEmpty);
+    await store.recordProgress(
+      item: item,
+      position: const Duration(seconds: 30),
+      duration: const Duration(hours: 1),
+    );
+    await store.bindOwner('owner-a');
+    expect(store.favorites.single.ref, item.ref);
+    expect(store.history.single.positionMs, 900000);
+    await store.bindOwner('owner-b');
+    expect(store.favorites, isEmpty);
+    expect(store.history.single.positionMs, 30000);
+    final restored = await LocalLibraryStore.create();
+    expect(restored.history.single.positionMs, 30000);
+    await restored.bindOwner('owner-a');
+    expect(restored.history.single.positionMs, 900000);
+    restored.dispose();
+  });
+
+  test('legacy snapshot belongs to its saved auth owner, not a new transport owner', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('mitv.auth.owner.v1', 'owner-a');
+    await store.recordProgress(
+      item: item,
+      position: const Duration(minutes: 15),
+      duration: const Duration(hours: 1),
+    );
+    await store.bindOwner('owner-b');
+    expect(store.history, isEmpty);
+    await store.bindOwner('owner-a');
+    expect(store.history.single.positionMs, 900000);
+  });
+
   test('history sends every5seconds and cadence survives restart', () async {
     await store.recordProgress(
       item: item,

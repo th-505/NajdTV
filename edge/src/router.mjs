@@ -359,7 +359,8 @@ export default {
         schema_version: 1,
         media_proxy: false,
         providers: PROVIDERS,
-        cache_before_kv: true,
+        cache_before_kv: false,
+        shared_media_cache: false,
         public_refresh_bypass: false,
         burst_limits: {
           requests_per_minute: 120,
@@ -432,7 +433,7 @@ export default {
         if (!route) return reply({ error: "NOT_FOUND" }, 404);
         if ((url.searchParams.get("ref") || "").length > 3000)
           return reply({ error: "BAD_REFERENCE" }, 400);
-        // Public refresh/random query parameters cannot fragment or bypass cache.
+        // Metadata is shared; playback credentials must be extracted per request.
         const ref = url.searchParams.get("ref") || "";
         const target = new URL("https://matches.internal" + route);
         if (ref) target.searchParams.set("ref", ref);
@@ -444,7 +445,7 @@ export default {
             (await refKey(ref)),
         );
         const hasSources = route === "/playback" || route === "/resolve";
-        const cached = await cachedResult(cacheKey, hasSources);
+        const cached = hasSources ? null : await cachedResult(cacheKey, false);
         if (cached) return reply({ ...cached, cached: true });
         if (!(await permitted(env.EDGE_RESOLVE_LIMITER, actor)))
           return reply({ error: "RESOLUTION_RATE_LIMITED" }, 429, {
@@ -457,7 +458,7 @@ export default {
         );
         const data = await boundedJson(result);
         if (
-          result.ok &&
+          !hasSources && result.ok &&
           data.status === "success" &&
           (!hasSources || activeSources(data))
         )
@@ -478,13 +479,8 @@ export default {
       // and keeps translated/dubbed edition references strictly isolated.
       if (ref) providerOf(ref);
       const lookupKey = ref ? await refKey(ref) : "episode:" + id;
-      const cacheKey = new Request(
-        url.origin +
-          `/cache/${CACHE_VERSION}/resolve/` +
-          encodeURIComponent(lookupKey),
-      );
-      const cached = await cachedResult(cacheKey, true);
-      if (cached) return reply({ ...cached, cached: true });
+      // A reference identifies shared metadata, never a viewer's temporary token.
+      // Ignore legacy Cache API entries as well as preventing new media writes.
       if (!(await permitted(env.EDGE_RESOLVE_LIMITER, actor)))
         return reply({ error: "RESOLUTION_RATE_LIMITED" }, 429, {
           "Retry-After": "60",
@@ -508,7 +504,7 @@ export default {
       }
       const result = await aggregate(identity, env, { verifiedIdentity });
       if (!result.sources.length) return reply(result, 503);
-      cacheResult(cacheKey, result, ctx);
+
       console.log(
         JSON.stringify({
           event: "edge_resolve",

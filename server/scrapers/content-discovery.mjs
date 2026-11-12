@@ -82,6 +82,8 @@ export function createContentDiscovery({ entries, concurrency = 20, maxQueued = 
       return resolveProviderMedia(entry,observedEpisode?.url||observedEpisode?.ref||observedEpisode?.id||target,{details,network,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async servers=>{
         const mapped=servers.map((server, i) => ({
         ...server, provider: meta.id, code: `${meta.code || meta.id}-${i + 1}`,
+        source_ref: observedEpisode?.source_ref || observedEpisode?.url || observedEpisode?.ref || observedEpisode?.id || target,
+        source_identity: observedEpisode || null,
         kind: 'direct', content_ref: options.ref || hit.ref || hit.id || target,
         season: episodic ? Number(season) : 0, episode: episodic ? Number(episode) : 0,
         observed_identity: { title: hit.title, year: observedYear,

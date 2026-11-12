@@ -1,3 +1,4 @@
+import {randomUUID} from 'node:crypto';
 import { create3iskProvider, decode3iskRef, assert3iskStream } from './providers/3isk.mjs';
 import { createSupabaseProviderStore } from './provider-store.mjs';
 import { TtlCache } from './content-runtime.mjs';
@@ -62,11 +63,18 @@ export function create3iskRuntime({ provider = create3iskProvider(), store = cre
     pending.set(key, work);
     try { return await work; } finally { pending.delete(key); }
   }
+  async function freshResolve(ref){
+    const payload=await provider.resolve(ref);
+    if(payload.playback_mode!=='client_resolve' && !valid(payload,'playback:',Math.min(now()+300000,Date.parse(payload.expires_at)-60000)))
+      throw Error('3ISK_INVALID_CACHE_PAYLOAD');
+    return {...payload,cached:false,playback_scope:'request',playback_session:randomUUID()};
+  }
   return {
     category: (id, page = 1) => execute(`category:${id}:${page}`, () => provider.category(id, page), 5 * 60_000),
     search: query => { const q = String(query).trim().slice(0, 120); return execute(`search:${q}`, () => provider.search(q), 60_000); },
     metadata(ref) { decode3iskRef(ref); return execute(`metadata:${ref}`,()=>provider.metadata(ref),120_000); },
     details(ref, options = {}) {
+      if(options.fresh === true && !decode3iskRef(ref).pathname.startsWith('/watch/tvshows/')) return freshResolve(ref);
       const url = decode3iskRef(ref);
       return !url.pathname.startsWith('/watch/tvshows/')
         ? execute(`playback:v4:client:${ref}`, () => provider.resolve(ref), 5 * 3600_000, options)
@@ -74,6 +82,7 @@ export function create3iskRuntime({ provider = create3iskProvider(), store = cre
     },
     resolve(ref, options = {}) {
       if (!/^\/watch\/(episodes|movies)\//.test(decode3iskRef(ref).pathname)) throw new Error('3ISK_EXPECTED_PLAYABLE');
+      if(options.fresh === true) return freshResolve(ref);
       return execute(`playback:v4:client:${ref}`, () => provider.resolve(ref), 5 * 3600_000, options);
     },
     status: () => ({ provider: '3isk', playback_mode: 'direct', storage: store ? 'supabase' : 'memory', storage_error: storageError, cache_entries: cache.size }),

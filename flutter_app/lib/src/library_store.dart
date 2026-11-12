@@ -178,7 +178,11 @@ class LocalLibraryStore extends ChangeNotifier {
   LocalLibraryStore._(this._prefs, this._clock);
   static const _favoritesKey = 'library.favorites.v1';
   static const _historyKey = 'library.history.v1';
-  static const _snapshotKey = 'library.snapshot.v2';
+  static const _legacySnapshotKey = 'library.snapshot.v2';
+  String _storageOwner = '';
+  String get _snapshotKey => _storageOwner.isEmpty
+      ? _legacySnapshotKey
+      : 'library.snapshot.v2.owner.$_storageOwner';
   static const _syncKey = 'library.sync.v1';
   static const _searchHistoryKey = 'search.history.v1';
   static const _searchSourceKey = 'search.source.v1';
@@ -204,8 +208,36 @@ class LocalLibraryStore extends ChangeNotifier {
       await SharedPreferences.getInstance(),
       clock ?? DateTime.now,
     );
+    store._storageOwner =
+        store._prefs.getString('library.local.owner.v1') ?? '';
     store._load();
     return store;
+  }
+
+  /// Claim legacy local state once. A later owner gets a separate snapshot.
+  Future<void> bindOwner(String owner) async {
+    if (owner.isEmpty) throw StateError('LIBRARY_OWNER_REQUIRED');
+    if (_storageOwner == owner) return;
+    await _writeTail;
+    final legacyOwner = _prefs.getString('mitv.auth.owner.v1');
+    if (_storageOwner.isEmpty && legacyOwner != null && legacyOwner != owner) {
+      _storageOwner = legacyOwner;
+      await _persistLibrary();
+    }
+    final migrating = _storageOwner.isEmpty;
+    _storageOwner = owner;
+    if (!migrating) {
+      _favorites.clear();
+      _history.clear();
+      _changes.clear();
+      _pending.clear();
+      _attempted.clear();
+      _lastMutationMs = 0;
+      _load();
+    }
+    await _persistLibrary();
+    await _prefs.setString('library.local.owner.v1', owner);
+    _notify();
   }
 
   List<CatalogItem> get favorites => List.unmodifiable(_favorites.values);
@@ -579,7 +611,9 @@ class LocalLibraryStore extends ChangeNotifier {
     } catch (_) {}
     List<String> rows(String oldKey, String field) => snapshot != null
         ? (snapshot[field] as List).whereType<Map>().map(jsonEncode).toList()
-        : _prefs.getStringList(oldKey) ?? const <String>[];
+        : _storageOwner.isEmpty
+        ? _prefs.getStringList(oldKey) ?? const <String>[]
+        : const <String>[];
 
     for (final raw in rows(_favoritesKey, 'favorites')) {
       try {

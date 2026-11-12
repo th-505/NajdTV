@@ -1,3 +1,5 @@
+import {installOfflineUpstreams} from '../fixtures/offline-upstream.mjs';
+installOfflineUpstreams(["https://ukrcdn.club/embed/batman"]);
 // scripts/providers/shahid4u.fixture.test.mjs
 // Offline fixture test suite for شاهد فور يو (Shahid4U, code: SU)
 

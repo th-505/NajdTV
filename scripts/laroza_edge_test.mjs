@@ -67,11 +67,11 @@ function fetcher({ fail = false, allFail = false, redirectPrivate = false, overl
   const u = new URL(raw); calls.push({ url: u.href, method: options.method || "GET", headers: options.headers });
   assert.equal(options.redirect, "manual");
   assert(options.signal instanceof AbortSignal);
-  if (u.hostname === "larooza.beer") return new Response(overlarge ? "x".repeat(512 * 1024 + 1) : u.pathname === "/play.php" ? fixture("watch.html") : u.pathname === "/view-serie1.php" ? fixture("series.html") : fixture("catalog.html"), { headers: { "Content-Type": "text/html" } });
+  if (u.hostname === new URL(LAROZA_CONFIG.origin).hostname) return new Response(overlarge ? "x".repeat(512 * 1024 + 1) : u.pathname === "/play.php" ? fixture("watch.html") : u.pathname === "/view-serie1.php" ? fixture("series.html") : fixture("catalog.html"), { headers: { "Content-Type": "text/html" } });
   if (u.hostname === "vidmoly.net") return new Response(null, { status: 302, headers: { location: redirectPrivate ? "https://127.0.0.1/embed-fixture4.html" : "https://vidmoly.biz/embed-fixture4.html" } });
   if (media[u.hostname]) {
    if (allFail || (fail && u.hostname === "mp5.okhd.site")) return new Response("blocked", { status: 403 });
-   assert.equal(options.headers.Referer, "https://larooza.beer/play.php?vid=episode1");
+   assert.equal(options.headers.Referer, LAROZA_CONFIG.origin+"/play.php?vid=episode1");
    return new Response(u.hostname === "mp5.okhd.site" ? fixture("packed-player.html") : `jwplayer('v').setup({sources:[{file:'${media[u.hostname]}'}],tracks:[]});`, { headers: { "Content-Type": "text/html" } });
   }
   if (["cdn2.okprimeone.site", "fixture.cdnz.quest", "fixture.vmget.online"].includes(u.hostname)) {
@@ -138,14 +138,14 @@ const originalFetch = globalThis.fetch;
 try {
  globalThis.fetch = fetcher().fn;
  for (const config of [LAROZA_CONFIG, JSON.stringify(LAROZA_CONFIG)]) {
-  const res = await worker.fetch(new Request("https://provider.internal/details?ref=" + encodeURIComponent(series)), { PROVIDER_CONFIG: config });
+  const res = await worker.fetch(new Request("https://provider.internal/details?ref=" + encodeURIComponent(series)), { LAROZA_REVIEWED_SOURCE_ENABLED:"1", PROVIDER_CONFIG: config });
   assert.equal(res.status, 200); assert.equal((await res.json()).data.episodes.length, 2);
  }
- const invalid = await worker.fetch(new Request("https://provider.internal/resolve?ref=" + encodeURIComponent(series)), { PROVIDER_CONFIG: LAROZA_CONFIG });
+ const invalid = await worker.fetch(new Request("https://provider.internal/resolve?ref=" + encodeURIComponent(series)), { LAROZA_REVIEWED_SOURCE_ENABLED:"1", PROVIDER_CONFIG: LAROZA_CONFIG });
  assert.equal(invalid.status, 400);
  const rejectDuplicate = await worker.fetch(new Request("https://provider.internal/category?page=1&page=2"), {}); assert.equal(rejectDuplicate.status, 400);
  globalThis.fetch = fetcher({ allFail: true }).fn;
- const failed = await worker.fetch(new Request("https://provider.internal/resolve?ref=" + encodeURIComponent(play)), { PROVIDER_CONFIG: LAROZA_CONFIG });
+ const failed = await worker.fetch(new Request("https://provider.internal/resolve?ref=" + encodeURIComponent(play)), { LAROZA_REVIEWED_SOURCE_ENABLED:"1", PROVIDER_CONFIG: LAROZA_CONFIG });
  assert.equal(failed.status, 503); assert.equal((await failed.json()).error, "NO_HEALTHY_LAROZA_SOURCES");
 } finally { globalThis.fetch = originalFetch; }
 console.log("Laroza edge: real-shaped catalogs/series episodes, bounded safe Packer, four clean direct host adapters, partial failure, protected headers, HEAD-only media, strict references/redirects, subtitles, quota limits and JSON config passed");

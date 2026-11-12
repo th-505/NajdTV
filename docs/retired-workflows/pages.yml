@@ -1,9 +1,0 @@
-name: Deploy GitHub Pages
-on:
-  workflow_dispatch:
-permissions:
-  contents: write
-  pages: write
-jobs:
-  web:
-    uses: ./.github/workflows/flutter-web.yml
