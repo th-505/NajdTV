@@ -22,3 +22,6 @@ HLS literal already present in DOWNET_BRIDGE_HTML. Main now correctly collects
 all alternatives. The test asserts all six exact observed paths, each matching
 its MP4/HLS extension, while retaining server IDs, headers and original quality
 ordering. This seventh suite also runs under the offline CI guard.
+
+The Content runtime pull-request workflow also runs this suite explicitly after
+npm ci, so audited fixtures do not depend on manually dispatched feature gates.

@@ -104,3 +104,5 @@ matv-master-blueprint يذكر 21 scraper بينما الجرد يثبت 25 مد
 |stage7|PASS|PASS|PASS|PASS|PASS|PASS|
 
 لا توجد قائمة حذف معتمدة؛ أي حذف لاحق يحتاج إثباتًا وموافقة وCommit مستقل، وفق طلب المستخدم.
+
+- `.github/workflows/content-runtime.yml`: تشغيل مجموعة fixtures المصححة صراحة في CI لكل Pull Request، إضافة إلى دمجها في npm run check.

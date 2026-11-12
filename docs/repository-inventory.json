@@ -2,7 +2,7 @@
   "requested_base": "7317d9c86e85770cf4fff6f9da5b69fd3352f9c6",
   "integrated_main": "6ebb30ec36db12ef5fd427a00d2faa262d8e5047",
   "snapshot_includes_working_tree": true,
-  "base_sha": "3f37377d1eb9279c36b10c5dcd0ff4bad6570292",
+  "base_sha": "2f9340e90676a44aa02309b36cdc6d2d83007917",
   "method": "conservative static imports + literal filesystem/command/native references + runtime/test/CI reachability; no deletion is authorized by this report",
   "files_scanned": 1531,
   "roots": [
@@ -1344,7 +1344,7 @@
         "tests/browser-isolation.test.mjs"
       ],
       "text_references": [
-        ".github/workflows/content-runtime.yml:25",
+        ".github/workflows/content-runtime.yml:27",
         "docs/CONTENT_RUNTIME_1.0.1.md:9",
         "docs/EXECUTION_REPORT_AR.md:68",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:1763",
@@ -1862,7 +1862,7 @@
       ],
       "text_references": [
         ".agents/skills/matv-master-blueprint/SKILL.md:34",
-        ".github/workflows/content-runtime.yml:28",
+        ".github/workflows/content-runtime.yml:30",
         "docs/EXECUTION_REPORT_AR.md:71",
         "docs/najd/BUILD_AND_CODE_REFERENCE.md:56",
         "docs/najd/SCRAPER_FAMILIES.md:17",

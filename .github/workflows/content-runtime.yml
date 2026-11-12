@@ -19,6 +19,8 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -r scripts/requirements-branding.txt
       - run: npm ci
+      - name: Verify audited offline provider fixtures
+        run: npm run test:provider-fixtures
       - name: Validate runtime module syntax
         run: |
           node --check server/content-runtime.mjs

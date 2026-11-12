@@ -273,38 +273,38 @@
       {
         "suite": "check",
         "exit": 0,
-        "seconds": 28.52,
-        "log": "/workspace/audit/acceptance-check.log"
+        "seconds": 29.83,
+        "log": "/workspace/audit/ci-integrated-check.log"
       },
       {
         "suite": "test:continuation",
         "exit": 0,
-        "seconds": 1.99,
-        "log": "/workspace/audit/acceptance-test-continuation.log"
+        "seconds": 1.97,
+        "log": "/workspace/audit/ci-integrated-test-continuation.log"
       },
       {
         "suite": "test:unified",
         "exit": 0,
-        "seconds": 19.67,
-        "log": "/workspace/audit/acceptance-test-unified.log"
+        "seconds": 20.52,
+        "log": "/workspace/audit/ci-integrated-test-unified.log"
       },
       {
         "suite": "test:3isk",
         "exit": 0,
         "seconds": 1.7,
-        "log": "/workspace/audit/acceptance-test-3isk.log"
+        "log": "/workspace/audit/ci-integrated-test-3isk.log"
       },
       {
         "suite": "test:phase2",
         "exit": 0,
-        "seconds": 0.55,
-        "log": "/workspace/audit/acceptance-test-phase2.log"
+        "seconds": 0.54,
+        "log": "/workspace/audit/ci-integrated-test-phase2.log"
       },
       {
         "suite": "test:alooy",
         "exit": 0,
-        "seconds": 0.47,
-        "log": "/workspace/audit/acceptance-test-alooy.log"
+        "seconds": 0.48,
+        "log": "/workspace/audit/ci-integrated-test-alooy.log"
       }
     ]
   },
@@ -464,5 +464,10 @@
   "unified_node_tests": 301,
   "unified_node_failures": 0,
   "no_cleanup_deletions": true,
-  "tested_code_sha256": "0b2d20f2639351380720d6220f28143b5c1f0ce06cb82696a8f5cc40df6dc955"
+  "tested_code_sha256": "896471837d85b23504a11d22e428acc74bf277c8eac0a8b4185433f3a42fe420",
+  "github_ci_initial_head": {
+    "sha": "2f9340e90676a44aa02309b36cdc6d2d83007917",
+    "content_runtime": "success",
+    "repository_health": "success"
+  }
 }

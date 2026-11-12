@@ -1,6 +1,6 @@
 Repository cleanup inventory — no deletions
 
-Base: `3f37377d1eb9279c36b10c5dcd0ff4bad6570292`. Files scanned: 1531. Scope includes both registered families, legacy providers, source seed config, tests, CI, package scripts and literal filesystem/native references.
+Base: `2f9340e90676a44aa02309b36cdc6d2d83007917`. Files scanned: 1531. Scope includes both registered families, legacy providers, source seed config, tests, CI, package scripts and literal filesystem/native references.
 
 This is a conservative static inventory, not a proof that unreferenced code is unused. Dynamic expressions, convention-loaded skills, native entry points and manually invoked tools remain blockers. All approved-deletion lists are empty. No cleanup commit is permitted before owner approval.
 
