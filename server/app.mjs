@@ -537,7 +537,9 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
     const details = await scraper.scrapeDetails(ref,{strict:true,timeoutMs:6000,maxRetries:0});
     if (typeof scraper.resolveStream==='function' && entry.meta.capabilities?.resolve===true && (phase !== 'metadata' || details.type === 'movie')) {
       const resolved = await scraper.resolveStream(ref,{strict:true,timeoutMs:6000,maxRetries:0});
-      return { ...details, ...resolved, media_sources: resolved.servers || [] };
+      const sources=[...(resolved.servers||[]),...(resolved.media_sources||[]),...(resolved.sources||[])];
+      if(resolved.url||resolved.streamUrl)sources.push({...resolved,url:resolved.url||resolved.streamUrl});
+      return { ...details, ...resolved, media_sources:sources };
     }
     return details;
   }});
