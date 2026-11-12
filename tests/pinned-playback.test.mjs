@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createPinnedPlayback} from '../server/pinned-playback.mjs';
+import {probeHarvestMedia} from '../server/harvest/media-probe.mjs';
 const ref='mycima:'+Buffer.from('https://wecima.show/series/example/').toString('base64url');
 const ep=n=>'mycima:'+Buffer.from('https://wecima.show/episode/'+n).toString('base64url');
 const input={provider:'mycima',seriesRef:ref,type:'series',season:2,episode:4,platform:'web'};
@@ -19,10 +20,20 @@ test('cross-provider reference from metadata is rejected',async()=>{
  await assert.rejects(runtime.resolve(input),/PINNED_SOURCE_CONFLICT/);
 });
 test('web rejects protected native-only links instead of promising playback',async()=>{
- const runtime=createPinnedPlayback({loadDetails:async()=>({servers:[{...media,web_playable:false,headers:{Referer:'https://wecima.show/'}}]})});
+ let probed=false;
+ const runtime=createPinnedPlayback({probe:async()=>{probed=true;return{playable:true,container:'mp4',statusCode:200,webPlayable:false}},loadDetails:async()=>({servers:[{...media,web_playable:false,headers:{Referer:'https://wecima.show/'}}]})});
  const result=await runtime.resolve({...input,type:'movie'});assert.equal(result.playback_reason,'PINNED_DIRECT_WEB_UNAVAILABLE');
+ assert.equal(probed,true);
 });
 test('trusted browser-verified sources do not inherit forbidden native headers',async()=>{
  const runtime=createPinnedPlayback({loadDetails:async()=>({servers:[{...media,headers:{Referer:'https://wecima.show/'}}]})});
  const result=await runtime.resolve({...input,type:'movie'});assert.deepEqual(result.servers[0].headers,{});
+});
+
+test('a pinned source with native header hints can recover through browser bytes despite generic MIME',async()=>{
+ const runtime=createPinnedPlayback({browserOrigin:'https://example.org',loadDetails:async()=>({servers:[{...media,web_playable:false,headers:{Referer:'https://wecima.show/',Cookie:'private-session'}}]}),probe:(candidate,options)=>probeHarvestMedia(candidate,{...options,headProbe:async()=>({statusCode:200,playable:false,webPlayable:false}),fetchImpl:async(_url,request)=>{
+  assert.equal(request.headers.Origin,'https://example.org');assert.equal(request.headers.Referer,'https://example.org/');assert.equal(request.headers.Cookie,undefined);
+  return{status:206,headers:new Headers({'content-type':'application/octet-stream','access-control-allow-origin':'https://example.org'}),bytes:Buffer.from('000000186674797069736f6d00000001','hex')};
+ }})});
+ const result=await runtime.resolve({...input,type:'movie'});assert.equal(result.status,'success');assert.deepEqual(result.servers[0].headers,{});assert.equal(result.servers[0].web_playable,true);
 });

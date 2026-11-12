@@ -114,6 +114,37 @@ test("beta resolves the selected source episode only, without a canonical provid
   assert.equal(result.servers[0].canonical_identity_verified, false);
   assert.equal(result.servers[0].episode, 19);
 });
+
+test("a native-only cache cannot veto a browser probe for the same source episode", async () => {
+  const platforms = [];
+  const { service } = fixture({probe: async (_candidate, {platform}) => {
+    platforms.push(platform);
+    return {playable:true,container_verified:true,webPlayable:platform==='web'};
+  }});
+  const admitted = await service.request(ref(seed));
+  await service.settle();
+  await service.playback(admitted.ref,{season:1,episode:19,platform:'native'});
+  await service.settle();
+  assert.equal((await service.playback(admitted.ref,{season:1,episode:19,platform:'native'})).state,'ready');
+  assert.equal((await service.playback(admitted.ref,{season:1,episode:19,platform:'web'})).state,'running');
+  await service.settle();
+  const result=await service.playback(admitted.ref,{season:1,episode:19,platform:'web'});
+  assert.equal(result.state,'ready');assert.equal(result.servers[0].web_playable,true);
+  assert.deepEqual(platforms,['native','web']);
+});
+
+test("an unavailable web source cannot poison native playback and same-platform requests still coalesce", async () => {
+  const platforms=[];
+  const {service}=fixture({probe:async(_candidate,{platform})=>{platforms.push(platform);return{playable:platform==='native',container_verified:platform==='native',webPlayable:false}}});
+  const admitted=await service.request(ref(seed));await service.settle();
+  await service.playback(admitted.ref,{season:1,episode:19,platform:'web'});
+  await service.playback(admitted.ref,{season:1,episode:19,platform:'web'});
+  await service.settle();
+  assert.equal((await service.playback(admitted.ref,{season:1,episode:19,platform:'web'})).state,'unavailable');
+  await service.playback(admitted.ref,{season:1,episode:19,platform:'native'});await service.settle();
+  assert.equal((await service.playback(admitted.ref,{season:1,episode:19,platform:'native'})).state,'ready');
+  assert.deepEqual(platforms,['web','native']);
+});
 test("an incomplete or failed page remains partial, never a fabricated complete index", async () => {
   const { service } = fixture({ maxPages: 2 }),
     admitted = await service.request(ref(seed));
