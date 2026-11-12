@@ -152,7 +152,7 @@ function createAlooyProviderRaw({ fetchImpl = globalThis.fetch } = {}) {
   async function page(u, refresh = false) {
     const key = u.href;
     if (!refresh && cache.get(key)) return cache.get(key);
-    if (pending.has(key)) return pending.get(key);
+    if (!refresh && pending.has(key)) return pending.get(key);
     const job = (async () => {
       const res = await guardedProviderFetch(key, {
         redirect: "error",
@@ -174,14 +174,14 @@ function createAlooyProviderRaw({ fetchImpl = globalThis.fetch } = {}) {
         body += dec.decode(chunk, { stream: true });
       }
       body += dec.decode();
-      cache.set(key, body, u.search ? 30000 : 120000);
+      if (!refresh) cache.set(key, body, u.search ? 30000 : 120000);
       return body;
     })();
-    pending.set(key, job);
+    if (!refresh) pending.set(key, job);
     try {
       return await job;
     } finally {
-      pending.delete(key);
+      if (!refresh) pending.delete(key);
     }
   }
   return {

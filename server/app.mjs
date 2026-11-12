@@ -14,6 +14,7 @@ import {getProvider as getBetaProvider} from './browser/registry.mjs';
 import {sourceManifest} from './scrapers/source-manifest.mjs';
 import { createProviderBrowser } from './scrapers/provider-browser.mjs';
 const providerBrowser = createProviderBrowser();
+import {createPlaybackSessions} from './playback-sessions.mjs';
 import {readCachedPlayback} from './harvest/cached-playback.mjs';
 import {getProviderConfig} from './scrapers/shared/provider-config.mjs';
 import {createGithubIdentityVerifier} from './maintenance/github-identity.mjs';
@@ -534,7 +535,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
     const runtime=provider==='3isk'?iskRuntime:provider==='alooy'?alooyRuntime:provider==='laroza'?larozaRuntime:null;
     if(runtime){
       if(phase==='metadata' && type==='series' && typeof runtime.metadata==='function')return runtime.metadata(ref);
-      return runtime.details(ref,{platform});
+      return runtime.details(ref,{platform,refresh:true,fresh:true});
     }
     const entry=pinnedProviderLookup(provider);
     const scraper=entry?.module;
@@ -578,7 +579,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
       if(cachedMedia?.length){
         // Cache stores evidence, not a permanent trust decision: re-probe and audit before release.
         const reviewed=await discoveryAudit.review(cachedMedia,expected);
-        if(reviewed.approved.length)return {servers:reviewed.approved.map(source=>({provider:source.provider,quality:source.quality||null,kind:'direct',url:source.url,headers:source.headers||{},identity_verified:source.identity_verified,verification_basis:source.verification_basis,audit_pending:source.audit_pending})),reason:null};
+        if(reviewed.approved.length)return {servers:reviewed.approved.map(source=>({source_ref:source.source_ref,source_identity:source.source_identity,observed_identity:source.observed_identity,expires_at:source.expires_at,provider:source.provider,quality:source.quality||null,kind:'direct',url:source.url,headers:source.headers||{},identity_verified:source.identity_verified,verification_basis:source.verification_basis,audit_pending:source.audit_pending})),reason:null};
       }
       const approved=[],seen=new Set();let rejected=0;
       await activateAllScrapersForContent(metadata.title, season || 1, episode || 1, {
@@ -589,7 +590,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           for(const source of reviewed.approved){
             if(seen.has(source.url))continue;
             seen.add(source.url);
-            approved.push({provider:source.provider,quality:source.quality || null,kind:'direct',url:source.url,
+            approved.push({source_ref:source.source_ref,source_identity:source.source_identity,observed_identity:source.observed_identity,expires_at:source.expires_at,provider:source.provider,quality:source.quality || null,kind:'direct',url:source.url,
               headers:source.headers || {},identity_verified:source.identity_verified,verification_basis:source.verification_basis,audit_pending:source.audit_pending});
           }
           if(approved.length)publish({servers:[...approved],reason:null});
@@ -606,6 +607,18 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
   const serviceChecks=systemCheckService||createServiceChecks({tmdb:discoveryMetadata,database:checkStore?()=>checkStore.request('najd_provider_registry',{select:'provider',limit:1}):null});
   const maintenanceIdentity=createGithubIdentityVerifier();
   const internalWeb=createInternalWeb();
+  const playbackSessions=createPlaybackSessions();
+  async function releaseDiscovery(state,input){
+    if(!state.result?.servers?.length||typeof harvest.sessionMedia!=='function')return state;
+    const extract=()=>harvest.sessionMedia(input.ref,{season:Number(input.season)||0,
+      episode:Number(input.episode)||0,candidates:state.result.servers});
+    if(input.playback_session){
+      const session=playbackSessions(input.playback_session,[input.ref,Number(input.season)||0,Number(input.episode)||0],extract);
+      return {...state,...session,result:session.servers?.length?{servers:session.servers,reason:null}:null};
+    }
+    const servers=await extract();
+    return {...state,result:{...state.result,servers,reason:servers.length?null:'SESSION_MEDIA_UNAVAILABLE'}};
+  }
   const server = http.createServer(async (req, res) => {
     applyCors(req, res);
     if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
@@ -706,7 +719,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           const season=Number(url.searchParams.get('season')||1),episode=Number(url.searchParams.get('episode')||1),offset=Number(url.searchParams.get('offset')||0);
           if(!Number.isSafeInteger(season)||season<0||season>100||!Number.isSafeInteger(episode)||episode<0||episode>100000||!Number.isSafeInteger(offset)||offset<0||offset>100000)throw Error('INVALID_HARVEST_EPISODE');
           if(url.pathname.endsWith('/work'))return sendJson(req,res,200,{status:'success',data:await harvest.sourceDetails(ref,{season,offset})});
-          const data=await harvest.sourcePlayback(ref,{season,episode,platform:url.searchParams.get('platform')==='web'?'web':'native',refresh:url.searchParams.get('refresh')==='1'});
+          const data=await harvest.sourcePlayback(ref,{season,episode,platform:url.searchParams.get('platform')==='web'?'web':'native',refresh:url.searchParams.get('refresh')==='1',playbackSession:url.searchParams.get('playback_session')||''});
           return sendJson(req,res,['queued','running'].includes(data.state)?202:200,{status:['queued','running'].includes(data.state)?'accepted':'success',data});
         }catch(error){const reason=/^[A-Z][A-Z0-9_]{2,79}$/.test(error.message||'')?error.message:'HARVEST_REQUEST_FAILED';return sendJson(req,res,reason==='HARVEST_NOT_CONFIGURED'?503:400,{status:'error',message:reason});}
       }
@@ -814,23 +827,23 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
         if (url.pathname === '/api/v1/3isk/status') return sendJson(req, res, 200, iskRuntime.status());
         if (url.pathname === '/api/v1/3isk/search') return sendJson(req, res, 200, await iskRuntime.search(url.searchParams.get('q') || ''));
         if (url.pathname === '/api/v1/3isk/category') return sendJson(req, res, 200, await iskRuntime.category(ref, Number(url.searchParams.get('p') || 1)));
-        if (url.pathname === '/api/v1/3isk/resolve') return sendJson(req, res, 200, publicDetails(await iskRuntime.resolve(ref, { refresh: url.searchParams.get('refresh') === '1' }), url.searchParams.get('platform') === 'web'));
-        if (url.pathname === '/api/v1/3isk/details') return sendJson(req, res, 200, publicDetails(await iskRuntime.details(ref, { refresh: url.searchParams.get('refresh') === '1' }), url.searchParams.get('platform') === 'web'));
+        if (url.pathname === '/api/v1/3isk/resolve') return sendJson(req, res, 200, publicDetails(await iskRuntime.resolve(ref, { fresh:true, refresh: url.searchParams.get('refresh') === '1' }), url.searchParams.get('platform') === 'web'));
+        if (url.pathname === '/api/v1/3isk/details') return sendJson(req, res, 200, publicDetails(await iskRuntime.details(ref, { fresh:true, refresh: url.searchParams.get('refresh') === '1' }), url.searchParams.get('platform') === 'web'));
         return sendJson(req, res, 404, { status: 'error', message: 'NOT_FOUND' });
       }
       if (url.pathname === '/api/v1/discovery/start') {
         if (req.method !== 'POST') return sendJson(req,res,405,{status:'error',message:'METHOD_NOT_ALLOWED'});
         const input = { ref:url.searchParams.get('ref') || '', title:url.searchParams.get('title') || '',
-          year:url.searchParams.get('year') || '', season:url.searchParams.get('season') || 0,
+          playback_session:url.searchParams.get('playback_session')||'',year:url.searchParams.get('year') || '', season:url.searchParams.get('season') || 0,
           episode:url.searchParams.get('episode') || 0, refresh:url.searchParams.get('refresh') === '1' };
         if (input.title.length < 2 || input.title.length > 250 || !/^tmdb:(movie|tv):[0-9]+$/.test(input.ref) || !/^[0-9]{0,4}$/.test(input.year) || !/^[0-9]{1,3}$/.test(String(input.season)) || !/^[0-9]{1,6}$/.test(String(input.episode)) || Number(input.season) > 100 || Number(input.episode) > 100000) return sendJson(req,res,400,{status:'error',message:'INVALID_DISCOVERY_INPUT'});
-        try { return sendJson(req,res,202,{status:'accepted',data:discovery.enqueue(input)}); }
+        try { return sendJson(req,res,202,{status:'accepted',data:await releaseDiscovery(discovery.enqueue(input),input)}); }
         catch { return sendJson(req,res,400,{status:'error',message:'INVALID_REFERENCE'}); }
       }
       if (url.pathname === '/api/v1/discovery/status') {
         if (req.method !== 'GET') return sendJson(req,res,405,{status:'error',message:'METHOD_NOT_ALLOWED'});
         try {
-          const input = { ref:url.searchParams.get('ref') || '', season:url.searchParams.get('season') || 0,
+          const input = { playback_session:url.searchParams.get('playback_session')||'',ref:url.searchParams.get('ref') || '', season:url.searchParams.get('season') || 0,
             episode:url.searchParams.get('episode') || 0 };
           let state = discovery.status(input);
           if (state.state === 'missing' && discoveryStore) {
@@ -839,7 +852,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
             if (cached?.payload && new Date(cached.expires_at).getTime() > Date.now())
               state = {key,state:'ready',result:cached.payload,expiresAt:new Date(cached.expires_at).getTime()};
           }
-          return sendJson(req,res,200,{status:'success',data:state});
+          return sendJson(req,res,200,{status:'success',data:await releaseDiscovery(state,input)});
         }
         catch { return sendJson(req,res,400,{status:'error',message:'INVALID_REFERENCE'}); }
       }
@@ -883,9 +896,9 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
               : ref.startsWith("laroza:")
               ? await larozaRuntime.details(ref, {})
               : ref.startsWith("alooy:")
-              ? await alooyRuntime.details(ref, {})
+              ? await alooyRuntime.details(ref, {refresh:true})
               : ref.startsWith("3isk:")
-              ? await iskRuntime.details(ref, {})
+              ? await iskRuntime.details(ref, {fresh:true})
               : await cinemaDetails(ref);
             const sources = details?.media_sources || details?.servers || [];
             for (const s of sources) {
@@ -989,9 +1002,9 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
         const data = ref.startsWith('laroza:')
           ? await larozaRuntime.details(ref, { refresh:url.searchParams.get('refresh') === '1', offset:validOffset(url.searchParams.get('offset') ?? 0) })
           : ref.startsWith('alooy:')
-          ? await alooyRuntime.details(ref, { refresh:url.searchParams.get('refresh') === '1' })
+          ? await alooyRuntime.details(ref, { refresh:true })
           : ref.startsWith('3isk:')
-            ? await iskRuntime.details(ref, { refresh:url.searchParams.get('refresh') === '1' })
+            ? await iskRuntime.details(ref, { fresh:true, refresh:url.searchParams.get('refresh') === '1' })
             : await cinemaDetails(ref);
         return sendJson(req,res,200,publicDetails(data, url.searchParams.get('platform') === 'web'));
       }

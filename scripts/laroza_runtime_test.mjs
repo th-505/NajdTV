@@ -17,7 +17,7 @@ let clock=1000;
 const calls=[];
 const item={id:'fixture01',ref,title:'A verified title',type:'series',year:2024,poster:'https://image.test/poster.jpg',
   genres:['Drama'],audio_language:'tr',edition:'original-cut',season_number:1,episode_number:null,imdb_id:'tt1234567',identity_verified:true};
-const provider=createLarozaProvider({edgeBase:'https://edge.test',now:()=>clock,fetchImpl:async(target,init)=>{
+const provider=createLarozaProvider({enabled:true,edgeBase:'https://edge.test',now:()=>clock,fetchImpl:async(target,init)=>{
   const url=new URL(target);calls.push({url,init});
   assert.equal(url.origin,'https://edge.test');
   assert.equal(init.method,'GET');assert.equal(init.redirect,'error');
@@ -87,11 +87,11 @@ try {
   const retired=await fetch(base+'/api/cinema/media?id=laroza&download=1');assert.equal(retired.status,410);
 } finally {server.closeAllConnections();await new Promise(r=>server.close(r));}
 
-const playablePage=createLarozaProvider({edgeBase:'https://edge.test',fetchImpl:async()=>Response.json({status:'success',source:'laroza',data:{...item,episodes:[]}})});
+const playablePage=createLarozaProvider({enabled:true,edgeBase:'https://edge.test',fetchImpl:async()=>Response.json({status:'success',source:'laroza',data:{...item,episodes:[]}})});
 const playableMetadata=await playablePage.metadata(ref);
 assert.equal(playableMetadata.playback_unavailable,true);assert.equal(playableMetadata.playback_reason,'EDGE_DIRECT_RESOLUTION_REQUIRED');
 assert.equal(playableMetadata.media_path,undefined);
-const parentPage=createLarozaProvider({edgeBase:'https://edge.test',fetchImpl:async(target)=>{
+const parentPage=createLarozaProvider({enabled:true,edgeBase:'https://edge.test',fetchImpl:async(target)=>{
   assert.equal(new URL(target).searchParams.get('ref'),seriesRef);
   return Response.json({status:'success',source:'laroza',data:{...item,ref:seriesRef,
     episodes:[{...item,ref:episodeRef,episode_number:2}],work_identity_verified:true,timeline_verified:false,identity_verified:false}});
@@ -100,11 +100,11 @@ const parentMetadata=await parentPage.metadata(seriesRef);
 assert.equal(parentMetadata.episodes[0].ref,episodeRef);assert.equal(parentMetadata.work_identity_verified,true);
 assert.equal(parentMetadata.timeline_verified,false);assert.equal(parentMetadata.identity_verified,false);
 for(const response of [new Response('<html>ads</html>',{headers:{'content-type':'text/html'}}),Response.json({status:'success',source:'unexpected',data:[]}),Response.json({status:'success',source:'laroza',data:[],padding:'x'.repeat(2*1024*1024)})]) {
-  const broken=createLarozaProvider({edgeBase:'https://edge.test',fetchImpl:async()=>response});
+  const broken=createLarozaProvider({enabled:true,edgeBase:'https://edge.test',fetchImpl:async()=>response});
   await assert.rejects(broken.category(),/LAROZA_(BAD_EDGE_RESPONSE|EDGE_RESPONSE_TOO_LARGE)/);
 }
-assert.throws(()=>createLarozaProvider({edgeBase:'http://edge.test'}),/LAROZA_BAD_EDGE_ENDPOINT/);
-assert.throws(()=>createLarozaProvider({edgeBase:'https://user:password@edge.test'}),/LAROZA_BAD_EDGE_ENDPOINT/);
+assert.throws(()=>createLarozaProvider({enabled:true,edgeBase:'http://edge.test'}),/LAROZA_BAD_EDGE_ENDPOINT/);
+assert.throws(()=>createLarozaProvider({enabled:true,edgeBase:'https://user:password@edge.test'}),/LAROZA_BAD_EDGE_ENDPOINT/);
 const unknown=normalizeCatalogItem({title:'Foreign',ref:'legacy:unknown',source:'akoam',audio_language:null,edition:null,imdb_id:'not-proof',identity_verified:false});
 assert.equal(unknown.audio_language,'');assert.equal(unknown.edition,'');assert.equal(unknown.imdb_id,null);
 console.log('Laroza Node facade: bounded gateway JSON only, paginated catalog/search/details, source identity preservation, no title/year merge, and no video proxy revival passed');

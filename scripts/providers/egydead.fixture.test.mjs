@@ -1,3 +1,5 @@
+import {installOfflineUpstreams} from '../fixtures/offline-upstream.mjs';
+installOfflineUpstreams(["https://tv10.egydead.live/channel/bein-sports-1-hd/"]);
 // scripts/providers/egydead.fixture.test.mjs
 // Offline deterministic fixture test suite for EgyDead (egydead / egydead_live) — Code: ED / EL
 import assert from 'node:assert/strict';

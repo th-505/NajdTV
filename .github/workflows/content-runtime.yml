@@ -6,6 +6,22 @@ on:
     branches: [main]
 
 jobs:
+  flutter-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - name: Verify Flutter owner isolation and client regressions
+        working-directory: flutter_app
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter analyze
+          flutter test --reporter expanded
   runtime-foundation:
     runs-on: ubuntu-latest
     steps:

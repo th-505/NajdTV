@@ -14,6 +14,6 @@ export async function readCachedPlayback(harvest,{ref,season=1,episode=1,platfor
   return source.identity_verified===true&&directCandidate(source)&&Date.parse(source.expires_at)>now()+120000&&
    matchesIdentity(observed,work.data.title,{year:work.data.year,aliases:[work.data.original_title,...(work.data.aliases||[])]})&&
    (!series||(Number(observed.season)===season&&Number(observed.episode)===episode));
- }).map(source=>({provider:source.provider,quality:source.quality||null,kind:'direct',url:source.url,headers:source.headers||{},identity_verified:true,verification_basis:source.verification_basis,expires_at:source.expires_at}));
+ }).map(source=>({source_ref:source.source_ref,source_identity:source.source_identity,observed_identity:source.observed_identity,provider:source.provider,quality:source.quality||null,kind:'direct',url:source.url,headers:source.headers||{},identity_verified:true,verification_basis:source.verification_basis,expires_at:source.expires_at}));
  return servers.length?{servers,reason:null,cache_hit:true,source:'najd-private-cache'}:null;
 }

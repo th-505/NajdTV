@@ -5,11 +5,13 @@ import {createHarvestPipeline} from './pipeline.mjs';
 import {installProviderConfigs,validateProviderConfig} from '../scrapers/shared/provider-config.mjs';
 import {listProviders,getProvider} from '../scrapers/registry.mjs';
 import {createTmdbRuntime} from '../tmdb-runtime.mjs';
+import {createSessionPlayback} from './session-playback.mjs';
 import {createSourceApi} from './source-api.mjs';
 
 const canonical=ref=>/^tmdb:(movie|tv):[1-9]\d{0,9}$/.test(String(ref));
 export function createHarvestService({store=process.env.NAJD_HARVEST_ENABLED==='1'?createHarvestStore():null,metadata=createTmdbRuntime(),logger=()=>{},now=Date.now}={}){
  const entries=listProviders().map(meta=>getProvider(meta.id));
+ const resolveSession=createSessionPlayback({store,entries,now});
  const worker=createHarvestWorker({store,handlers:store?createHarvestPipeline({store,metadata,entries,now}):{},indexConcurrency:process.env.NAJD_HARVEST_INDEX_CONCURRENCY||1,mediaConcurrency:process.env.NAJD_HARVEST_MEDIA_CONCURRENCY||1,scanBacklog:process.env.NAJD_HARVEST_SCAN_BACKLOG!=='0',logger});
  let configTimer=null,hourlyTimer=null,lastWake=0;
  async function refreshConfig(){if(store){await store.ensureProviderRegistry?.();installProviderConfigs(await store.config())}}
@@ -35,6 +37,13 @@ export function createHarvestService({store=process.env.NAJD_HARVEST_ENABLED==='
    const media=rows.flatMap(row=>(row.media||[]).filter(source=>Date.parse(source.expires_at)>now()+30000&&source.identity_verified===true&&(platform!=='web'||source.web_playable===true)));
    return media.length?media:null;
   }catch{return null}
+ }
+ async function sessionMedia(ref,{season=0,episode=0,platform='native',candidates=[]}={}){
+  const work=await store?.getWork(ref)||{ref,metadata:(await metadata.details(ref)).data};
+  const rows=await store?.episodes(ref,{season,episode,limit:100})||[];
+  const proofs=rows.length?rows:candidates.filter(c=>c.source_ref).map(c=>({provider:c.provider,source_ref:c.source_ref,media:[c]}));
+  const settled=await Promise.allSettled(proofs.slice(0,3).map(row=>resolveSession({work,row,season,episode,platform})));
+  return settled.flatMap(r=>r.status==='fulfilled'?r.value:[]);
  }
  async function summary(){
   if(!store)return {configured:false,worker:worker.metrics()};
@@ -67,7 +76,7 @@ export function createHarvestService({store=process.env.NAJD_HARVEST_ENABLED==='
   await refreshConfig();
   return {...result,evidence:verified.evidence,config:verified.config};
  }
- return {...createSourceApi({store,worker,now}),start,stop,cachedWork,cachedSeason,media,summary,setConfig,applyVerified,metrics:worker.metrics,
+ return {...createSourceApi({store,worker,now,resolvePlayback:resolveSession}),start,stop,cachedWork,cachedSeason,media,sessionMedia,summary,setConfig,applyVerified,metrics:worker.metrics,
   recordClientFeedback:async row=>store?store.event(row):null,
   wake(){if(now()-lastWake>=15000){lastWake=now();start();return worker.wake()}return worker.metrics()},
  };

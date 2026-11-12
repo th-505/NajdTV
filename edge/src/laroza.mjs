@@ -6,11 +6,11 @@ const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/6
 const MOVIE_CATEGORIES = ["all_movies_13", "arabic-movies35", "indian-movies9", "6-asian-movies", "anime-movies-7", "7-aflammdblgh", "8-aflam3isk"];
 const FEED_GENRES = { all_movies_13: "foreign", "arabic-movies35": "arabic", "indian-movies9": "indian", "6-asian-movies": "asian", "anime-movies-7": "anime", "7-aflammdblgh": "dubbed", "8-aflam3isk": "turkish" };
 export const LAROZA_CONFIG = Object.freeze({
-  provider: "laroza", label: "Laroza", origin: "https://larooza.beer",
-  pageHosts: ["larooza.beer", "mp5.okhd.site", "mp4plus.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
+  provider: "laroza", label: "Laroza", origin: "https://laroza1.site",
+  pageHosts: ["laroza1.site", "mp5.okhd.site", "mp4plus.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
   playerHosts: ["mp5.okhd.site", "mp4plus.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
   mediaHosts: ["cdn2.okprimeone.site", "*.cdnz.quest", "*.vmget.online"],
-  imageHosts: ["larooza.beer"], subtitleHosts: ["larooza.beer", "cdn2.okprimeone.site", "*.cdnz.quest", "*.vmget.online"],
+  imageHosts: ["laroza1.site"], subtitleHosts: ["laroza1.site", "cdn2.okprimeone.site", "*.cdnz.quest", "*.vmget.online"],
   fetchBudget: 40, timeoutMs: 8000,
 });
 const b64 = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
@@ -440,8 +440,13 @@ export default {
     const keys = { "/category": ["section", "page", "offset"], "/search": ["q", "page", "offset"], "/details": ["ref", "offset"], "/resolve": ["ref"] }[u.pathname];
     if (!keys) return Response.json({ error: "NOT_FOUND" }, { status: 404 });
     if ([...u.searchParams.keys()].some((k) => !keys.includes(k) || u.searchParams.getAll(k).length !== 1)) return Response.json({ error: "BAD_LAROZA_QUERY" }, { status: 400 });
+    if (env.LAROZA_REVIEWED_SOURCE_ENABLED === '0') return Response.json({
+      error:'LAROZA_CATALOG_UNAVAILABLE',error_code:'ACCESS_BLOCKED',state:'unavailable',
+      upstream_reason:'LAROZA_SOURCE_REDIRECT_REQUIRES_REVIEW'
+    },{status:503,headers:{'Cache-Control':'no-store'}});
     try {
       const config = typeof env.PROVIDER_CONFIG === "string" ? JSON.parse(env.PROVIDER_CONFIG) : env.PROVIDER_CONFIG;
+      if(config && config.origin !== LAROZA_CONFIG.origin) throw Error('LAROZA_SOURCE_REDIRECT_REQUIRES_REVIEW');
       const engine = createLarozaEdge({ config });
       const offset = validOffset(u.searchParams.get("offset") ?? 0);
       const body = u.pathname === "/category" ? await engine.category(u.searchParams.get("section") || "latest", u.searchParams.get("page") || "1", offset) : u.pathname === "/search" ? await engine.search(u.searchParams.get("q") || "", u.searchParams.get("page") || "1", offset) : u.pathname === "/details" ? await engine.details(u.searchParams.get("ref") || "", offset) : await engine.resolve(u.searchParams.get("ref") || "");
