@@ -1,44 +1,12 @@
-# Najd TV 1.1.5 delivery plan
+# Current Najd requirements and acceptance contract
 
-Authoritative input: `Prompt_and_Development_Plan_for_Najd_TV_v1.1.5.md`, Drive file `1ENuft4UlnPICpEqWVdkN-4MlUbeecgvO`, read in full. It supersedes conflicting 1.1.3 navigation and public-web requirements. Keep valid prior work, installed-user identifiers and migrations. The latest separate font restriction remains local use only; user ZIP import is allowed without redistributing the raw files.
+The application is Najd TV / نجد, with a shared Flutter client, Node API, independent Najd/Beta source families and guarded Edge extractors. Keep installed application IDs, source references, library export/import, current build inputs, licenses and applied migrations compatible.
 
-## Stages and evidence
+- Branding: `shared/najd-brand.json`, `ui_contract.dart` and `web/core/ui-contract.js` define current identity and adaptive RTL themes. Fonts supplied privately remain local; redistribute only approved fallback assets and licenses.
+- Sources: preserve observed provider/edition/season/episode identity. Missing evidence remains unknown. Catalog pagination is explicit; blocked/time-out/changed structures are typed availability errors. Never broaden SSRF allowlists just to follow a redirect.
+- Playback: extract direct media through guarded HTTP and bounded probes. Do not execute source scripts or install a video relay. A source/container check is not physical-device certification. Session extraction follows `docs/PLAYBACK_ISOLATION.md`.
+- Accounts: private favorites, library, history and checkpoints belong to the authenticated user. Consent-based handoff linking does not merge progress. Shared catalog refreshes never overwrite user state. Local snapshots and pending writes stay owner-scoped.
+- Harvesting: durable jobs use claims, leases, bounded retries and bounded hourly cleanup. Applied migration history, the discovery ordering index and cron are described in `supabase/README.md`.
+- Verification: run the six npm suites, guarded provider fixtures, Flutter analysis/tests and repository health checks. Native signing, device playback and release promotion require their actual release gates; do not infer them from a passing source test.
 
-1. **Identity and responsive shared Flutter UI**: Najd branding, official lavender palette, contrast-correct light/dark themes, four original logo concepts, readable attributed poetry, themed scrollbars, TV modal navigation blur and measured layouts. Implemented in the shared source; adaptive mobile/desktop/TV keyboard tests pass. Native packaging remains pending.
-2. **Independent providers**: domain/search configuration separate from each site's parsing; TMDB name+year identity; explicit provider content scope; separate search/catalog/direct-media stages; actual episode numbers, resumable pagination and manual exploration. Implemented with bounded runtime configuration, strict year/name matching and fixture tests. Live blocked sources remain unavailable; no access-control bypass.
-3. **Browse/player**: five bottom shortcuts, scroll-responsive top brand/type filters, TMDB-only regional categories; infinite pages and view-more, 30-minute search cache, rich details/cast/director, real server/quality/audio/subtitle controls, next-episode preparation, episode/season downloads. Implemented and covered by Flutter tests; physical-device playback remains unverified.
-4. **Accounts and persistent state**: anonymous owner-protected accounts, explicit secure same-device linking (hardware serials are unavailable to browsers/iOS), one-year inactivity cleanup, five-second progress persistence, seven-day owner-approved link authorization, hourly favorites and escalating manual-refresh cooldown. Implemented: one-use link with explicit receiver join and owner approval, separate Auth sessions and revocable grants. Database rollback tests verified replay rejection, pre-approval isolation and grant expiry. Never merge strangers by fingerprint or a forgeable serial.
-5. **Settings and protected dashboards**: bounded safe user ZIP font import, account/profile separate from storage, scoped administration keys and a central dashboard without SQL/service-key exposure. Implemented in source; owner/member revocation and partial dashboard availability are included. Authenticated server dashboard is live; verified internal Flutter bundle deployment remains tied to the release gate.
-6. **Maintenance and security**: concise reusable Gemini knowledge, daily midnight Saudi run with validated config-only repairs and durable discoveries; GitHub-only reports per owner; security checks before release. Daily reporting CI passed. Config-only proposals require GitHub OIDC and independent known-positive/negative live checks with revision compare-and-swap; arbitrary generated code never executes. Runtime harvesting is enabled on Render; the GitHub reporting workflow has passed.
-7. **Delivery**: version 1.1.5, installable Android mobile/TV, Windows, macOS and iOS release assets; web only through authenticated internal testing, no public web publishing. Keep unsigned iOS/macOS limitations explicit. Pending; no release completion claim without assets and checks.
-
-Do not tick off a stage based only on code presence or a successful build. Record deterministic tests, live behavior and remaining environmental limitations independently.
-
-## Verification checkpoint — 2026-10-27
-
-- All 294 Flutter tests passed (7 explicitly skipped platform/private-font cases). Adaptive navigation/player focus: 8/8 passed after fixing the missing rendering import. A later command named a nonexistent theme test file; that invocation is not counted as a pass.
-- Full Node suite: 77/77 passed before the additional persistent-cache/outage test; targeted harvest suite including that new test: 9/9 passed. Rerun the complete suite in the feature gate.
-- Runtime check and continuation suite passed, including 66 offline source fixtures and no network attempts. Python maintenance tests: 11/11; platform parity: 8/8.
-- Private Thmanyah ZIP imported locally in tests; public source contains the redistributable Noto fallback with its license. Raw Thmanyah files are excluded.
-- Actual Conan source index exposes 12 links, 11 distinct episode numbers 1207–1217 (1216 duplicated), and a series parent. The parser now reads those real structures; it never invents episodes 1–1206. A sanitized observed HTML fixture preserves the evidence.
-- Private database migrations for harvesting, account grants, linked refresh, verified configuration and queue fairness have been applied. Client roles cannot claim background jobs. Runtime harvesting is active: an actual canonical Avatar (2009) work was persisted, provider/catalog jobs executed, and unavailable media remained explicitly unavailable. Native release remains pending.
-- Android update signing continuity and Apple developer signing credentials are not confirmed. Do not assert seamless in-place updates, App Store distribution, notarization, or physical-device certification.
-
-## Platform and deployment follow-up
-
-- Full Flutter configurations pass locally: desktop/default 294 passed +7 skipped; Android mobile 294 +7; TV 293 +8. TV cleanup/lazy-navigation tests now reveal the cached row and assert it is actually hittable, instead of scrolling the wrong way outside the viewport. No assertions were removed.
-- All main source/runtime/repository checks passed for the preceding checkpoint. Apple build setup now selects Python 3.12 before installing Pillow, avoiding separate Python interpreter environments.
-- Render runs Node24.22.1 with the new harvest worker and private dashboard. Admin summary responds200 with credentials and401 without them; private web login sets a Secure cookie and no-store headers. The final compiled internal Flutter bundle is still pending the release gate.
-- Public GitHub Pages serves the installer landing page. `/app/`, `Player.html`, `albasri-cinema.html` and `internal_web/index.html` return404; old source is preserved in Git, excluded from public site publishing.
-- Real Render search for the supplied `3cktv` / `وادي الذئاب` example returns503 with `ACCESS_BLOCKED`, not a false absence. The authenticated trace records receipt, DNS, upstream send/response, parser/error and response completion. GitHub's separate network successfully obtained results from that provider; network location matters, so this is not certified as fixed playback.
-- The diagnostics credential was rotated after a tool error exposed its old value. The replacement is outside Git and is active; never include either key in reports.
-
-## Published delivery
-
-Release [v1.1.5](https://github.com/th-505/MATV/releases/tag/v1.1.5) and [workflow40571556739](https://github.com/th-505/MATV/actions/runs/40571556739) succeeded. All six targets bind the same immutable source `6fd336c2cb95a264b0347fd63608afce0d6e3f86`, version1.1.5/build105, and API. The public release contains five native platform packages (plus Windows portable ZIP), checksums and verification reports; the Web ZIP is excluded.
-
-The final internal Web bundle is deployed and live on Render. Its authenticated source manifest matches that same source; unauthenticated compiled-JS and dashboard requests return401. Main contains the generated verified Web bundle as a separate deployment commit. A final server-only MIME correction serves Flutter's extensionless `assets/NOTICES` behind the same authentication, preserving the license page without changing native binaries.
-
-The macOS report verifies both ARM64 and x86_64, with ad-hoc signing and no notarization. iOS remains externally signed; Android update-key continuity is not confirmed. Physical-device playback remains for user/device validation, and network-blocked providers are not represented as working.
-
-See `RELEASE_1.1.5_RECEIPT.json` for exact hashes, sizes, targets and runtime checks. Earlier “pending release” statements above describe the sequence of checkpoints and are superseded by this delivery record.
+Build inputs: `BUILD_AND_CODE_REFERENCE.md`. Current behavior: `RUNTIME_AND_FLOW_MAP.md`. Keep current operational guidance concise; obsolete reports, archived workflows and duplicate generic agent rules do not belong in the source tree.

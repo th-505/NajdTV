@@ -13,9 +13,9 @@ import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / 'مهام' / 'تقارير'
-JSON_PATH = OUT / 'المصادر.json'
-MD_PATH = OUT / 'المصادر.md'
+OUT = ROOT / 'docs'
+JSON_PATH = OUT / 'providers.json'
+MD_PATH = OUT / 'PROVIDER_INVENTORY.md'
 FEATURES = {'catalog': 'scrapeCatalog', 'search': 'scrapeSearch', 'details': 'scrapeDetails',
             'episodes': 'scrapeEpisodes', 'servers': 'scrapeServers', 'resolve': 'resolveStream', 'live': 'scrapeLive'}
 # These spellings are evidenced by legacy source branches, module exports and UI.
@@ -208,7 +208,7 @@ def render(data):
               *[f"- `{code}` مشترك بين {', '.join(ids)}؛ لا يصلح الرمز وحده معرفًا فريدًا." for code, ids in data['duplicate_codes'].items()], '',
               '## إعادة الإنتاج وحدود الإغلاق', '',
               '`python3 scripts/provider_inventory.py` يولد التقرير وJSON، و`--check` يكشف تقادم النتائج.', '',
-              'اكتمل استخراج سجل الشفرة فقط (03.01). تظل فحوص البحث والتفاصيل والمواسم والتشغيل الحي وربط كل المصادر مهام منفصلة مفتوحة. لا يمكن حساب عدد «المزودين العاملين» من هذا التقرير.', '']
+              'هذا جرد حالي لتوصيلات الشفرة، وليس إثباتًا لعمل المواقع الحية. راجع الاختبارات وحالة المصدر لتقييم توفره.', '']
     return '\n'.join(lines)
 
 

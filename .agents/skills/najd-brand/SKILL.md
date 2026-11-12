@@ -4,7 +4,7 @@ description: Apply Najd TV / نجد identity, lavender dark/light themes, privat
 ---
 # Najd identity contract
 
-Read `shared/najd-brand.json`, `docs/najd/IMPLEMENTATION_1.1.5.md`, `web/core/ui-contract.js` and `flutter_app/lib/src/ui_contract.dart` before changing product UI. The product is نجد / Najd TV. Never revive M,TA,MA TV,T-A-TV marks in active UI. Preserve compatibility IDs, user storage keys, migration history and historical release evidence.
+Read `shared/najd-brand.json`, `docs/najd/IMPLEMENTATION_1.1.5.md`, `web/core/ui-contract.js` and `flutter_app/lib/src/ui_contract.dart` before changing product UI. The product is نجد / Najd TV. Never revive M,TA,MA TV,T-A-TV marks in active UI. Preserve compatibility IDs, user storage keys, migration history, licenses and approved build references.
 
 Use one original mark from `assets/brand/najd-mark.png`. Generate icons from the master; no pixel-drawn M mark, no competitor logo. Palette reference is the official Riyadh Air site; it is a color reference, not permission to copy its identity. Keep a source URL and observed colors in the shared contract.
 

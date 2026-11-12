@@ -19,4 +19,4 @@ Flutter Web: https://th-505.github.io/NajdTV/
 
 [81 واجهة وحالة لنجد تي في](design/najd-ui/README.md) — كود المعاينات وخطة التسليم وفحوص الجوال والتلفزيون.
 
-Source management: [Dynamic sources](docs/najd/DYNAMIC_SOURCES.md). Repository and service naming: [NajdTV transition](docs/najd/IDENTITY_RENAME_NAJDTV.md).
+Source management: [Dynamic sources](docs/najd/DYNAMIC_SOURCES.md). Repository and service naming: [Runtime and build map](docs/najd/RUNTIME_AND_FLOW_MAP.md).
