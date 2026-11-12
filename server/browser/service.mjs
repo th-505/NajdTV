@@ -584,7 +584,8 @@ export function createBrowserWorkService({
       episode > 100000
     )
       throw Error("HARVEST_BAD_EPISODE");
-    const key = w.ref + ":" + season + ":" + episode,
+    // Browser evidence and failures must not be inherited from a native job.
+    const key = w.ref + ":" + season + ":" + episode + ":" + platform,
       cached = media.get(key);
     if (!refresh && cached?.expires > now() + 30000) {
       const servers = cached.servers.filter(
@@ -652,7 +653,7 @@ export function createBrowserWorkService({
               for (const candidate of candidates) {
                 const expiry = mediaExpiry(candidate, now());
                 if (!expiry) continue;
-                const checked = await probe(candidate, { platform: "native" });
+                const checked = await probe(candidate, { platform });
                 if (!checked.playable || checked.container_verified!==true || (platform==='web'&&checked.webPlayable!==true)) continue;
                 const headers = {};
                 for (const [k, v] of Object.entries(candidate.headers || {}))

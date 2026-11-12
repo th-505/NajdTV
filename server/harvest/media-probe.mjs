@@ -3,10 +3,10 @@ import {observedHlsQualities} from './hls-quality.mjs';
 import {fetchSafeResponse} from '../scrapers/shared/http.mjs';
 import {probePinnedMedia} from '../pinned-playback.mjs';
 /** Header checks alone accept dead CDN placeholders. Require actual container bytes. */
-export async function probeHarvestMedia(candidate,{platform='native',fetchImpl=fetchSafeResponse,headProbe=probePinnedMedia}={}){
- const head=await headProbe(candidate,{platform});
+export async function probeHarvestMedia(candidate,{platform='native',origin='https://th-505.github.io',fetchImpl=fetchSafeResponse,headProbe=probePinnedMedia}={}){
+ const head=await headProbe(candidate,{platform,origin});
  if(![200,206].includes(head.statusCode))return head;
- const browserOrigin='https://th-505.github.io';
+ const browserOrigin=origin;
  const headers=platform==='web'?{Origin:browserOrigin,Referer:browserOrigin+'/'}:candidate.headers;
  const response=await fetchImpl(candidate.url,{method:'GET',headers:{...headers,Range:'bytes=0-32767'},responseType:'bytes',maxBytes:65536,prefixBytes:32768,allowHttp:false,maxRetries:0,maxRedirects:2,timeoutMs:8000});
  const bytes=response.bytes||Buffer.alloc(0);

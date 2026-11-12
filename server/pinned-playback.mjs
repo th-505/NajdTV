@@ -5,7 +5,6 @@ import { classifyFallbackProbeResponse } from './fallback-probe.mjs';
 
 const ALIASES = Object.freeze({ akoam: 'akwam', wecima: 'mycima', moviz: 'moviztime', '3ck': '3cktv' });
 const DEFAULT_ORIGIN = 'https://th-505.github.io';
-const BLOCKED_HEADERS = /^(?:accept-charset|accept-encoding|access-control-request-headers|access-control-request-method|connection|content-length|cookie2?|date|dnt|expect|host|keep-alive|origin|permissions-policy|referer|te|trailer|transfer-encoding|upgrade|user-agent|via|proxy-.*|sec-.*)$/i;
 export function canonicalPinnedSource(value) {
   const raw = String(value || '').toLowerCase();
   const provider = ALIASES[raw] || raw;
@@ -103,7 +102,13 @@ export async function probePinnedMedia(candidate, { platform, origin = DEFAULT_O
 }
 
 /** Never searches or switches sources: only metadata -> exact episode -> direct media. */
-export function createPinnedPlayback({ loadDetails, probe = probePinnedMedia, maxSources = 32,
+// Load the byte probe after module initialization: it reuses the HEAD helper
+// exported above, and applies the same bounded browser-context verification.
+async function probePinnedPlaybackMedia(candidate,options){
+  const {probeHarvestMedia}=await import('./harvest/media-probe.mjs');
+  return probeHarvestMedia(candidate,options);
+}
+export function createPinnedPlayback({ loadDetails, probe = probePinnedPlaybackMedia, maxSources = 32,
   browserOrigin = DEFAULT_ORIGIN } = {}) {
   if (typeof loadDetails !== 'function') throw Error('PINNED_DETAILS_LOADER_REQUIRED');
   const origin = new URL(browserOrigin);
@@ -159,8 +164,8 @@ export function createPinnedPlayback({ loadDetails, probe = probePinnedMedia, ma
     if (!candidates.length) return unavailable('PINNED_DIRECT_MEDIA_NOT_FOUND');
     const servers = [];
     for (const candidate of candidates) {
-      // Native requirements cannot be silently promised by a browser player.
-      if (platform === 'web' && !candidate.web_playable && Object.keys(candidate.headers).some(name => BLOCKED_HEADERS.test(name))) continue;
+      // Source headers are a hint, not proof they are required. The browser
+      // probe sends its own Origin/Referer and never forwards source cookies.
       let verified = platform === 'web' && candidate.web_playable;
       if (!verified) {
         let result;
@@ -171,7 +176,7 @@ export function createPinnedPlayback({ loadDetails, probe = probePinnedMedia, ma
       if (!verified) continue;
       servers.push({ ...candidate, ...(platform === 'web' ? { headers: {}, web_playable: true } : {}),
         series_ref: seriesRef, episode_ref: type === 'series' ? mediaRef : null, season, episode,
-        ...(platform === 'web' ? { web_probe_basis: 'declared-or-response-headers' } : {}) });
+        ...(platform === 'web' ? { web_probe_basis: candidate.web_playable?'declared':'bounded-container-bytes' } : {}) });
     }
     if (!servers.length) return unavailable(platform === 'web' ? 'PINNED_DIRECT_WEB_UNAVAILABLE' : 'PINNED_DIRECT_MEDIA_UNAVAILABLE');
     return { ...base, status: 'success', servers, playback_unavailable: false, playback_reason: null };
