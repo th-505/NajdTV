@@ -55,11 +55,11 @@ console.log('2. Testing Reference Format & Target URL Resolution...');
 const ref1 = buildLarozaRef('/play.php?vid=film2020');
 assert.ok(ref1.startsWith('laroza:'), 'Reference must start with laroza:');
 const resolvedUrl1 = resolveLarozaTargetUrl(ref1);
-assert.equal(resolvedUrl1, 'https://larooza.beer/play.php?vid=film2020');
+assert.equal(resolvedUrl1, 'https://laroza.buzz/play.php?vid=film2020');
 
 const refSeries = buildLarozaRef('/view-serie1.php?ser=show2021');
 const resolvedSeriesUrl = resolveLarozaTargetUrl(refSeries);
-assert.equal(resolvedSeriesUrl, 'https://larooza.beer/view-serie1.php?ser=show2021');
+assert.equal(resolvedSeriesUrl, 'https://laroza.buzz/view-serie1.php?ser=show2021');
 
 // /video.php is automatically rewritten to /play.php
 assert.equal(
@@ -77,7 +77,7 @@ assert.ok(catalogItems.length >= 3, `Expected at least 3 items, got ${catalogIte
 assert.equal(catalogItems[0].source, 'laroza');
 assert.equal(catalogItems[0].serverPrefix, 'LZ');
 assert.ok(catalogItems[0].ref.startsWith('laroza:'));
-assert.ok(catalogItems[0].url.startsWith('https://larooza.beer/'));
+assert.ok(catalogItems[0].url.startsWith('https://laroza.buzz/'));
 assert.ok(catalogItems._meta?.ok, 'Catalog _meta.ok must be true');
 
 // Ensure duplicates were eliminated

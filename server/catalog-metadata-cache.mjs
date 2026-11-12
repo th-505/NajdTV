@@ -51,9 +51,13 @@ export function catalogMetadata(payload,provider,ref,validateRef) {
   }
   // Retain useful bounded metadata while never truncating a JSON byte stream.
   result.episodes_total_count=result.episodes.length;
-  result.episodes_partial=false;
+  result.partial=payload.partial===true;
+  result.next_offset=Number.isSafeInteger(payload.next_offset)&&payload.next_offset>=0?payload.next_offset:null;
+  result.next_cursor=result.next_offset===null?null:String(result.next_offset);
+  result.episodes_partial=result.partial;
   while(Buffer.byteLength(JSON.stringify(result))>MAX_BYTES && result.episodes.length) result.episodes.pop();
-  result.episodes_partial=result.episodes.length<result.episodes_total_count;
+  result.episodes_partial=result.partial || result.episodes.length<result.episodes_total_count;
+  if(result.episodes.length<result.episodes_total_count){result.partial=true;result.next_offset=result.episodes.length;result.next_cursor=String(result.next_offset);}
   if(Buffer.byteLength(JSON.stringify(result))>MAX_BYTES) throw Error('CATALOG_METADATA_TOO_LARGE');
   return result;
 }

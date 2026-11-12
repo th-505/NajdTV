@@ -1,3 +1,5 @@
+import {parsedCollection} from '../../shared/provider-contract.js';
+import {guardedProviderFetch} from '../scrapers/shared/http.mjs';
 import {unpack3iskPlayer} from './3isk-playback/miravd.mjs';
 import { sourcePublishedAt } from '../source-publication.mjs';
 const SOURCE_ORIGIN = "https://akwam.ss";
@@ -69,10 +71,12 @@ export async function fetchSourceHtml(value, { referer = SOURCE_ORIGIN + "/", ti
     let current = url;
     let response;
     for (let redirects = 0; redirects <= 4; redirects++) {
-      response = await fetch(current, {
+      response = await guardedProviderFetch(current, {
         method: current.hostname === SOURCE_HOST && mediaKindFromUrl(current.href) === "unknown" ? "GET" : "HEAD", redirect: "manual", cache: "no-store", signal: controller.signal,
         headers: { Accept: "text/html,application/xhtml+xml", "Accept-Language": "ar-SA,ar;q=0.9,en-US;q=0.8,en;q=0.7",
           "User-Agent": UA, Referer: safeHeaderUrl(referer) },
+      }, {fetchImpl:globalThis.fetch,providerId:'akwam',timeoutMs,maxBytes:2*1024*1024,
+        validateUrl:u=>assertSourceUrl(u,{allowMedia:true})
       });
       if (![301,302,303,307,308].includes(response.status)) break;
       const location = response.headers.get('location'); await response.body?.cancel();
@@ -174,17 +178,17 @@ function pagePoster(html = "") {
   return img ? absoluteUrl(img[1]) : "";
 }
 
-function episodeIdentity(href = "", label = "", fallback = 0) {
+function episodeIdentity(href = "", label = "") {
   let decoded = String(href || "");
   try { decoded = decodeURIComponent(decoded); } catch {}
   const cleanLabel = String(label || "");
   const explicit = [
     cleanLabel.match(/(?:الحلقة|episode)[\s\-_/:]*(\d{1,4})(?:\D|$)/i),
     cleanLabel.trim().match(/^(\d{1,4})$/),
-    decoded.match(/(?:الحلقة|episode)[\s\-_/:]*(\d{1,4})(?:\D|$)/i),
+    decoded.replace(/\/episode\/\d+(?=\/|$)/i, "").match(/(?:الحلقة|episode)[\s\-_/:]*(\d{1,4})(?:\D|$)/i),
   ].find(Boolean);
   const idMatch = decoded.match(/\/episode\/(\d+)(?:\/|$)/i);
-  const number = Number(explicit?.[1] || fallback || 0);
+  const number = Number(explicit?.[1] || 0);
   return {
     episode_number: Number.isFinite(number) && number > 0 ? number : null,
     episode_id: idMatch?.[1] || null,
@@ -192,34 +196,10 @@ function episodeIdentity(href = "", label = "", fallback = 0) {
 }
 
 function normalizeEpisodes(entries = []) {
-  if (!entries.length) return [];
-  const ordered = [...entries].sort((a, b) => Number(a.episode_number || 0) - Number(b.episode_number || 0));
-  const seenNumbers = new Set();
-  const deduped = [];
-  let suspicious = false;
-
-  for (const entry of ordered) {
-    const n = Number(entry.episode_number || 0);
-    if (!Number.isFinite(n) || n <= 0 || n > 1000) {
-      suspicious = true;
-      deduped.push(entry);
-      continue;
-    }
-    if (seenNumbers.has(n)) {
-      suspicious = true;
-      continue;
-    }
-    seenNumbers.add(n);
-    deduped.push(entry);
-  }
-
-  const nums = deduped.map(ep => Number(ep.episode_number || 0)).filter(n => Number.isFinite(n) && n > 0);
-  if (nums.length && (nums[0] !== 1 || nums.some((n, i) => i > 0 && n !== nums[i - 1] + 1))) suspicious = true;
-
-  return deduped.map((episode, index) => {
-    const display = suspicious ? index + 1 : Number(episode.episode_number || index + 1);
-    return { ...episode, num: display, episode_number: display };
-  });
+  // Source reference identifies an episode; gaps and alternate URLs are evidence,
+  // never grounds to manufacture a new display sequence.
+  return [...entries].sort((a, b) =>
+    (a.episode_number ?? Number.MAX_SAFE_INTEGER) - (b.episode_number ?? Number.MAX_SAFE_INTEGER));
 }
 
 export function parseDetails(html = "", pageUrl = "") {
@@ -231,13 +211,13 @@ export function parseDetails(html = "", pageUrl = "") {
     seen.add(href);
     const attrs = `${anchor.before} ${anchor.after}`;
     const label = stripTags(`${attrs.match(/(?:title|aria-label)=["']([^"']+)["']/i)?.[1] || ""} ${anchor.body || ""}`);
-    const identity = episodeIdentity(href, label, episodes.length + 1);
+    const identity = episodeIdentity(href, label);
     episodes.push({
-      num: identity.episode_number || episodes.length + 1,
-      episode_number: identity.episode_number || episodes.length + 1,
+      num: identity.episode_number,
+      episode_number: identity.episode_number,
       episode_id: identity.episode_id,
       link: href,
-      watch_available: true,
+      watch_available: identity.episode_number !== null,
     });
   }
   const normalizedEpisodes = normalizeEpisodes(episodes);
@@ -332,14 +312,14 @@ export async function directCategory(sourceUrl, page = 1) {
   const url = assertSourceUrl(sourceUrl);
   if (page > 1) url.searchParams.set("page", String(page));
   const { html } = await fetchSourceHtml(url.href);
-  return parseCatalog(html);
+  return parsedCollection(parseCatalog(html),html);
 }
 
 export async function directSearch(query) {
   const url = new URL("/search", SOURCE_ORIGIN);
   url.searchParams.set("q", String(query || "").trim());
   const { html } = await fetchSourceHtml(url.href);
-  return parseCatalog(html);
+  return parsedCollection(parseCatalog(html),html);
 }
 
 export async function directDetails(target) {

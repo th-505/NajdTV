@@ -1,3 +1,6 @@
+import {guardedProviderFetch} from '../scrapers/shared/http.mjs';
+import { providerContract } from '../../shared/provider-contract.js';
+import { boundedPage, validOffset } from '../../shared/provider-pagination.js';
 import {explicitEpisode} from '../../shared/content-identity.js';
 import { TtlCache, normalizeCatalogItem } from '../content-runtime.mjs';
 
@@ -60,7 +63,7 @@ function pagination(data, page) {
 
 // This facade makes bounded JSON requests to the private application gateway;
 // it never follows source pages, receives video bodies, or returns web embeds.
-export function createLarozaProvider({
+function createLarozaProviderRaw({
   edgeBase = process.env.MITV_EDGE_BASE || DEFAULT_EDGE,
   fetchImpl = globalThis.fetch,
   now = Date.now,
@@ -80,13 +83,18 @@ export function createLarozaProvider({
     }
     if (pending.has(cacheKey)) return pending.get(cacheKey);
     const work = (async () => {
-      const response = await fetchImpl(target, {
+      const response = await guardedProviderFetch(target, {
         method:'GET', redirect:'error', signal:AbortSignal.timeout(20000),
         headers:{ Accept:'application/json' },
-      });
-      if (!response.ok) { await response.body?.cancel(); throw Error('LAROZA_EDGE_HTTP_' + response.status); }
-      if (!/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') || '')) {
-        await response.body?.cancel(); throw Error('LAROZA_BAD_EDGE_RESPONSE');
+      }, {fetchImpl,providerId:'laroza',timeoutMs:20000,maxBytes:MAX_JSON_BYTES,returnHttpErrors:true,
+        validateUrl:u=>{if(u.origin!==base.origin)throw Error('LAROZA_BAD_EDGE_ENDPOINT');}
+      }).catch(error=>{if(/BODY_TOO_LARGE/.test(error.message)){error.message='LAROZA_EDGE_RESPONSE_TOO_LARGE';error.error_code='STRUCTURE_CHANGED';}throw error;});
+      if (!response.ok) {
+        let body;try{body=await jsonText(response)}catch{}
+        const error=Error('LAROZA_EDGE_HTTP_' + response.status);
+        if(body && ['ACCESS_BLOCKED','TIMEOUT','STRUCTURE_CHANGED'].includes(body.error_code)) error.error_code=body.error_code;
+        if(typeof body?.upstream_reason==='string' && /^[A-Z_0-9]+$/.test(body.upstream_reason)) error.upstream_reason=body.upstream_reason;
+        error.state='unavailable';throw error;
       }
       const data = await jsonText(response);
       if (!data || data.status !== 'success' || data.source !== 'laroza') throw Error('LAROZA_BAD_EDGE_RESPONSE');
@@ -97,27 +105,27 @@ export function createLarozaProvider({
     try { return await work; } finally { pending.delete(cacheKey); }
   }
   return {
-    async category(id = 'laroza-latest', page = 1) {
+    async category(id = 'laroza-latest', page = 1, {offset = 0} = {}) {
       if (!Object.hasOwn(LAROZA_CATEGORIES,id) || !Number.isInteger(page) || page < 1 || page > 500) throw Error('LAROZA_BAD_CATEGORY');
       const section = LAROZA_CATEGORIES[id].split(':')[2];
-      const data = await request('category', {section,page});
+      const data = await request('category', {section,page,...(validOffset(offset) ? {offset} : {})});
       if (!Array.isArray(data.data)) throw Error('LAROZA_BAD_EDGE_RESPONSE');
-      return { status:'success', source:'laroza', ...pagination(data,page), data:data.data.slice(0,60).map(row => {
+      return { status:'success', source:'laroza', ...pagination(data,page), ...boundedPage(data.data,0,60), partial:data.partial === true || data.data.length >= 60, next_offset:data.next_offset ?? (data.data.length >= 60 ? offset+60 : null), next_cursor:data.next_cursor ?? (data.data.length >= 60 ? String(offset+60) : null), data:data.data.slice(0,60).map(row => {
         const item = catalogItem(row);
         return section === 'anime' ? { ...item, genres:[...new Set([...(item.genres || []),'anime'])], category:'anime' } : item;
       }) };
     },
-    async search(query, page = 1) {
+    async search(query, page = 1, {offset = 0} = {}) {
       const q = String(query || '').trim().slice(0,120);
       if (q.length < 2) return { status:'success', source:'laroza', data:[] };
       if (!Number.isInteger(page) || page < 1 || page > 500) throw Error('LAROZA_BAD_PAGE');
-      const data = await request('search', {q,page});
+      const data = await request('search', {q,page,...(validOffset(offset) ? {offset} : {})});
       if (!Array.isArray(data.data)) throw Error('LAROZA_BAD_EDGE_RESPONSE');
-      return { status:'success', source:'laroza', ...pagination(data,page), data:data.data.slice(0,60).map(catalogItem) };
+      return { status:'success', source:'laroza', ...pagination(data,page), ...boundedPage(data.data,0,60), partial:data.partial === true || data.data.length >= 60, next_offset:data.next_offset ?? (data.data.length >= 60 ? offset+60 : null), next_cursor:data.next_cursor ?? (data.data.length >= 60 ? String(offset+60) : null), data:data.data.slice(0,60).map(catalogItem) };
     },
-    async metadata(ref, { refresh = false } = {}) {
+    async metadata(ref, { refresh = false, offset = 0 } = {}) {
       assertLarozaRef(ref);
-      const result = await request('details', {ref}, refresh);
+      const result = await request('details', {ref,...(validOffset(offset) ? {offset} : {})}, refresh);
       if (!result.data || typeof result.data !== 'object' || Array.isArray(result.data)) throw Error('LAROZA_BAD_EDGE_RESPONSE');
       const item = catalogItem({ ...result.data, ref });
       const episodes = (Array.isArray(result.data.episodes) ? result.data.episodes : []).map((row,index) => {
@@ -128,7 +136,7 @@ export function createLarozaProvider({
           num:Number.isInteger(number) && number > 0 ? number : null,
           watch_available:Number.isInteger(number) && number > 0 && row.watch_available !== false };
       });
-      return { ...item, movie_title:item.title, status:'success', episodes,
+      return { ...item, movie_title:item.title, status:'success', episodes, partial:result.data.partial === true, next_offset:result.data.next_offset ?? null, next_cursor:result.data.next_cursor ?? null,
         description:String(result.data.description || result.data.plot || '').slice(0,8000),
         ...(typeof result.data.published_at==='string' && Number.isFinite(Date.parse(result.data.published_at))
           ? {published_at:new Date(result.data.published_at).toISOString()} : {}),
@@ -139,3 +147,5 @@ export function createLarozaProvider({
     status() { return { provider:'laroza', playback_mode:'edge_direct', media_proxy:false, metadata_only:true, cache_entries:cache.size }; },
   };
 }
+
+export function createLarozaProvider(options) { return providerContract(createLarozaProviderRaw(options), 'laroza'); }

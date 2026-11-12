@@ -1,3 +1,4 @@
+import {sourceResponse,providerErrorCode} from '../../shared/provider-contract.js';
 import * as cheerio from 'cheerio';
 import {getProviderConfig,registerProviderOrigins,runInNajdConfiguration} from './shared/provider-config.mjs';
 import {fetchProviderHtml,resolveSafeUrl} from './shared/http.mjs';
@@ -46,7 +47,7 @@ export function wrapConfiguredProvider(entry,{scope='najd',run=runInNajdConfigur
  if(typeof entry.module.decodeProviderRef==='function')module.decodeProviderRef=(...args)=>run(()=>entry.module.decodeProviderRef(...args));
  for(const[name,fn]of Object.entries(entry.module))if(typeof fn==='function'&&/^(scrape|resolveStream)/.test(name))module[name]=(...args)=>run(async()=>{
   const config=getProviderConfig(entry.meta.id);if(config?.enabled===false)throw Error('SOURCE_DISABLED');
-  if(name==='scrapeSearch'&&config?.card_selector)return configuredSearch(entry,args[0],args[1]||1,config,args[2]||{});
+  if(name==='scrapeSearch'&&config?.card_selector)return sourceResponse(await configuredSearch(entry,args[0],args[1]||1,config,args[2]||{}),entry.meta.id);
   const values=[...args];let pagination=null;
   if(name==='scrapeSearch')values[2]={...(values[2]||{}),onProviderPage:response=>{
    const html=response.html||'';const tag=html.match(/<a\b[^>]*(?:rel=["']next["']|class=["'][^"']*\bnext\b)[^>]*>/i)?.[0];
@@ -56,7 +57,7 @@ export function wrapConfiguredProvider(entry,{scope='najd',run=runInNajdConfigur
   if(name!=='scrapeSearch'&&typeof values[0]==='string')values[0]=convert(values[0],entry.meta,false);
   const result=mapResult(await fn(...values),entry.meta);
   if(Array.isArray(result)&&pagination){if(result._meta)Object.assign(result._meta,pagination);else Object.defineProperty(result,'_meta',{value:pagination,enumerable:false});}
-  return result;
+  return sourceResponse(result,entry.meta.id);
  });
  const output={meta:Object.freeze(meta),module:Object.freeze(module)};wrapped.set(entry,output);return output;
 }

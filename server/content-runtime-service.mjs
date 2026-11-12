@@ -97,6 +97,7 @@ export function createContentRuntimeService({
         source: cached.source,
         health: health.snapshot(cached.source, stamp),
         cached: true,
+        partial:cached.partial === true, failures:cached.failures || [],
         stale: false,
         generatedAt: cached.generatedAt,
       });
@@ -112,13 +113,14 @@ export function createContentRuntimeService({
         const data = normalize(payload);
         const finished = now();
         health.recordSuccess(source, { latencyMs: Math.max(0, finished - started), now: finished });
-        cache.set(key, { data, source, generatedAt: finished }, ttlMs, finished);
+        cache.set(key, { data, source, partial:payload.partial===true, failures:payload.failures || [], generatedAt: finished }, ttlMs, finished);
         return buildRuntimeEnvelope({
           kind,
           data,
           source,
           health: health.snapshot(source, finished),
           cached: false,
+          partial:payload.partial===true, failures:payload.failures || [],
           stale: false,
           generatedAt: finished,
         });
@@ -137,6 +139,7 @@ export function createContentRuntimeService({
         source: stale.source,
         health: health.snapshot(stale.source, now()),
         cached: true,
+        partial:stale.partial===true, failures:stale.failures || [],
         stale: true,
         generatedAt: stale.generatedAt,
       });

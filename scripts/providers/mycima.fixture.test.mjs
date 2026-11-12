@@ -75,7 +75,7 @@ assert.equal(movieDetails.is_series, false);
 assert.ok(Array.isArray(movieDetails.servers));
 assert.equal(movieDetails.servers.length, 4); // 2 direct download + 2 watch embeds
 assert.equal(movieDetails.servers[0].code, 'MA-1');
-assert.equal(movieDetails.servers[0].verified, true);
+assert.equal(movieDetails.servers[0].verified, false);
 assert.equal(movieDetails.servers[2].code, 'MA-3');
 assert.equal(movieDetails.servers[2].verified, false);
 
@@ -107,7 +107,7 @@ assert.ok(Array.isArray(servers));
 assert.equal(servers.length, 4);
 assert.equal(servers[0].code, 'MA-1');
 assert.equal(servers[0].type, 'mp4');
-assert.equal(servers[0].verified, true);
+assert.equal(servers[0].verified, false);
 assert.equal(servers[2].code, 'MA-3');
 assert.equal(servers[2].type, 'embed');
 assert.equal(servers[2].verified, false);
@@ -119,7 +119,14 @@ assert.ok(resolvedMp4);
 assert.equal(resolvedMp4.type, 'mp4');
 assert.equal(resolvedMp4.verified, true);
 
-const resolvedEmbed = await resolveStream('https://ukrcdn.club/embed/batman');
+// A fixture cannot verify remote media. Exercise an unresolved player without
+// contacting the live site or treating a URL extension as a successful probe.
+const originalFetch = globalThis.fetch;
+let resolvedEmbed;
+try {
+  globalThis.fetch = async () => new Response('<html><title>Fixture player</title></html>');
+  resolvedEmbed = await resolveStream('https://ukrcdn.club/embed/batman');
+} finally { globalThis.fetch = originalFetch; }
 assert.ok(resolvedEmbed);
 assert.equal(resolvedEmbed.type, 'embed');
 assert.equal(resolvedEmbed.verified, false);
