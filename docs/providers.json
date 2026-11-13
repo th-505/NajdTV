@@ -526,7 +526,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/laroza.mjs",
       "metadata_line": 60,
-      "source_sha256": "ed6b94ae166bea89723c06fb3cd8e0e62a3f93e3ef5448b6d864177573ae9338",
+      "source_sha256": "708a97b6c0763998b324a06ddfbdbde1ff285442550f2cbe48298c3d2208f1b0",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -989,7 +989,7 @@
       "id": "laroza",
       "scope": "beta",
       "path": "server/browser/providers/sites/laroza.mjs",
-      "source_sha256": "9f73043aa775f24adee4806be3f15e50630d5d02f1a1de96599ce7f69fef2242",
+      "source_sha256": "01580e874d8ae09024bec0f095ea340aec21ce94f8e15f037ced74e0bf59da0c",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
