@@ -751,7 +751,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
         if (req.method !== 'GET') return sendJson(req,res,405,{message:'METHOD_NOT_ALLOWED'});
         return sendJson(req,res,200,{items:traceStore.list({provider:url.searchParams.get('provider')||'',query:url.searchParams.get('q')||'',id:url.searchParams.get('id')||''}),runtime:{node:process.version,openssl:process.versions.openssl},retention_seconds:traceStore.retention_seconds});
       }
-      if (url.pathname === "/health" || url.pathname === "/api/v1/health") return sendJson(req, res, 200, { status: "ok", version: PRODUCT_VERSION, cinema_source: "basri-original", ...SOURCE_REVISION, harvest_enabled:process.env.NAJD_HARVEST_ENABLED==='1', harvest_configured:harvest.metrics().configured===true });
+      if (url.pathname === "/health" || url.pathname === "/api/v1/health") return sendJson(req, res, 200, { status: "ok", version: PRODUCT_VERSION, cinema_source: "basri-original", ...SOURCE_REVISION, git_sha:SOURCE_REVISION.source_commit, harvest_enabled:process.env.NAJD_HARVEST_ENABLED==='1', harvest_configured:harvest.metrics().configured===true });
       if (url.pathname === "/api/runtime/status") return sendJson(req, res, 200, runtimeService.status());
       if (url.pathname === "/api/v1/categories") return sendJson(req, res, 200, { status: 'success', data: CatalogCategories });
       if(url.pathname==='/api/v1/catalog/sections')return sendJson(req,res,200,{status:'success',data:BROWSE_SECTIONS});
