@@ -63,6 +63,10 @@ void main() {
   testWidgets(
     'attached Arabic sidecar reaches the actual media_kit facade and off control',
     (tester) async {
+      tester.view.physicalSize = const Size(1280, 720);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       SharedPreferences.setMockInitialValues({});
       final library = await LocalLibraryStore.create();
       final memory = CaptionMemoryStore();
@@ -165,7 +169,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('الترجمة'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('إيقاف الترجمة'));
+      final disable = find.text('إيقاف الترجمة');
+      await tester.ensureVisible(disable);
+      await tester.pumpAndSettle();
+      await tester.tap(disable);
       await tester.pumpAndSettle();
       expect(platform.captions.last.id, 'no');
       expect(tester.takeException(), isNull);

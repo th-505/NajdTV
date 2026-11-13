@@ -72,7 +72,10 @@ void main() {
 
     await tester.tap(find.byKey(const Key('player-speed')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('player-speed-1.5x')));
+    final speed = find.byKey(const Key('player-speed-1.5x'));
+    await tester.ensureVisible(speed);
+    await tester.pumpAndSettle();
+    await tester.tap(speed);
     await tester.pumpAndSettle();
     expect(selected, 1.5);
   });
