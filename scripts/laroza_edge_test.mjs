@@ -61,7 +61,7 @@ const media = {
  "vidmoly.biz": "https://fixture.vmget.online/hls/demo/master.m3u8",
  "mp4plus.org": "https://fixture.cdnz.quest/demo.mp4",
 };
-function fetcher({ fail = false, allFail = false, redirectPrivate = false, overlarge = false } = {}) {
+function fetcher({ fail = false, allFail = false, redirectPrivate = false, overlarge = false, mediaHeadBlocked = false } = {}) {
  const calls = [];
  const fn = async (raw, options) => {
   const u = new URL(raw); calls.push({ url: u.href, method: options.method || "GET", headers: options.headers });
@@ -75,7 +75,13 @@ function fetcher({ fail = false, allFail = false, redirectPrivate = false, overl
    return new Response(u.hostname === "mp5.okhd.site" ? fixture("packed-player.html") : `jwplayer('v').setup({sources:[{file:'${media[u.hostname]}'}],tracks:[]});`, { headers: { "Content-Type": "text/html" } });
   }
   if (["cdn2.okprimeone.site", "fixture.cdnz.quest", "fixture.vmget.online"].includes(u.hostname)) {
-   assert.equal(options.method, "HEAD", "No video bytes are read by the worker");
+   if (mediaHeadBlocked && options.method === "HEAD") return new Response(null, { status: 405 });
+   if (mediaHeadBlocked) {
+    assert.equal(options.method, "GET");
+    assert.equal(options.headers.Range, "bytes=0-0", "fallback is a single bounded byte");
+   } else if (options.method === "GET") {
+    assert.equal(options.headers.Range, "bytes=0-0", "fallback is a single bounded byte");
+   } else assert.equal(options.method, "HEAD", "No video bytes are read by the worker");
    if (options.headers.Origin === "https://th-505.github.io" && u.pathname.endsWith(".mp4")) return new Response(null, { status: 403 });
    return new Response(null, { headers: { "Content-Type": u.pathname.endsWith(".mp4") ? "video/mp4" : "application/vnd.apple.mpegurl", "Access-Control-Allow-Origin": "*", "Accept-Ranges": "bytes" } });
   }
@@ -94,7 +100,11 @@ const mira = resolved.sources.find((s) => s.server === "vidmoly.biz");
 assert.equal(mira.headers.Referer, "https://vidmoly.biz/embed-fixture4.html");
 assert.equal(mira.headers.Origin, "https://vidmoly.biz");
 assert(!live.calls.some((c) => /llvpn|ads.invalid|127\.0\.0\.1|film77/.test(c.url)));
-assert(live.calls.filter((c) => /cdnz|vmget|okprimeone/.test(c.url)).every((c) => c.method === "HEAD"));
+assert(live.calls.filter((c) => /cdnz|vmget|okprimeone/.test(c.url)).every((c) => c.method === "HEAD" || (c.method === "GET" && c.headers.Range === "bytes=0-0")));
+const rangeFallback = fetcher({ mediaHeadBlocked: true });
+const ranged = await createLarozaEdge({ fetchImpl: rangeFallback.fn, now: () => now }).resolve(play);
+assert.equal(ranged.sources.length, 4);
+assert(rangeFallback.calls.some((c) => c.method === "GET" && c.headers.Range === "bytes=0-0"));
 const partial = fetcher({ fail: true });
 assert.equal((await createLarozaEdge({ fetchImpl: partial.fn, now: () => now }).resolve(play)).sources.length, 3);
 const privateRedirect = fetcher({ redirectPrivate: true });
@@ -146,6 +156,6 @@ try {
  const rejectDuplicate = await worker.fetch(new Request("https://provider.internal/category?page=1&page=2"), {}); assert.equal(rejectDuplicate.status, 400);
  globalThis.fetch = fetcher({ allFail: true }).fn;
  const failed = await worker.fetch(new Request("https://provider.internal/resolve?ref=" + encodeURIComponent(play)), { LAROZA_REVIEWED_SOURCE_ENABLED:"1", PROVIDER_CONFIG: LAROZA_CONFIG });
- assert.equal(failed.status, 503); assert.equal((await failed.json()).error, "NO_HEALTHY_LAROZA_SOURCES");
+assert.equal(failed.status, 503); const failureBody = await failed.json(); assert.equal(failureBody.error, "NO_HEALTHY_LAROZA_SOURCES"); assert.equal(failureBody.upstream_reason, "LAROZA_MEDIA_PROBE_FAILED");
 } finally { globalThis.fetch = originalFetch; }
-console.log("Laroza edge: real-shaped catalogs/series episodes, bounded safe Packer, four clean direct host adapters, partial failure, protected headers, HEAD-only media, strict references/redirects, subtitles, quota limits and JSON config passed");
+console.log("Laroza edge: real-shaped catalogs/series episodes, bounded safe Packer, four clean direct host adapters, bounded Range fallback, protected headers, strict references/redirects, subtitles, quota limits and JSON config passed");

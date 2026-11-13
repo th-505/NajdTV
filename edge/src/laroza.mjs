@@ -382,9 +382,22 @@ export function createLarozaEdge({ fetchImpl = fetch, config = LAROZA_CONFIG, no
   async function mediaHead(raw, headers) {
     let u = mediaUrl(raw, config), response;
     for (let depth = 0; depth <= 3; depth++) {
-      response = await request(u, { method: "HEAD", headers });
+      response = await request(u, { method: "HEAD", headers: { Accept: "video/*,application/vnd.apple.mpegurl,application/x-mpegurl,*/*;q=0.1", ...headers } });
       await response.body?.cancel();
-      if (![301, 302, 303, 307, 308].includes(response.status)) return { url: u, response };
+      if (![301, 302, 303, 307, 308].includes(response.status)) {
+        // Some video CDNs deliberately reject HEAD at an edge while accepting a
+        // bounded byte request from the same viewer. Never fall back to an
+        // unbounded GET and never relay the body through this Worker.
+        if ([400, 403, 405, 429].includes(response.status)) {
+          const ranged = await request(u, {
+            method: "GET",
+            headers: { Accept: "video/*,application/vnd.apple.mpegurl,application/x-mpegurl,*/*;q=0.1", ...headers, Range: "bytes=0-0" },
+          });
+          await ranged.body?.cancel();
+          return { url: u, response: ranged, probe: "range" };
+        }
+        return { url: u, response, probe: "head" };
+      }
       if (depth === 3 || !response.headers.get("location")) throw Error("LAROZA_REDIRECT_LIMIT");
       u = mediaUrl(response.headers.get("location"), config, u);
     }
@@ -420,7 +433,13 @@ export function createLarozaEdge({ fetchImpl = fetch, config = LAROZA_CONFIG, no
       throw Error("LAROZA_SERVER_UNAVAILABLE");
     }));
     const sources = results.filter((s) => s.status === "fulfilled").map((s) => s.value);
-    if (!sources.length) throw Error("NO_HEALTHY_LAROZA_SOURCES");
+    if (!sources.length) {
+      const reasons = results.map((result) => result.status === "rejected" && /^[A-Z_0-9]+$/.test(result.reason?.message || "") ? result.reason.message : "LAROZA_SERVER_UNAVAILABLE");
+      console.warn(JSON.stringify({ event: "laroza_resolve_unavailable", players: players.map((p) => p.hostname), reasons, fetches: calls }));
+      const error = Error("NO_HEALTHY_LAROZA_SOURCES");
+      error.upstream_reason = reasons.includes("LAROZA_TIMEOUT") ? "LAROZA_TIMEOUT" : reasons.includes("LAROZA_FETCH_BUDGET") ? "LAROZA_FETCH_BUDGET" : "LAROZA_MEDIA_PROBE_FAILED";
+      throw error;
+    }
     const body = { status: "success", schema_version: 1, source: "laroza", sources, fetches: calls };
     const size = () => new TextEncoder().encode(JSON.stringify(body)).length;
     // Stream references are more valuable than optional subtitle descriptors.

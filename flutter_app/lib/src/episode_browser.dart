@@ -123,20 +123,25 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
           children: [
             if (widget.showSeasons && seasons.length > 1)
               SizedBox(
-                width: 160,
-                child: DropdownButtonFormField<int>(
-                  key: ValueKey('episode-browser-season-$season'),
-                  initialValue: season,
-                  itemHeight: targetHeight,
-                  decoration: const InputDecoration(labelText: 'الموسم'),
-                  items: [
-                    for (final s in seasons)
-                      DropdownMenuItem(value: s, child: Text('الموسم $s')),
-                  ],
-                  onChanged: (value) => setState(() {
-                    _season = value;
-                    _page = 0;
-                  }),
+                key: const Key('episode-browser-seasons'),
+                width: double.infinity,
+                height: targetHeight,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: seasons.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final value = seasons[index];
+                    return ChoiceChip(
+                      key: ValueKey('episode-browser-season-$value'),
+                      selected: value == season,
+                      label: Text('الموسم $value'),
+                      onSelected: (_) => setState(() {
+                        _season = value;
+                        _page = 0;
+                      }),
+                    );
+                  },
                 ),
               ),
             SizedBox(
@@ -148,7 +153,11 @@ class _EpisodeBrowserState extends State<EpisodeBrowser> {
                 initialValue: page,
                 itemHeight: targetHeight,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'نطاق الحلقات'),
+                decoration: const InputDecoration(
+                  labelText: 'نطاق الحلقات',
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
+                  isDense: true,
+                ),
                 items: [
                   for (var i = 0; i < count; i++)
                     DropdownMenuItem(

@@ -80,6 +80,15 @@ void main() {
       await settle(tester);
       expect(api.detailsCalls, 1);
       expect(find.text('الحلقة التالية'), findsOneWidget);
+      expect(find.byKey(const ValueKey('player-track-slot-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('player-track-slot-4')), findsOneWidget);
+      final center = tester.getCenter(find.byKey(const Key('player-more'))).dx;
+      final rowCenter = tester
+          .getCenter(find.byKey(const ValueKey('player-track-slot-2')))
+          .dx;
+      expect(center, closeTo(rowCenter, 0.5));
+      expect(find.byKey(const Key('player-previous-episode')), findsNothing);
+      expect(find.byKey(const Key('player-next-episode')), findsOneWidget);
       expect(find.text('00:00:00'), findsOneWidget);
       await tester.tap(find.byKey(const Key('player-control-lock')));
       await tester.pumpAndSettle();

@@ -49,15 +49,15 @@ bool _fontLicensesRegistered = false;
 const _brandAccent = NajdUi.accent;
 const _brandAccentMuted = NajdUi.accentLight;
 
-void main() => runApp(const MitvApp());
+void main() => runApp(const NajdApp());
 
-class MitvApp extends StatefulWidget {
-  const MitvApp({super.key});
+class NajdApp extends StatefulWidget {
+  const NajdApp({super.key});
   @override
-  State<MitvApp> createState() => _MitvAppState();
+  State<NajdApp> createState() => _NajdAppState();
 }
 
-class _MitvAppState extends State<MitvApp> with WidgetsBindingObserver {
+class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
   late final Future<LocalLibraryStore> storeFuture = LocalLibraryStore.create();
   final _pointer = VirtualPointerController();
   final _browserObserver = BrowserRouteObserver();

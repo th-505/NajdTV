@@ -35,8 +35,8 @@ class _ScrollToTopOverlayState extends State<ScrollToTopOverlay> {
             Positioned.fill(child: widget.child),
             if (_visible)
               Positioned(
-                left: 16,
-                bottom: MediaQuery.paddingOf(context).bottom + 100,
+                left: MediaQuery.paddingOf(context).left + 8,
+                bottom: MediaQuery.paddingOf(context).bottom + 144,
                 child: FloatingActionButton.small(
                   heroTag: null,
                   tooltip: 'الرجوع للأعلى',

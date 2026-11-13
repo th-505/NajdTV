@@ -1,6 +1,6 @@
 import 'download_cleanup_coordinator.dart';
 
-/// Browsers have no MITV Documents/Downloads directory or native download jobs.
+/// Browsers have no NajdTV Documents/Downloads directory or native download jobs.
 class StorageCleanup {
   const StorageCleanup._();
 

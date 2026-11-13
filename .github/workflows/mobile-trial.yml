@@ -300,7 +300,7 @@ jobs:
         shell: pwsh
         run: |
           $sourceRoot = (Resolve-Path flutter_app/build/windows/x64/runner/Release).Path
-          if (!(Test-Path "$sourceRoot/mitv.exe")) { throw 'Missing MITV executable' }
+          if (!(Test-Path "$sourceRoot/mitv.exe")) { throw 'Missing NajdTV executable' }
           $decoder = Get-ChildItem $sourceRoot -Filter '*mpv*.dll'
           if (!$decoder) { throw 'Missing bundled libmpv' }
           New-Item -ItemType Directory trial -Force | Out-Null

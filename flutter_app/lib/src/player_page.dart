@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'seek_burst.dart';
 import 'all_provider_search.dart';
 import 'playback_timeline.dart';
@@ -30,6 +28,7 @@ import 'cycle_feature_policy.dart';
 import 'stream_bridge.dart';
 import 'fullscreen_video_surface.dart';
 import 'download_service.dart';
+import 'system_volume.dart';
 
 import 'dart:async';
 
@@ -298,6 +297,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   bool _nativeFailureInFlight = false;
   double _playbackSpeed = 1.0;
   double _volume = 1.0;
+  final NajdSystemVolume _systemVolume = NajdSystemVolume();
+  StreamSubscription<double>? _systemVolumeSubscription;
   double _brightness = 1.0;
   bool _nativeBrightness = false;
   bool _fullscreen = true;
@@ -372,6 +373,12 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     unawaited(_rememberSelection());
     unawaited(_enterDisplay());
     unawaited(_readBrightness());
+    unawaited(_readSystemVolume());
+    _systemVolumeSubscription = _systemVolume.listen((value) {
+      if (!mounted) return;
+      setState(() => _volume = value);
+      unawaited(_controller?.setVolume(value));
+    });
     unawaited(_keepScreenOn(true));
   }
 
@@ -380,7 +387,27 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     if (state != AppLifecycleState.resumed) {
       unawaited(_endBoost());
       unawaited(_saveProgress(force: true));
+    } else {
+      unawaited(_readSystemVolume());
     }
+  }
+
+  Future<void> _readSystemVolume() async {
+    try {
+      final value = await _systemVolume.read();
+      if (!mounted || value == null) return;
+      setState(() => _volume = value);
+      await _controller?.setVolume(value);
+    } catch (_) {}
+  }
+
+  Future<void> _setVolume(double value) async {
+    final normalized = value.clamp(0.0, 1.0);
+    if (mounted) setState(() => _volume = normalized);
+    await Future.wait([
+      _controller?.setVolume(normalized) ?? Future<void>.value(),
+      _systemVolume.write(normalized),
+    ]);
   }
 
   List<EpisodeItem>? _loadedSourceQueue;
@@ -1182,7 +1209,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               child: FilledButton.tonal(
                 onPressed: enabled ? () => Navigator.pop(context, ep) : null,
                 style: FilledButton.styleFrom(
-                  minimumSize: Size(double.infinity, isTvTarget ? 80 : 64),
+                  minimumSize: Size(double.infinity, isTvTarget ? 80 : 48),
                 ),
                 child: Text(
                   ep.hasEpisodeNumber ? '${ep.number}' : label,
@@ -1196,12 +1223,12 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
             child: ListTile(
               selected: selected,
               enabled: enabled,
-              minTileHeight: isTvTarget ? 80 : 72,
+              minTileHeight: isTvTarget ? 80 : 52,
               leading: widget.item.poster.isEmpty
                   ? const Icon(Icons.play_circle_outline)
                   : SizedBox(
-                      width: 88,
-                      height: 56,
+                      width: 72,
+                      height: 44,
                       child: NajdPoster(url: widget.item.poster),
                     ),
               title: Text(label),
@@ -2022,6 +2049,26 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
             ],
             onSelected: _setPlaybackSpeed,
           ),
+          const SizedBox(height: 8),
+          Row(
+            key: const Key('player-more-display-row'),
+            children: [
+              for (final option in const [
+                ('zoom-in', 'تكبير', Icons.zoom_in),
+                ('zoom-out', 'تصغير', Icons.zoom_out),
+                ('zoom-reset', 'استعادة', Icons.center_focus_strong),
+                ('fit', 'الأبعاد', Icons.aspect_ratio),
+              ])
+                Expanded(
+                  child: IconButton(
+                    key: ValueKey('player-more-${option.$1}'),
+                    tooltip: option.$2,
+                    icon: Icon(option.$3),
+                    onPressed: () => Navigator.pop(panelContext, option.$1),
+                  ),
+                ),
+            ],
+          ),
           for (final option in [
             if (_pipAvailable)
               ('pip', 'صورة داخل صورة', Icons.picture_in_picture_alt),
@@ -2040,10 +2087,6 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                 'إرسال التشغيل إلى التلفزيون أو الكمبيوتر',
                 Icons.cast,
               ),
-            ('fit', 'أبعاد الفيديو', Icons.aspect_ratio),
-            ('zoom-in', 'تكبير 25%', Icons.zoom_in),
-            ('zoom-out', 'تصغير 25%', Icons.zoom_out),
-            ('zoom-reset', 'استعادة الحجم', Icons.center_focus_strong),
             if (_nextEpisode != null)
               ('next', 'الحلقة التالية', Icons.skip_next),
             if (!kIsWeb &&
@@ -2127,6 +2170,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     if (_browserRoute != null) BrowserNavigation().leaveContent(_browserRoute!);
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_pipSubscription?.cancel() ?? Future<void>.value());
+    unawaited(_systemVolumeSubscription?.cancel() ?? Future<void>.value());
+    unawaited(_systemVolume.dispose());
     unawaited(_pip.close());
     _boostSerial++;
     _boosting = false;
@@ -2623,14 +2668,24 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     final hasEpisodes =
         widget.item.type != 'movie' &&
         (_queue.isNotEmpty || widget.item.type == 'series');
+    final compact =
+        !isTvTarget && MediaQuery.sizeOf(context).shortestSide < 600;
+    const outline = <Shadow>[
+      Shadow(color: Colors.black, blurRadius: 2, offset: Offset(-1, 0)),
+      Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1, 0)),
+      Shadow(color: Colors.black, blurRadius: 2, offset: Offset(0, -1)),
+      Shadow(color: Colors.black, blurRadius: 2, offset: Offset(0, 1)),
+    ];
     final style = TextButton.styleFrom(
-      backgroundColor: Colors.black.withAlpha(170),
+      backgroundColor: Colors.transparent,
       foregroundColor: Colors.white,
-      side: const BorderSide(color: Colors.white54),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      minimumSize: Size(48, isTvTarget ? 64 : 48),
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      textStyle: const TextStyle(fontSize: 12),
+      minimumSize: Size(44, isTvTarget ? 64 : 44),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 6),
+      textStyle: TextStyle(
+        fontSize: compact ? 10 : 12,
+        shadows: outline,
+        fontWeight: FontWeight.w700,
+      ),
     );
     Widget button(String key, String title, VoidCallback action) => TextButton(
       key: Key(key),
@@ -2639,7 +2694,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       child: Text(title, textAlign: TextAlign.center),
     );
     final controls = <Widget>[
-      if (_previousEpisode != null)
+      if (hasEpisodes && _previousEpisode != null)
         button(
           'player-previous-episode',
           'الحلقة السابقة',
@@ -2656,14 +2711,12 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         key: const Key('player-more'),
         tooltip: 'المزيد',
         style: IconButton.styleFrom(
-          backgroundColor: Colors.black.withAlpha(170),
+          backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
-          side: const BorderSide(color: Colors.white54),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          minimumSize: Size.square(isTvTarget ? 64 : 48),
+          minimumSize: Size.square(isTvTarget ? 64 : 44),
         ),
         onPressed: () => _moreMenu(controller),
-        icon: const Icon(Icons.more_horiz),
+        icon: const Icon(Icons.more_horiz, shadows: outline),
       ),
       if (hasEpisodes)
         button(
@@ -2673,7 +2726,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         )
       else
         const SizedBox.shrink(),
-      if (_nextEpisode != null)
+      if (hasEpisodes && _nextEpisode != null)
         button(
           'player-next-episode',
           'الحلقة التالية',
@@ -2689,17 +2742,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           constraints: const BoxConstraints(maxWidth: 850),
           child: Row(
             children: [
-              for (final child in controls)
+              for (var index = 0; index < controls.length; index++)
                 Expanded(
-                  child: Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                        child: child,
-                      ),
-                    ),
-                  ),
+                  key: ValueKey('player-track-slot-$index'),
+                  child: Center(child: controls[index]),
                 ),
             ],
           ),
@@ -2854,7 +2900,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                 }
                               });
                               if (_gestureRight) {
-                                unawaited(active.setVolume(_volume));
+                                unawaited(_setVolume(_volume));
                               } else {
                                 unawaited(_setBrightness());
                               }
@@ -2891,13 +2937,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                 alignment: _gestureRight
                                     ? const Alignment(.5, 0)
                                     : const Alignment(-.5, 0),
-                                child: Container(
-                                  margin: const EdgeInsets.all(28),
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(28),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -2907,6 +2948,12 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                             : Icons.fast_rewind,
                                         color: Colors.white,
                                         size: 20,
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.black,
+                                            blurRadius: 3,
+                                          ),
+                                        ],
                                       ),
                                       Text(
                                         _seekFeedback,
@@ -2914,6 +2961,12 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                           fontFamily: 'ThmanyahSans',
                                           fontSize: 16,
                                           color: Colors.white,
+                                          shadows: [
+                                            Shadow(
+                                              color: Colors.black,
+                                              blurRadius: 3,
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
@@ -2994,8 +3047,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                       right: 0,
                       child: Center(
                         child: Material(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.transparent,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
@@ -3008,6 +3060,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
+                                shadows: [
+                                  Shadow(color: Colors.black, blurRadius: 3),
+                                ],
                               ),
                             ),
                           ),
@@ -3073,8 +3128,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                         label: 'الصوت',
                         icon: Icons.volume_up_outlined,
                         onChanged: (value) {
-                          setState(() => _volume = value);
-                          unawaited(active.setVolume(value));
+                          unawaited(_setVolume(value));
                         },
                       ),
                     ),
@@ -3107,7 +3161,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                       (_controlsVisible || _controlsLocked))
                     Positioned(
                       top: insets.top + 4,
-                      left: insets.left + 4,
+                      left: insets.left + 64,
                       child: _controlsLocked
                           ? IconButton.filledTonal(
                               key: const Key('player-control-lock'),
@@ -3126,16 +3180,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                 if (action == 'lock') {
                                   setState(() => _controlsLocked = true);
                                 }
-                                if (action == 'quality') {
-                                  await _qualityMenu(active);
-                                }
-                                if (action == 'fit') await _chooseFit();
                                 if (action == 'seasons') await _seasonMenu();
                                 if (action == 'fullscreen') {
                                   await _toggleFullscreen();
-                                }
-                                if (action == 'providers') {
-                                  await _providerCatalogue();
                                 }
                               },
                               itemBuilder: (_) => [
@@ -3158,18 +3205,6 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                 PopupMenuItem(
                                   value: 'lock',
                                   child: Text('قفل التحكم'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'quality',
-                                  child: Text('جودة الفيديو'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'fit',
-                                  child: Text('أبعاد الفيديو'),
-                                ),
-                                PopupMenuItem(
-                                  value: 'providers',
-                                  child: Text('البحث في جميع المصادر'),
                                 ),
                               ],
                             ),

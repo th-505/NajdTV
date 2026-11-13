@@ -5,7 +5,7 @@
 # $BranchName    : اسم الفرع الرئيسي في المستودع (غالباً main)
 # =========================================================
 
-$CommitMessage = "chore: clean repo bloat, remove symbols/zip, and unify MA TV branding"
+$CommitMessage = "chore: maintain NajdTV repository"
 $BranchName = "main"
 
 # التحقق من توفر أداة git وتحديد مسارها إن لم تكن في متغيرات البيئة

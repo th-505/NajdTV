@@ -4,6 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('MITV app root is a Flutter widget', () {
-    expect(const MitvApp(), isA<Widget>());
+    expect(const NajdApp(), isA<Widget>());
   });
 }

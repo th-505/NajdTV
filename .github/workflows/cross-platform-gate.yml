@@ -1,4 +1,4 @@
-name: MATV cross-platform source gate
+name: NajdTV cross-platform source gate
 on:
   push:
     branches: [main]

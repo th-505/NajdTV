@@ -8,7 +8,7 @@ void main() {
     'native system back pops the owned navigator instead of exiting the application',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
-      await tester.pumpWidget(const MitvApp());
+      await tester.pumpWidget(const NajdApp());
       await tester.pump(const Duration(seconds: 11));
       await tester.pump();
       final navigator = tester.state<NavigatorState>(
@@ -24,7 +24,7 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.text('native-back-fixture'), findsNothing);
-      expect(find.byType(MitvApp), findsOneWidget);
+      expect(find.byType(NajdApp), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
     },

@@ -176,6 +176,9 @@ void main() {
       expect(engines.last.seeks.first, const Duration(seconds: 40));
       expect(find.byKey(const Key('test-video-surface')), findsOneWidget);
       expect(find.byKey(const Key('player-more')), findsOneWidget);
+      expect(find.byKey(const Key('player-episodes')), findsNothing);
+      expect(find.byKey(const Key('player-previous-episode')), findsNothing);
+      expect(find.byKey(const Key('player-next-episode')), findsNothing);
       if (const String.fromEnvironment('MITV_TARGET') != 'tv') {
         final area = find.byKey(const Key('test-video-surface'));
         final origin = tester.getTopRight(area) - const Offset(30, -40);

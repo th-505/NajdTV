@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#07090b">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' blob: https:; worker-src 'self' blob:; frame-src 'none'">
-<title>مشغل MA TV</title>
+<title>مشغل نجد — NajdTV</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <script>
 // فلتر منع النوافذ المنبثقة والإعلانات المخفية برمجياً (Anti-Popup & Clickjack Interceptor)
@@ -23,13 +23,13 @@ if (typeof window !== 'undefined') {
 }
 </script>
 <style>
-:root{color-scheme:dark;--bg:#07090b;--panel:#121416;--muted:#a9a49a;--accent:#e8bd75;--gold2:#f3d7a0;--line:rgba(232,189,117,0.22)}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 80% -20%,#6d4d2535,transparent 35%),var(--bg);color:#fff;font-family:Tahoma,Arial,sans-serif;display:grid;place-items:center;padding:16px}.shell{width:min(1100px,100%)}.brand{display:flex;align-items:center;gap:9px;color:var(--gold2);font-weight:800;margin-bottom:12px}.mark{position:relative;width:34px;height:34px;border:3px solid var(--accent);border-radius:50%;display:inline-block}.mark:before{content:"";position:absolute;left:11px;top:7px;border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:11px solid var(--gold2)}.mark:after{content:"";position:absolute;width:12px;height:4px;right:-7px;bottom:0;background:var(--accent);transform:rotate(45deg);border-radius:4px}.player{aspect-ratio:16/9;background:#000;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 18px 60px #0008}.player video,.player iframe{width:100%;height:100%;border:0;display:block;background:#000}.bar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:12px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:14px}.status{color:var(--muted);font-size:14px}.servers{display:flex;gap:8px;flex-wrap:wrap}.servers button{border:1px solid var(--line);border-radius:10px;background:#1d2a40;color:#fff;padding:9px 12px;cursor:pointer}.servers button.active{background:var(--accent);color:#171006}.error{padding:28px;text-align:center;color:#ffd3d3}
+:root{color-scheme:dark;--bg:#08080e;--panel:#14131f;--muted:#bcb8cf;--accent:#9b99ff;--gold2:#cdccff;--line:#3d3658}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 80% -20%,#4d4c9a35,transparent 35%),var(--bg);color:#fff;font-family:Tahoma,Arial,sans-serif;display:grid;place-items:center;padding:16px}.shell{width:min(1100px,100%)}.brand{display:flex;align-items:center;gap:9px;color:var(--gold2);font-weight:800;margin-bottom:12px}.mark{width:34px;height:34px;object-fit:contain}.player{aspect-ratio:16/9;background:#000;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 18px 60px #0008}.player video,.player iframe{width:100%;height:100%;border:0;display:block;background:#000}.bar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:12px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:14px}.status{color:var(--muted);font-size:14px}.servers{display:flex;gap:8px;flex-wrap:wrap}.servers button{border:1px solid var(--line);border-radius:10px;background:#201d30;color:#fff;padding:9px 12px;cursor:pointer}.servers button.active{background:var(--accent);color:#19172c}.error{padding:28px;text-align:center;color:#ffd3d3}
 </style>
 </head>
 <body>
 <main class="shell">
-  <div class="brand"><span class="mark" aria-hidden="true"></span><span>MA TV</span></div>
+  <div class="brand"><img class="mark" src="assets/brand/najd-mark.png" alt=""><span>نجد — NajdTV</span></div>
   <div id="player" class="player"><div class="error">اختر مصدر تشغيل صالح.</div></div>
   <div class="bar"><div id="status" class="status">جاهز</div><div id="servers" class="servers"></div></div>
 </main>

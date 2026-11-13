@@ -245,7 +245,7 @@ function wrapEpisodes(episodes = []) {
 async function normalizeWorkerDetails(data = {}) {
   const normalized = {
     status: "success", source: "basri-worker",
-    movie_title: String(data.movie_title || data.title || "MITV"),
+    movie_title: String(data.movie_title || data.title || "NajdTV"),
     poster: String(data.poster || ""), episodes: wrapEpisodes(data.episodes || []),
     download_available: false, is_iframe: false,
   };
@@ -428,7 +428,7 @@ async function akoamMetadata(target) {
 
 async function directDetailsResolved(target) {
   const details = await akoamMetadata(target);
-  const base = { status: 'success', source: 'basri-direct', movie_title: details.movie_title || 'MITV',
+  const base = { status: 'success', source: 'basri-direct', movie_title: details.movie_title || 'NajdTV',
     poster: details.poster || '', episodes: wrapEpisodes(details.episodes || []), is_iframe: false, download_available: false };
   if (base.episodes.length) return base;
   if (!details.watch?.length && !details.downloads?.length) return { ...base, playback_unavailable:true, playback_reason:'NO_SAFE_DIRECT_MEDIA' };

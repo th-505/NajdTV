@@ -110,7 +110,7 @@ async function handleNewsRuntime(req, res, url, newsRuntime) {
   return sendRuntimeJson(req, res, 410, {
     status: "error",
     code: "NEWS_ENDPOINT_RETIRED",
-    message: "News section has been permanently removed from MITV.",
+    message: "News section has been permanently removed from NajdTV.",
   });
 }
 
@@ -179,7 +179,7 @@ export function createProductionServer({
 export function startProductionServer({ port = Number(process.env.PORT || 3000) } = {}) {
   const server = createProductionServer();
   return server.listen(port, "0.0.0.0", () => {
-    console.log(`MITV backend listening on ${port}`);
+    console.log(`NajdTV backend listening on ${port}`);
   });
 }
 

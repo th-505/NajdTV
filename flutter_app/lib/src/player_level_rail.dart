@@ -15,7 +15,7 @@ class PlayerLevelRail extends StatelessWidget {
   final ValueChanged<double> onChanged;
   @override
   Widget build(BuildContext context) => Material(
-    color: Colors.black54,
+    color: Colors.transparent,
     borderRadius: BorderRadius.circular(18),
     child: SizedBox(
       width: 52,
@@ -23,7 +23,12 @@ class PlayerLevelRail extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 8),
-          Icon(icon, color: Colors.white, size: 20),
+          Icon(
+            icon,
+            color: Colors.white,
+            size: 20,
+            shadows: const [Shadow(color: Colors.black, blurRadius: 3)],
+          ),
           Expanded(
             child: RotatedBox(
               quarterTurns: 3,
@@ -40,7 +45,11 @@ class PlayerLevelRail extends StatelessWidget {
           ),
           Text(
             '${(value * 100).round()}٪',
-            style: const TextStyle(color: Colors.white, fontSize: 11),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              shadows: [Shadow(color: Colors.black, blurRadius: 3)],
+            ),
           ),
           const SizedBox(height: 8),
         ],

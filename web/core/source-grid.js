@@ -1,5 +1,5 @@
 // =====================================================================
-// MA TV SUPREME 18-SOURCE SCRAPING GRID & 6 SUPERVISOR ARCHITECTURE
+// NajdTV source grid and provider supervisors.
 // =====================================================================
 
 export const SOURCE_SUPERVISORS = Object.freeze([

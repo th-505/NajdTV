@@ -33,7 +33,7 @@ def inspect(session, provider):
         current = url
         for _ in range(5):
             response = session.get(current, timeout=(5, 12), allow_redirects=False,
-                                   headers={"User-Agent": "MATV-provider-diagnostics/1.0"},
+                                   headers={"User-Agent": "NajdTV-provider-diagnostics/4.0"},
                                    stream=True)
             record["http_status"] = response.status_code
             if response.status_code in (301, 302, 303, 307, 308):

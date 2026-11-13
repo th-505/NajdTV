@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
-/// Controls MITV's pointer inside its Flutter surface, rather than an OS mouse.
+/// Controls NajdTV's pointer inside its Flutter surface, rather than an OS mouse.
 ///
 /// The TV shell owns and disposes this controller. It starts disabled so normal
 /// D-pad focus navigation remains the default. A settings switch can call
@@ -89,7 +89,7 @@ class _VirtualPointerScopeState extends State<VirtualPointerScope>
   static int _nextPointer = 1000000;
   final GlobalKey _surfaceKey = GlobalKey();
   final FocusNode _keyboardFocus = FocusNode(
-    debugLabel: 'MITV virtual pointer',
+    debugLabel: 'NajdTV virtual pointer',
     skipTraversal: true,
   );
   final Set<LogicalKeyboardKey> _held = <LogicalKeyboardKey>{};

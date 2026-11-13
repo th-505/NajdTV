@@ -29,15 +29,16 @@ Future<T?> showNajdPanel<T>(
   IconData icon = Icons.tune,
 }) {
   final wide = MediaQuery.sizeOf(context).width >= 700 || isTvTarget;
+  final compact = !wide && MediaQuery.sizeOf(context).shortestSide < 600;
   Widget panel(BuildContext context) => Directionality(
     textDirection: TextDirection.rtl,
     child: SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          20,
-          12,
-          20,
-          16 + MediaQuery.viewInsetsOf(context).bottom,
+          compact ? 12 : 20,
+          compact ? 6 : 12,
+          compact ? 12 : 20,
+          (compact ? 10 : 16) + MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -58,12 +59,15 @@ Future<T?> showNajdPanel<T>(
             Row(
               children: [
                 Icon(icon, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 12),
+                SizedBox(width: compact ? 8 : 12),
                 Expanded(
                   child: Text(
                     title,
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w800),
+                    style:
+                        (compact
+                                ? Theme.of(context).textTheme.titleMedium
+                                : Theme.of(context).textTheme.titleLarge)
+                            ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
                 IconButton(
@@ -100,7 +104,7 @@ Future<T?> showNajdPanel<T>(
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: 680,
-            maxHeight: MediaQuery.sizeOf(context).height * .88,
+            maxHeight: MediaQuery.sizeOf(context).height * .84,
           ),
           child: panel(context),
         ),
@@ -113,7 +117,7 @@ Future<T?> showNajdPanel<T>(
     useSafeArea: true,
     builder: (context) => ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * .9,
+        maxHeight: MediaQuery.sizeOf(context).height * .82,
       ),
       child: panel(context),
     ),
@@ -174,10 +178,10 @@ class _OptionTile<T extends Object> extends StatelessWidget {
             key: option.key,
             enabled: option.enabled,
             autofocus: autofocus,
-            minTileHeight: isTvTarget ? 76 : 64,
-            contentPadding: const EdgeInsets.symmetric(
+            minTileHeight: isTvTarget ? 76 : 52,
+            contentPadding: EdgeInsets.symmetric(
               horizontal: 16,
-              vertical: 6,
+              vertical: isTvTarget ? 6 : 2,
             ),
             leading: Icon(option.icon, color: colors.primary),
             title: Text(

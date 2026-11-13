@@ -137,7 +137,7 @@ export function normalizeTmdbItem(item, forcedType = null) {
     poster,
     img: poster,
     backdrop,
-    overview: item.overview || 'عمل درامي وسينمائي متوفر بجودة عالية ومصادر متعددة على منصة MA TV.',
+    overview: item.overview || 'عمل درامي وسينمائي متوفر بجودة عالية ومصادر متعددة على منصة نجد.',
     genreIds: item.genre_ids || [],
     originalLang: item.original_language || 'en',
     source: 'tmdb'

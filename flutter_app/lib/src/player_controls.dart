@@ -48,6 +48,17 @@ class _PlayerControlsState extends State<PlayerControls> {
 
   @override
   Widget build(BuildContext context) {
+    final compact =
+        !widget.isTv && MediaQuery.sizeOf(context).shortestSide < 600;
+    final side = compact ? 52.0 : (widget.isTv ? 88.0 : 76.0);
+    final sideHeight = compact ? 48.0 : (widget.isTv ? 80.0 : 72.0);
+    final play = compact ? 58.0 : (widget.isTv ? 96.0 : 84.0);
+    const outline = <Shadow>[
+      Shadow(color: Colors.black, blurRadius: 1, offset: Offset(-1, 0)),
+      Shadow(color: Colors.black, blurRadius: 1, offset: Offset(1, 0)),
+      Shadow(color: Colors.black, blurRadius: 1, offset: Offset(0, -1)),
+      Shadow(color: Colors.black, blurRadius: 1, offset: Offset(0, 1)),
+    ];
     return Directionality(
       textDirection: TextDirection.ltr,
       child: FocusTraversalGroup(
@@ -55,19 +66,18 @@ class _PlayerControlsState extends State<PlayerControls> {
         child: Wrap(
           alignment: WrapAlignment.center,
           crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 12,
+          spacing: compact ? 6 : 12,
           runSpacing: 8,
           children: [
-            IconButton.filledTonal(
+            IconButton(
               style: IconButton.styleFrom(
-                backgroundColor: Colors.black54,
+                backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
-                minimumSize: Size(widget.isTv ? 88 : 76, widget.isTv ? 80 : 72),
+                minimumSize: Size(side, sideHeight),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
-                iconSize: 36,
-                side: const BorderSide(color: Colors.white24),
+                iconSize: compact ? 27 : 36,
               ),
               key: const Key('player-rewind'),
               focusNode: _rewindFocus,
@@ -76,48 +86,51 @@ class _PlayerControlsState extends State<PlayerControls> {
               icon: Stack(
                 alignment: Alignment.center,
                 children: [
-                  const Icon(Icons.replay),
+                  const Icon(Icons.replay, shadows: outline),
                   Padding(
                     padding: EdgeInsets.only(top: 3),
                     child: Text(
                       '${widget.seekSeconds}',
                       style: TextStyle(
                         fontFamily: 'ThmanyahSans',
-                        fontSize: 11,
+                        fontSize: compact ? 9 : 11,
                         color: Colors.white,
+                        shadows: outline,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            IconButton.filled(
+            IconButton(
               key: const Key('player-play-toggle'),
               style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFF6B46C1),
+                backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
-                minimumSize: Size(widget.isTv ? 96 : 84, widget.isTv ? 88 : 80),
+                minimumSize: Size(play, compact ? 54 : (widget.isTv ? 88 : 80)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
-                iconSize: 40,
+                iconSize: compact ? 36 : 40,
               ),
               focusNode: _playFocus,
               autofocus: widget.isTv,
               tooltip: widget.isPlaying ? 'إيقاف مؤقت' : 'تشغيل',
               onPressed: widget.onTogglePlay,
-              icon: Icon(widget.isPlaying ? Icons.pause : Icons.play_arrow),
+              icon: Icon(
+                widget.isPlaying ? Icons.pause : Icons.play_arrow,
+                shadows: outline,
+              ),
             ),
-            IconButton.filledTonal(
+            IconButton(
               style: IconButton.styleFrom(
-                backgroundColor: Colors.black54,
+                backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
-                minimumSize: Size(widget.isTv ? 88 : 76, widget.isTv ? 80 : 72),
+                minimumSize: Size(side, sideHeight),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
-                iconSize: 36,
-                side: const BorderSide(color: Colors.white24),
+                iconSize: compact ? 27 : 36,
               ),
               key: const Key('player-forward'),
               focusNode: _forwardFocus,
@@ -126,15 +139,16 @@ class _PlayerControlsState extends State<PlayerControls> {
               icon: Stack(
                 alignment: Alignment.center,
                 children: [
-                  const Icon(Icons.rotate_right),
+                  const Icon(Icons.rotate_right, shadows: outline),
                   Padding(
                     padding: EdgeInsets.only(top: 3),
                     child: Text(
                       '${widget.seekSeconds}',
                       style: TextStyle(
                         fontFamily: 'ThmanyahSans',
-                        fontSize: 11,
+                        fontSize: compact ? 9 : 11,
                         color: Colors.white,
+                        shadows: outline,
                       ),
                     ),
                   ),

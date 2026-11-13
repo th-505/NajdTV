@@ -89,7 +89,7 @@ class DownloadService {
 
   Future<DownloadResult> download(
     Uri uri, {
-    String fallbackName = 'mitv-media',
+    String fallbackName = 'najdtv-media',
     Map<String, String> headers = const {},
     String? resumeKey,
     DownloadProgressCallback? onProgress,
@@ -858,7 +858,7 @@ class DownloadService {
       '_',
     );
     final compact = normalized.replaceAll(RegExp(r'\s+'), ' ');
-    return compact.isEmpty ? 'mitv-media' : compact;
+    return compact.isEmpty ? 'najdtv-media' : compact;
   }
 
   void close() => _client.close();

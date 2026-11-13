@@ -188,7 +188,7 @@ export function startMitvRuntimeServer({ port = Number(process.env.PORT || 3000)
 
   const server = createMitvRuntimeServer();
   return server.listen(port, "0.0.0.0", () => {
-    console.log(`MITV backend listening on ${port}`);
+    console.log(`NajdTV backend listening on ${port}`);
   });
 }
 

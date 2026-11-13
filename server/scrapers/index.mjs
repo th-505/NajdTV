@@ -4,7 +4,7 @@ import { createContentDiscovery } from './content-discovery.mjs';
 import { PROVIDERS_MAP, getProvider } from './registry.mjs';
 import { searchSource, searchAllSources } from './source-registry.mjs';
 // =====================================================================
-// MA TV SUPREME REAL SCRAPERS MASTER ENGINE (ZERO IFRAMES DIRECT RESOLUTION)
+// NajdTV guarded provider registry (direct media only; no iframe execution).
 // =====================================================================
 
 import { scrapeMyCimaCategory, searchMyCima, extractMyCimaStreamsAndEpisodes } from './sites/mycima.mjs';

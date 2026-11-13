@@ -90,14 +90,32 @@ void main() {
       );
       expect(find.byKey(const ValueKey('item-s1e1080')), findsOneWidget);
       expect(find.byKey(const ValueKey('item-s2e1')), findsNothing);
-      await tester.tap(find.byType(DropdownButton<int>).first);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('الموسم 2').last);
+      expect(find.byKey(const Key('episode-browser-seasons')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('episode-browser-season-2')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('item-s2e1')), findsOneWidget);
       expect(find.byKey(const ValueKey('item-s1e1080')), findsNothing);
     },
   );
+  testWidgets('all observed seasons are visible as ordered mobile tabs', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      app([
+        episode(1),
+        episode(1, season: 2),
+        episode(1, season: 3),
+      ], seasons: true),
+    );
+    expect(find.text('الموسم 1'), findsOneWidget);
+    expect(find.text('الموسم 2'), findsOneWidget);
+    expect(find.text('الموسم 3'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
     'narrow layouts and enlarged text retain controls without overflow',
     (tester) async {

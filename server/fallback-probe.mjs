@@ -86,7 +86,7 @@ export async function probeFallbackTarget(target, {
       signal: controller.signal,
       headers: {
         Accept: "video/mp4,application/vnd.apple.mpegurl,application/x-mpegurl,video/mp2t,text/html;q=0.7,*/*;q=0.2",
-        "User-Agent": "MITV-Runtime/1.0 metadata-probe",
+        "User-Agent": "NajdTV-Runtime/4.0 metadata-probe",
       },
     });
 
