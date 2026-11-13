@@ -95,6 +95,7 @@ export const LAROZA_SITE_CONFIG = Object.freeze({
   playerHosts: [
     'mp5.okhd.site',
     'mp4plus.org',
+    'anafast.org',
     'vidspeed.org',
     'vidmoly.net',
     'vidmoly.biz'

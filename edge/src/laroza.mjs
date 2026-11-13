@@ -7,8 +7,8 @@ const MOVIE_CATEGORIES = ["all_movies_13", "arabic-movies35", "indian-movies9", 
 const FEED_GENRES = { all_movies_13: "foreign", "arabic-movies35": "arabic", "indian-movies9": "indian", "6-asian-movies": "asian", "anime-movies-7": "anime", "7-aflammdblgh": "dubbed", "8-aflam3isk": "turkish" };
 export const LAROZA_CONFIG = Object.freeze({
   provider: "laroza", label: "Laroza", origin: "https://laroza1.site",
-  pageHosts: ["laroza1.site", "mp5.okhd.site", "mp4plus.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
-  playerHosts: ["mp5.okhd.site", "mp4plus.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
+  pageHosts: ["laroza1.site", "mp5.okhd.site", "mp4plus.org", "anafast.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
+  playerHosts: ["mp5.okhd.site", "mp4plus.org", "anafast.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
   mediaHosts: ["cdn2.okprimeone.site", "*.cdnz.quest", "*.vmget.online"],
   imageHosts: ["laroza1.site"], subtitleHosts: ["laroza1.site", "cdn2.okprimeone.site", "*.cdnz.quest", "*.vmget.online"],
   fetchBudget: 40, timeoutMs: 8000,
@@ -406,7 +406,7 @@ export function createLarozaEdge({ fetchImpl = fetch, config = LAROZA_CONFIG, no
     const source = decodeLarozaRef(ref, config, true), r = await page(source), root = tree(r.html);
     const area = nodes(root, (n) => hasClass(n, "WatchList"))[0];
     if (!area) throw Error("LAROZA_SERVERS_NOT_FOUND");
-    const preferred = ["mp5.okhd.site", "vidspeed.org", "vidmoly.net", "vidmoly.biz", "mp4plus.org"], picked = new Map();
+    const preferred = ["anafast.org", "mp5.okhd.site", "vidspeed.org", "vidmoly.net", "vidmoly.biz", "mp4plus.org"], picked = new Map();
     for (const n of nodes(area, (n) => n.tag === "li" && n.a["data-embed-url"])) {
       try { const u = pageUrl(n.a["data-embed-url"]); if (config.playerHosts.includes(u.hostname)) picked.set(u.hostname === "vidmoly.biz" ? "vidmoly.net" : u.hostname, u); } catch {}
     }

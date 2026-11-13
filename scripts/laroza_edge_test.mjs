@@ -56,6 +56,7 @@ assert.equal(larozaExpiry(new URL("https://cdn2.okprimeone.site/a.m3u8?expires="
 assert.throws(() => larozaExpiry(new URL("https://cdn2.okprimeone.site/a.m3u8?exp=1"), now), /EXPIRED/);
 
 const media = {
+ "anafast.org": "https://fixture.cdnz.quest/anafast.mp4",
  "mp5.okhd.site": "https://cdn2.okprimeone.site/hls/demo/master.m3u8",
  "vidspeed.org": "https://fixture.cdnz.quest/hls/demo/master.m3u8",
  "vidmoly.biz": "https://fixture.vmget.online/hls/demo/master.m3u8",
@@ -92,6 +93,7 @@ function fetcher({ fail = false, allFail = false, redirectPrivate = false, overl
 const live = fetcher(), engine = createLarozaEdge({ fetchImpl: live.fn, now: () => now });
 const resolved = await engine.resolve(play);
 assert.equal(resolved.sources.length, 4);
+assert(resolved.sources.some((s) => s.server === "anafast.org" && s.format === "mp4"));
 assert(resolved.fetches <= 40);
 assert(resolved.sources.every((s) => s.provider_id === "laroza" && s.playback_mode === "edge_direct" && Date.parse(s.expires_at) === now + 240000));
 assert.equal(resolved.sources.find((s) => s.format === "mp4").web_playable, false);

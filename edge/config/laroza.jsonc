@@ -8,8 +8,8 @@
   "vars": {
     "PROVIDER_CONFIG": {
       "provider": "laroza", "label": "Laroza", "origin": "https://laroza1.site",
-      "pageHosts": ["laroza1.site", "mp5.okhd.site", "mp4plus.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
-      "playerHosts": ["mp5.okhd.site", "mp4plus.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
+      "pageHosts": ["laroza1.site", "mp5.okhd.site", "mp4plus.org", "anafast.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
+      "playerHosts": ["mp5.okhd.site", "mp4plus.org", "anafast.org", "vidspeed.org", "vidmoly.net", "vidmoly.biz"],
       "mediaHosts": ["cdn2.okprimeone.site", "*.cdnz.quest", "*.vmget.online"],
       "imageHosts": ["laroza1.site"],
       "subtitleHosts": ["laroza1.site", "cdn2.okprimeone.site", "*.cdnz.quest", "*.vmget.online"],
