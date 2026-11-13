@@ -894,7 +894,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
             const details = isScraperRef
               ? await scrapeRealDetails(ref)
               : ref.startsWith("laroza:")
-              ? await larozaRuntime.details(ref, {})
+              ? await larozaRuntime.resolve(ref)
               : ref.startsWith("alooy:")
               ? await alooyRuntime.details(ref, {refresh:true})
               : ref.startsWith("3isk:")

@@ -3,6 +3,7 @@ import { providerContract } from '../../shared/provider-contract.js';
 import { boundedPage, validOffset } from '../../shared/provider-pagination.js';
 import {explicitEpisode} from '../../shared/content-identity.js';
 import { TtlCache, normalizeCatalogItem } from '../content-runtime.mjs';
+import { createLarozaEdge, LAROZA_CONFIG } from '../../edge/src/laroza.mjs';
 
 const DEFAULT_EDGE = 'https://matv-edge-resolver.dada1000100.workers.dev';
 const MAX_JSON_BYTES = 2 * 1024 * 1024;
@@ -69,6 +70,7 @@ function createLarozaProviderRaw({
   fetchImpl = globalThis.fetch,
   now = Date.now,
   cache = new TtlCache({ maxEntries:96 }),
+  resolveEngineFactory = createLarozaEdge,
 } = {}) {
   const base = new URL(edgeBase);
   if (base.protocol !== 'https:' || base.username || base.password || base.port || base.search || base.hash || base.pathname !== '/')
@@ -146,6 +148,21 @@ function createLarozaProviderRaw({
         ...(episodes.length ? {} : {playback_unavailable:true, playback_reason:'EDGE_DIRECT_RESOLUTION_REQUIRED'}) };
     },
     details(ref, options) { return this.metadata(ref, options); },
+    async resolve(ref) {
+      assertLarozaRef(ref);
+      // Cloudflare egress is periodically blocked by otherwise reviewed player
+      // hosts. The Node fallback reuses the exact Edge parser/host policy, but
+      // every outbound hop still passes the shared DNS-aware SSRF client.
+      const engine = resolveEngineFactory({
+        config:LAROZA_CONFIG,
+        fetchImpl:(target, options) => guardedProviderFetch(target, options, {
+          fetchImpl, providerId:'laroza', timeoutMs:8000,
+          maxBytes:512 * 1024, returnHttpErrors:true,
+        }),
+      });
+      const result = await engine.resolve(ref);
+      return { ...result, ref, media_sources:result.sources };
+    },
     status() { return { provider:'laroza', enabled, availability_reason:enabled?null:'LAROZA_SOURCE_REDIRECT_REQUIRES_REVIEW', playback_mode:'edge_direct', media_proxy:false, metadata_only:true, cache_entries:cache.size }; },
   };
 }

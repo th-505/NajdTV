@@ -50,6 +50,13 @@ assert.equal(details.movie_title,item.title);assert.equal(details.description,'S
 assert.equal(details.episodes[0].ref,episodeRef);assert.equal(details.episodes[0].episode_number,2);
 assert.equal(details.media_path,undefined);assert.equal(details.iframe_url,undefined);assert.deepEqual(details.media_sources,[]);
 assert.equal(details.is_iframe,false);assert.equal(details.download_available,false);
+let resolveCalls=0;
+const resolving=createLarozaProvider({enabled:true,edgeBase:'https://edge.test',fetchImpl:async()=>{throw Error('resolver factory must own source access');},
+  resolveEngineFactory:()=>({resolve:async(value)=>{resolveCalls++;assert.equal(value,ref);return {status:'success',source:'laroza',sources:[{provider_id:'laroza',url:'https://fixture.cdnz.quest/video.mp4',format:'mp4',headers:{Referer:'https://anafast.org/embed-fixture.html'}}]};}})});
+const firstResolve=await resolving.resolve(ref),secondResolve=await resolving.resolve(ref);
+assert.equal(resolveCalls,2,'temporary playback links are resolved fresh per request');
+assert.equal(firstResolve.media_sources[0].url,'https://fixture.cdnz.quest/video.mp4');
+assert.notEqual(firstResolve,secondResolve);
 const before=calls.length;
 await assert.rejects(provider.category('unknown',1),/LAROZA_BAD_CATEGORY/);
 await assert.rejects(provider.category('laroza-movies',1.5),/LAROZA_BAD_CATEGORY/);
@@ -67,7 +74,7 @@ const combined=await integrated.search('Title');
 assert.equal(combined.data.length,2,'same title/year must not merge different source identities on the server');
 assert.equal(combined.data.find(r=>r.source==='laroza').imdb_id,item.imdb_id);
 assert.equal(combined.data.find(r=>r.source==='akoam').audio_language,'');
-const server=createServer({iskRuntime:noSource,alooyRuntime:noSource,larozaRuntime:provider,runtimeService:integrated});
+const server=createServer({iskRuntime:noSource,alooyRuntime:noSource,larozaRuntime:{...provider,resolve:resolving.resolve},runtimeService:integrated});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const base=`http://127.0.0.1:${server.address().port}`;
 try {
@@ -83,6 +90,8 @@ try {
   assert.equal(metadata.source,'laroza');assert.equal(metadata.episodes[0].ref,episodeRef);assert.equal(metadata.media_path,undefined);
   const detail=await (await fetch(base+'/api/cinema/details?ref='+encodeURIComponent(ref))).json();
   assert.equal(detail.episodes.length,1);assert(!JSON.stringify(detail).includes('ads.test'));
+  const playback=await (await fetch(base+'/api/v1/resolve?ref='+encodeURIComponent(ref))).json();
+  assert.equal(playback.status,'success');assert.equal(playback.servers[0].url,'https://fixture.cdnz.quest/video.mp4');
   const rejected=await fetch(base+'/api/cinema/details?ref=laroza:bad');assert.equal(rejected.status,400);
   const retired=await fetch(base+'/api/cinema/media?id=laroza&download=1');assert.equal(retired.status,410);
 } finally {server.closeAllConnections();await new Promise(r=>server.close(r));}
