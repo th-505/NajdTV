@@ -25,7 +25,7 @@ export const PROVIDER_META = Object.freeze({
   id: 'ristoanime',
   name: 'RistoAnime',
   code: 'RE',
-  domains: ['https://ristoanime.me', 'https://ristoanime.com'],
+  domains: ['https://ristoanime.cc', 'https://ristoanime.me', 'https://ristoanime.com'],
   mirrorOf: null,
   capabilities: {
     catalog: true,
@@ -48,9 +48,9 @@ export const RISTOANIME_CONFIG = Object.freeze({
   key: 'ristoanime',
   name: 'RistoAnime',
   code: 'RE',
-  baseUrl: 'https://ristoanime.me',
+  baseUrl: 'https://ristoanime.cc',
   fallbackUrl: 'https://ristoanime.com',
-  domains: ['https://ristoanime.me', 'https://ristoanime.com'],
+  domains: ['https://ristoanime.cc', 'https://ristoanime.me', 'https://ristoanime.com'],
   categories: {
     series: '/series/',
     anime_series: '/series/',

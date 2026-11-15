@@ -2,10 +2,11 @@
 
 هذا تقرير آلي ساكن؛ لا يرسل أي طلب للمزودين ولا يثبت نجاح التشغيل.
 
-- قواشط نجد: **25**؛ قواشط البيتا: **25**؛ مجموع وحدات التنفيذ المنفصلة: **50**.
-- وحدات مواقع ذات تعريف PROVIDER_META: **25**؛ المسجل منها: **25**.
-- مرآتان مصرح بهما في التعريف: **2**؛ الوحدات غير الموسومة كمرآة: **23**. هذا لا يثبت استقلال مالكي المواقع.
-- مصادر الواجهة المستنتجة من الشفرة: **0**؛ وحدات البحث المثبت المربوطة برمجيًا: **23**.
+- قواشط نجد: **28**؛ قواشط البيتا: **28**؛ مجموع وحدات التنفيذ المنفصلة: **56**.
+- المعروضة افتراضيًا: **25**؛ وحدات التوافق القديمة المخفية: **3**. لا يتم تحويل المراجع القديمة إلى مصدر آخر تلقائيًا.
+- وحدات مواقع ذات تعريف PROVIDER_META: **28**؛ المسجل منها: **28**.
+- مرآتان مصرح بهما في التعريف: **2**؛ الوحدات غير الموسومة كمرآة: **26**. هذا لا يثبت استقلال مالكي المواقع.
+- مصادر الواجهة المستنتجة من الشفرة: **0**؛ وحدات البحث المثبت المربوطة برمجيًا: **26**.
 - مصدر قائمة الواجهة مصفوفة ثابتة في index.html.
 - بذور فحص بلا وحدة مسجلة: **6**؛ ليست مزودين عاملين.
 
@@ -20,9 +21,11 @@
 | `alooy` | — | catalog, search, details, episodes, servers, resolve | — | alooy | `server/scrapers/sites/alooy.mjs:53` |
 | `anime4up` | — | catalog, search, details, episodes, servers, resolve | — | anime4up | `server/scrapers/sites/anime4up.mjs:50` |
 | `anime4up_rest` | anime4up | catalog, search, details, episodes, servers, resolve | — | anime4up_rest | `server/scrapers/sites/anime4up_rest.mjs:21` |
+| `animezid` | — | catalog, search, details, episodes, servers, resolve | — | animezid | `server/scrapers/sites/animezid.mjs:3` |
 | `arabseed` | — | catalog, search, details, episodes, servers, resolve | — | arabseed | `server/scrapers/sites/arabseed.mjs:34` |
 | `brstej` | — | catalog, search, details, episodes, servers, resolve | — | brstej | `server/scrapers/sites/brstej.mjs:13` |
 | `cimanow` | — | catalog, search, details, episodes, servers, resolve | — | cimanow | `server/scrapers/sites/cimanow.mjs:32` |
+| `egybest` | — | catalog, search, details, episodes, servers, resolve | — | egybest | `server/scrapers/sites/egybest.mjs:3` |
 | `egydead` | — | catalog, search, details, episodes, servers, resolve, live | — | egydead | `server/scrapers/sites/egydead.mjs:50` |
 | `egydead_live` | — | catalog, details, servers, resolve, live | — | — | `server/scrapers/sites/egydead_live.mjs:37` |
 | `fivetv` | — | catalog, search, details, episodes, servers, resolve | — | fivetv | `server/scrapers/sites/fivetv.mjs:18` |
@@ -30,11 +33,12 @@
 | `ipauniverse` | — | catalog, search, details, servers, resolve | — | ipauniverse | `server/scrapers/sites/ipauniverse.mjs:54` |
 | `laroza` | — | catalog, search, details, episodes, servers, resolve | — | laroza | `server/scrapers/sites/laroza.mjs:60` |
 | `mewsry` | — | catalog, search, details, servers, resolve, live | — | mewsry | `server/scrapers/sites/mewsry.mjs:51` |
+| `movizland` | — | catalog, search, details, episodes, servers, resolve | — | movizland | `server/scrapers/sites/movizland.mjs:3` |
 | `moviztime` | — | catalog, search, details, episodes, servers, resolve | — | moviztime | `server/scrapers/sites/moviztime.mjs:32` |
-| `mycima` | — | catalog, search, details, episodes, servers, resolve | — | mycima, wecima | `server/scrapers/sites/mycima.mjs:48` |
+| `mycima` | — | catalog, search, details, episodes, servers, resolve | — | mycima, wecima | `server/scrapers/sites/mycima.mjs:49` |
 | `qfilm` | — | catalog, search, details, episodes, servers, resolve | — | qfilm | `server/scrapers/sites/qfilm.mjs:38` |
 | `ristoanime` | — | catalog, search, details, episodes, servers, resolve | — | ristoanime | `server/scrapers/sites/ristoanime.mjs:24` |
-| `shahid4u` | — | catalog, search, details, episodes, servers, resolve | — | shahid4u | `server/scrapers/sites/shahid4u.mjs:48` |
+| `shahid4u` | — | catalog, search, details, episodes, servers, resolve | — | shahid4u | `server/scrapers/sites/shahid4u.mjs:49` |
 | `shii4u` | shahid4u | catalog, search, details, episodes, servers, resolve | — | shii4u | `server/scrapers/sites/shii4u.mjs:23` |
 | `witanime` | — | catalog, search, details, episodes, servers, resolve | — | witanime | `server/scrapers/sites/witanime.mjs:52` |
 | `yallashoot` | — | catalog, details, servers, resolve, live | — | — | `server/scrapers/sites/yallashoot.mjs:30` |
@@ -52,9 +56,11 @@
 | `alooy` | — | `server/browser/providers/sites/alooy.mjs` |
 | `anime4up` | — | `server/browser/providers/sites/anime4up.mjs` |
 | `anime4up_rest` | anime4up | `server/browser/providers/sites/anime4up_rest.mjs` |
+| `animezid` | — | `server/browser/providers/sites/animezid.mjs` |
 | `arabseed` | — | `server/browser/providers/sites/arabseed.mjs` |
 | `brstej` | — | `server/browser/providers/sites/brstej.mjs` |
 | `cimanow` | — | `server/browser/providers/sites/cimanow.mjs` |
+| `egybest` | — | `server/browser/providers/sites/egybest.mjs` |
 | `egydead` | — | `server/browser/providers/sites/egydead.mjs` |
 | `egydead_live` | — | `server/browser/providers/sites/egydead_live.mjs` |
 | `fivetv` | — | `server/browser/providers/sites/fivetv.mjs` |
@@ -62,6 +68,7 @@
 | `ipauniverse` | — | `server/browser/providers/sites/ipauniverse.mjs` |
 | `laroza` | — | `server/browser/providers/sites/laroza.mjs` |
 | `mewsry` | — | `server/browser/providers/sites/mewsry.mjs` |
+| `movizland` | — | `server/browser/providers/sites/movizland.mjs` |
 | `moviztime` | — | `server/browser/providers/sites/moviztime.mjs` |
 | `mycima` | — | `server/browser/providers/sites/mycima.mjs` |
 | `qfilm` | — | `server/browser/providers/sites/qfilm.mjs` |

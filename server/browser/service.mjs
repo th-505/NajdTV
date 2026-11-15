@@ -300,15 +300,18 @@ export function createBrowserWorkService({
             if (work.seen.has(url)) continue;
             work.seen.add(url);
             try {
-              const response = await fetchPage(url, {
-                ...network,
-                allowedHosts: work.domains,
-                providerId: work.provider,
+              let observedPage=null;
+              const details = await work.adapter.module.scrapeDetails(url,{...network,onProviderPage:page=>{observedPage=page}});
+              const response = observedPage?.url===url && typeof observedPage.html==='string' ? observedPage : await fetchPage(url, {
+                ...network, allowedHosts: work.domains, providerId: work.provider,
               });
-              const details = await work.adapter.module.scrapeDetails(url,network);
+              const rootUrl=new URL(work.root), pageUrl=new URL(url);
+              const ownedSeason=work.provider==='animezid' && /^\/series\/[^/]+\/$/.test(rootUrl.pathname) &&
+                pageUrl.origin===rootUrl.origin && pageUrl.pathname.startsWith(rootUrl.pathname+'season/') &&
+                /^\d+\/$/.test(pageUrl.pathname.slice((rootUrl.pathname+'season/').length));
               if (!details?.title) throw Error("BROWSER_METADATA_MISSING");
               if (
-                work.title &&
+                work.title && !ownedSeason &&
                 (identityTitle(details.title) !== identityTitle(work.title) ||
                   (work.details.year &&
                     details.year &&
@@ -322,7 +325,7 @@ export function createBrowserWorkService({
               );
               if(details.observed_parent_ref){const parent=referenceUrl(details.observed_parent_ref,work.domains);if(parent!==url&&!graph.parents.includes(parent))graph.parents.unshift(parent);}
               work.title = work.title || details.title;
-              work.details = {
+              if(!ownedSeason) work.details = {
                 ...work.details,
                 ...Object.fromEntries(
                   [

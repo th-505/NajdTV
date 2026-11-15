@@ -180,6 +180,7 @@ class LocalLibraryStore extends ChangeNotifier {
   static const _historyKey = 'library.history.v1';
   static const _legacySnapshotKey = 'library.snapshot.v2';
   String _storageOwner = '';
+  String get ownerScope => _storageOwner;
   String get _snapshotKey => _storageOwner.isEmpty
       ? _legacySnapshotKey
       : 'library.snapshot.v2.owner.$_storageOwner';

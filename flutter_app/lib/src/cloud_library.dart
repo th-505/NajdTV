@@ -13,6 +13,11 @@ import 'supabase_config.dart';
 import 'app_target.dart';
 import 'watch_identity.dart';
 
+bool hasRegisteredNajdAccount(SupabaseClient? client) {
+  final user = client?.auth.currentUser;
+  return user != null && !user.isAnonymous && user.emailConfirmedAt != null;
+}
+
 /// Small, owner-scoped adapter: no video URLs, service keys or Realtime sockets.
 abstract interface class LibraryCloudTransport {
   String get ownerId;
@@ -100,7 +105,7 @@ class SupabaseLibraryTransport
   }
 }
 
-/// Authentication is retried by the same bounded sync loop. A temporary first-
+/// Existing account authentication is retried by the bounded sync loop. A temporary first-
 /// launch outage does not require restarting the app or replacing a saved owner.
 class AnonymousLibraryTransport extends SupabaseLibraryTransport {
   AnonymousLibraryTransport(SupabaseClient client, this._prefs)
@@ -136,22 +141,10 @@ class AnonymousLibraryTransport extends SupabaseLibraryTransport {
 
   Future<void> _prepare() async {
     final deviceId = await CloudLibrarySync.deviceIdFor(_prefs);
-    var session = client.auth.currentSession;
+    final session = client.auth.currentSession;
     final previousOwner = _prefs.getString(_ownerKey);
-    if (session == null) {
-      if (previousOwner != null) {
-        throw StateError('SAVED_LIBRARY_SESSION_REQUIRED');
-      }
-      session = (await client.auth.signInAnonymously().timeout(
-        const Duration(seconds: 20),
-      )).session;
-      if (session == null) throw StateError('ANONYMOUS_SESSION_MISSING');
-      final storage = SharedPreferencesLocalStorage(
-        persistSessionKey:
-            'sb-${Uri.parse(mitvSupabaseUrl).host.split('.').first}-auth-token',
-      );
-      await storage.initialize();
-      await storage.persistSession(jsonEncode(session.toJson()));
+    if (session == null || !hasRegisteredNajdAccount(client)) {
+      throw StateError('ACCOUNT_SIGN_IN_REQUIRED');
     }
     final owner = session.user.id;
     if (previousOwner != null && previousOwner != owner) {
@@ -185,7 +178,7 @@ class AnonymousLibraryTransport extends SupabaseLibraryTransport {
   }
 }
 
-/// One durable anonymous session per installation. Removing browsing cache never
+/// Explicit account sessions; legacy anonymous identities can be upgraded in place. Removing browsing cache never
 /// touches the SDK session, device UUID or the owner-scoped incremental cursor.
 class CloudLibrarySync with WidgetsBindingObserver {
   CloudLibrarySync._(
@@ -305,7 +298,7 @@ class CloudLibrarySync with WidgetsBindingObserver {
     final sync = await _startingDefault;
     await sync?.syncNow();
     final sdk = await _initializing;
-    if (sdk?.client.auth.currentUser == null) {
+    if (!hasRegisteredNajdAccount(sdk?.client)) {
       throw StateError('ACCOUNT_UNAVAILABLE');
     }
     return sdk!.client
@@ -336,7 +329,7 @@ class CloudLibrarySync with WidgetsBindingObserver {
       await (sync!.transport as AnonymousLibraryTransport).prepare();
     }
     final sdk = await _initializing;
-    if (sdk?.client.auth.currentUser == null) {
+    if (!hasRegisteredNajdAccount(sdk?.client)) {
       throw StateError('ACCOUNT_UNAVAILABLE');
     }
     return sdk!.client
@@ -375,7 +368,7 @@ class CloudLibrarySync with WidgetsBindingObserver {
     final sync = await _startingDefault;
     await sync?.syncNow();
     final sdk = await _initializing;
-    if (sdk?.client.auth.currentUser == null) {
+    if (!hasRegisteredNajdAccount(sdk?.client)) {
       throw StateError('ACCOUNT_UNAVAILABLE');
     }
     final value = await sdk!.client
@@ -433,28 +426,60 @@ class CloudLibrarySync with WidgetsBindingObserver {
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final sdk = await (_initializing ??=
-          Supabase.initialize(
-            url: mitvSupabaseUrl,
-            publishableKey: mitvSupabasePublishableKey,
-            authOptions: const FlutterAuthClientOptions(
-              detectSessionInUri: false,
-              persistSession: true,
-            ),
-            debug: false,
-          ).catchError((Object error, StackTrace stack) {
-            _initializing = null;
-            Error.throwWithStackTrace(error, stack);
-          }));
+      final client = await authenticationClient();
+      if (!hasRegisteredNajdAccount(client)) {
+        if (client.auth.currentSession == null) await bindLocalGuest(store);
+        return null;
+      }
       return await start(
         store,
-        AnonymousLibraryTransport(sdk.client, prefs),
+        AnonymousLibraryTransport(client, prefs),
         preferences: prefs,
       );
     } catch (_) {
       // The library remains usable offline. Never emit session/JWT details.
       return null;
     }
+  }
+
+  static Future<SupabaseClient> authenticationClient() async {
+    final sdk = await (_initializing ??=
+        Supabase.initialize(
+          url: mitvSupabaseUrl,
+          publishableKey: mitvSupabasePublishableKey,
+          authOptions: const FlutterAuthClientOptions(
+            detectSessionInUri: false,
+            persistSession: true,
+          ),
+          debug: false,
+        ).catchError((Object error, StackTrace stack) {
+          _initializing = null;
+          Error.throwWithStackTrace(error, stack);
+        }));
+    return sdk.client;
+  }
+
+  static Future<void> bindAuthenticatedAccount(
+    LocalLibraryStore store,
+    String owner,
+  ) async {
+    final client = await authenticationClient();
+    if (client.auth.currentUser?.id != owner ||
+        !hasRegisteredNajdAccount(client)) {
+      throw StateError('ACCOUNT_SIGN_IN_REQUIRED');
+    }
+    await store.bindOwner(owner);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AnonymousLibraryTransport._ownerKey, owner);
+    await prefs.remove(AnonymousLibraryTransport._registeredKey);
+    unawaited(startDefault(store));
+  }
+
+  static Future<void> bindLocalGuest(LocalLibraryStore store) async {
+    final prefs = await SharedPreferences.getInstance();
+    await store.bindOwner('guest:${await deviceIdFor(prefs)}');
+    await prefs.remove(AnonymousLibraryTransport._ownerKey);
+    await prefs.remove(AnonymousLibraryTransport._registeredKey);
   }
 
   @visibleForTesting
@@ -598,7 +623,7 @@ class CloudLibrarySync with WidgetsBindingObserver {
         compatible.add(row);
       }
     }
-    await store.mergeCloudRows(compatible);
+    if (!_closed) await store.mergeCloudRows(compatible);
   }
 
   bool _flushRequested = false;
@@ -636,6 +661,7 @@ class CloudLibrarySync with WidgetsBindingObserver {
       // Server revisions measure arrival order, not potentially old device clocks.
       for (var page = 0; page < 8 && !_closed; page++) {
         final rows = await transport.pull(afterRevision: _revision, limit: 250);
+        if (_closed) return;
         if (rows.any(
           (row) =>
               row.revision <= _revision ||
@@ -669,6 +695,7 @@ class CloudLibrarySync with WidgetsBindingObserver {
         final rows = pending.skip(offset).take(32).toList(growable: false);
         await store.markCloudAttempted(rows);
         final accepted = await transport.push(rows);
+        if (_closed) return;
         await store.acknowledgeCloudRows(rows, accepted);
         if (rows.any((row) => row.kind == 'history' && !row.deleted)) {
           _lastHistoryPush = now;

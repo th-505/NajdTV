@@ -51,6 +51,19 @@ export function scanEpisodeIndex(html,url,{provider,domains,title='',episodes=[]
   const edition=t=>/مدبلج|dubbed/i.test(t)?'dubbed':/مترجم|subtit/i.test(t)?'subtitled':null;
   if(parent&&parent!==url&&Number.isSafeInteger(link.season)&&link.season>0&&cleanTitle(link.title)===cleanTitle(title)&&(!edition(title)||!edition(link.title)||edition(title)===edition(link.title)))parents.add(parent);
  }
+ // AnimeZid groups provider-owned editions behind explicit season URLs. Its
+ // "latest episodes" rail is not season one and must not create false numbering.
+ if(provider==='animezid'){
+  const root=current.pathname.match(/^\/series\/([^/]+)\/$/);
+  if(root){
+   const owned=new Set();
+   $('a[href]').each((_,el)=>{const next=safePage($(el).attr('href'),url,domains);if(!next)return;
+    const path=new URL(next).pathname.match(/^\/series\/([^/]+)\/season\/(\d+)\/$/);
+    if(path&&path[1]===root[1]&&Number(path[2])>0)owned.add(next);
+   });
+   if(owned.size){byRef.clear();for(const next of owned)pages.add(next);}
+  }
+ }
  const declared=identityDigits($('.br-series-stats').text()).match(/(\d{1,5})\s*(?:حلقات|حلقة)/)?.[1]||identityDigits($('.anime-info').text()).match(/عدد الحلقات\s*:\s*(\d{1,5})/)?.[1];
  return {source_declared_references:declared?Number(declared):null,episodes:[...byRef.values()],pages:[...pages],parents:[...parents],page_fingerprint:shortHash([...byRef.keys()].sort().join('\n')),declared_title:$('h1').first().text().trim()};
 }

@@ -8,7 +8,7 @@ on:
       publish_release:
         description: Publish only after verification; false produces reviewable artifacts without deploying
         required: false
-        default: true
+        default: false
         type: boolean
       font_bundle_url:
         description: Private original font bundle URL for native OTF and Web WOFF2 builds
@@ -438,6 +438,16 @@ jobs:
           path: device-verification.json
           retention-days: 14
           if-no-files-found: error
+      - name: Require the matching production API before publication
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
+        run: |
+          python3 - <<'PYGATE'
+          import json, os, pathlib, re, urllib.request
+          expected = re.search(r'^version: (\d+\.\d+\.\d+)\+', pathlib.Path('flutter_app/pubspec.yaml').read_text(), re.M).group(1)
+          with urllib.request.urlopen(os.environ['MITV_API_BASE'].rstrip('/') + '/health', timeout=90) as response:
+              health = json.load(response)
+          assert health.get('version') == expected, 'Deploy and verify the matching single-server API before publishing clients'
+          PYGATE
       - name: Deploy verified Web bundle only behind server authentication
         if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
         env:

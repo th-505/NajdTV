@@ -13,10 +13,10 @@ import {workReference as najdReference} from '../server/harvest/work-reference.m
 import {scanEpisodeIndex as najdIndex} from '../server/harvest/episode-index.mjs';
 import {scanEpisodeIndex as betaIndex} from '../server/browser/episode-index.mjs';
 
-test('50 scraper implementations: 25 Najd and 25 beta with different parser functions and metadata objects', () => {
-  assert.equal(najd.PROVIDERS_MAP.size, 25);
-  assert.equal(beta.PROVIDERS_MAP.size, 25);
-  assert.equal(najd.PROVIDERS_MAP.size + beta.PROVIDERS_MAP.size, 50);
+test('56 scraper implementations: 28 Najd and 28 beta, including three legacy handlers with different parser functions and metadata objects', () => {
+  assert.equal(najd.PROVIDERS_MAP.size, 28);
+  assert.equal(beta.PROVIDERS_MAP.size, 28);
+  assert.equal(najd.PROVIDERS_MAP.size + beta.PROVIDERS_MAP.size, 56);
   assert.notEqual(najdIndex, betaIndex, 'source-index parsing must also remain family-owned');
   assert.deepEqual([...najd.PROVIDERS_MAP.keys()], [...beta.PROVIDERS_MAP.keys()]);
   for (const [id, original] of najd.PROVIDERS_MAP) {
@@ -49,27 +49,27 @@ test('beta implementation imports cannot point back to Najd site parsers or prov
         `${relative(root,path)} imports Najd-specific code: ${target}`);
     }
   }
-  assert.equal(siteCount, 25);
+  assert.equal(siteCount, 28);
 });
 
 test('disabling or changing one family does not disable, redirect or swap the other family', async () => {
-  installProviderConfigs([{provider:'fivetv',enabled:false,config:{primary_domain:'https://najd.example'}}]);
-  installBrowserConfigs([{provider:'fivetv',enabled:true,config:{primary_domain:'https://beta.example'}}]);
+  installProviderConfigs([{provider:'fosta',enabled:false,config:{primary_domain:'https://najd.example'}}]);
+  installBrowserConfigs([{provider:'fosta',enabled:true,config:{primary_domain:'https://beta.example'}}]);
   try {
-    assert.equal(najd.getProvider('fivetv').meta.enabled, false);
-    assert.equal(beta.getProvider('fivetv').meta.enabled, true);
-    assert(createProviderBrowser().sources().some(s => s.id === 'fivetv'));
+    assert.equal(najd.getProvider('fosta').meta.enabled, false);
+    assert.equal(beta.getProvider('fosta').meta.enabled, true);
+    assert(createProviderBrowser().sources().some(s => s.id === 'fosta'));
     await runInBrowserLane(async () => {
       await Promise.resolve();
-      assert.equal(najd.getProvider('fivetv').meta.domains[0], 'https://najd.example');
-      assert.equal(najd.getProvider('fivetv').meta.enabled, false);
-      assert.equal(beta.getProvider('fivetv').meta.domains[0], 'https://beta.example');
+      assert.equal(najd.getProvider('fosta').meta.domains[0], 'https://najd.example');
+      assert.equal(najd.getProvider('fosta').meta.enabled, false);
+      assert.equal(beta.getProvider('fosta').meta.domains[0], 'https://beta.example');
     });
-    installProviderConfigs([{provider:'fivetv',enabled:true,config:{}}]);
-    installBrowserConfigs([{provider:'fivetv',enabled:false,config:{}}]);
-    assert.equal(najd.getProvider('fivetv').meta.enabled, true);
-    assert.equal(beta.getProvider('fivetv').meta.enabled, false);
-    assert(!createProviderBrowser().sources().some(s => s.id === 'fivetv'));
+    installProviderConfigs([{provider:'fosta',enabled:true,config:{}}]);
+    installBrowserConfigs([{provider:'fosta',enabled:false,config:{}}]);
+    assert.equal(najd.getProvider('fosta').meta.enabled, true);
+    assert.equal(beta.getProvider('fosta').meta.enabled, false);
+    assert(!createProviderBrowser().sources().some(s => s.id === 'fosta'));
   } finally { installProviderConfigs([]); installBrowserConfigs([]); }
 });
 

@@ -362,6 +362,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _libraryScopeAtOpen = widget.store.ownerScope;
     _displayOwner = this;
     _pipSubscription = _pip.events.listen(
       (event) => unawaited(_onPipEvent(event)),
@@ -1668,12 +1669,15 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     }
   }
 
+  late final String _libraryScopeAtOpen;
+
   Future<void> _saveProgress({
     bool force = false,
     Duration? positionOverride,
     Duration? durationOverride,
   }) async {
-    if (widget.isLive ||
+    if (widget.store.ownerScope != _libraryScopeAtOpen ||
+        widget.isLive ||
         !widget.persistProgress ||
         !_progressReady ||
         _pendingResumeTarget != null) {

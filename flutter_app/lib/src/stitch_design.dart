@@ -91,11 +91,22 @@ class NajdPoster extends StatelessWidget {
       ),
     );
     if (url.isEmpty) return placeholder;
-    return Image.network(
-      url,
-      fit: fit,
-      cacheWidth: isTvTarget ? 800 : 500,
-      errorBuilder: (_, _, _) => placeholder,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final pixels = width.isFinite && width > 0
+            ? (width * MediaQuery.devicePixelRatioOf(context)).ceil().clamp(
+                96,
+                isTvTarget ? 1280 : 1080,
+              )
+            : (isTvTarget ? 800 : 500);
+        return Image.network(
+          url,
+          fit: fit,
+          cacheWidth: pixels,
+          errorBuilder: (_, _, _) => placeholder,
+        );
+      },
     );
   }
 }

@@ -84,6 +84,9 @@ class MitvApi implements MediaRepository {
   final _playbackCache = <String, TitleDetails>{};
   final _catalogGroups = <String, CatalogItem>{};
   final _pagination = <String, bool>{};
+  final _catalogPending = <String, Future<List<CatalogItem>>>{};
+  final _catalogCache =
+      <String, ({DateTime expires, List<CatalogItem> items})>{};
   final _searchCache =
       <String, ({DateTime expires, List<CatalogItem> items})>{};
   bool? searchHasMore(String query, int page) =>
@@ -98,6 +101,8 @@ class MitvApi implements MediaRepository {
     _metadata.clear();
     _playbackCache.clear();
     _catalogGroups.clear();
+    _catalogCache.clear();
+    _catalogPending.clear();
     _pagination.clear();
     _searchCache.clear();
     _metadataWarmAttempts.clear();
@@ -779,7 +784,42 @@ class MitvApi implements MediaRepository {
   }
 
   @override
-  Future<List<CatalogItem>> category(String categoryId, {int page = 1}) async {
+  Future<List<CatalogItem>> category(String categoryId, {int page = 1}) {
+    final key = '$categoryId:$page';
+    final cached = _catalogCache[key];
+    if (cached != null && cached.expires.isAfter(DateTime.now())) {
+      return Future.value(cached.items);
+    }
+    final active = _catalogPending[key];
+    if (active != null) return active;
+    final generation = _cacheGeneration;
+    final work = _loadCategory(categoryId, page: page).then((items) {
+      _ensureGeneration(generation);
+      _catalogCache[key] = (
+        expires: DateTime.now().add(const Duration(minutes: 2)),
+        items: List.unmodifiable(items),
+      );
+      while (_catalogCache.length > 32) {
+        _catalogCache.remove(_catalogCache.keys.first);
+      }
+      return items;
+    });
+    _catalogPending[key] = work;
+    work.then(
+      (_) {
+        if (identical(_catalogPending[key], work)) _catalogPending.remove(key);
+      },
+      onError: (Object error, StackTrace stack) {
+        if (identical(_catalogPending[key], work)) _catalogPending.remove(key);
+      },
+    );
+    return work;
+  }
+
+  Future<List<CatalogItem>> _loadCategory(
+    String categoryId, {
+    int page = 1,
+  }) async {
     final generation = _cacheGeneration;
     final json = categoryId.startsWith('catalog:')
         ? await _getJson('/api/v1/catalog', {
@@ -1146,6 +1186,14 @@ class MitvApi implements MediaRepository {
     String ref, {
     bool refresh = false,
   }) async {
+    if (ref.startsWith('live:iptv-org:')) {
+      final json = await _getJson('/api/v1/live/playback', {'ref': ref, if (refresh) 'refresh': '1'});
+      final data = json['data'];
+      if (data is! Map) throw const ApiException('LIVE_INVALID_PLAYBACK');
+      final details = TitleDetails.fromJson(data.cast<String, dynamic>());
+      _registerDirectMetadata(details);
+      return details;
+    }
     final playbackSession = List.generate(
       32,
       (_) => Random.secure().nextInt(16).toRadixString(16),
@@ -1630,6 +1678,16 @@ class MitvApi implements MediaRepository {
     }
     return data;
   }
+
+  Future<Map<String, dynamic>> liveChannels(
+    String group, {
+    int page = 1,
+    String query = '',
+  }) => _getJson('/api/v1/live/catalog', {
+    'group': group,
+    'page': '$page',
+    'q': query,
+  });
 
   Future<Map<String, dynamic>> _getJson(
     String path, [

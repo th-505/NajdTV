@@ -1,3 +1,4 @@
+import {PROVIDER_REPLACEMENTS} from './replacements.mjs';
 import {providerScope} from './content-scope.mjs';
 import { contentIdentity } from '../../shared/content-identity.js';
 import { searchTraceEvent } from '../diagnostics/search-trace.mjs';
@@ -17,7 +18,10 @@ export const SOURCE_REGISTRY = Object.freeze(listProviders()
 
 export function getSource(provider) {
   const id = aliases[provider] || provider;
-  return SOURCE_REGISTRY.find(source => source.id === id) || null;
+  const active=SOURCE_REGISTRY.find(source => source.id === id);
+  if(active)return active;
+  if(PROVIDER_REPLACEMENTS[id] && getProvider(id)?.meta.capabilities?.search) return {id,aliases:[],search:true,live_verified:false,retired:true,replacement:PROVIDER_REPLACEMENTS[id]};
+  return null;
 }
 
 function normalizeTitle(value) {
