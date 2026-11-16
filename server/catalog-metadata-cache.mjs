@@ -1,3 +1,4 @@
+import { createOptionalCacheReader } from './optional-cache.mjs';
 import { createSupabaseCatalogStore } from './provider-store.mjs';
 
 const PROVIDERS=new Set(['3isk','akoam','alooy','laroza']);
@@ -73,6 +74,7 @@ export function trustedNewUntil(payload,now=Date.now()) {
 
 export function createCatalogMetadataCache({validateRef,load,store=createSupabaseCatalogStore(),
   now=Date.now,maxEntries=128,maxPending=16,refreshMs=600000,touchMs=3600000}={}) {
+  const read=createOptionalCacheReader({budgetMs:400,now});
   const entries=new Map(),pending=new Map(),latest=new Map();let storageError=null,storageRetryAt=0;
   async function persisted(fn) {try {return await fn();} catch {storageError='SUPABASE_CATALOG_UNAVAILABLE';storageRetryAt=now()+30000;return null;}}
   function due(entry,force=false) {return entry.pendingCount>0 && (force || entry.metadataWrite || entry.persistedDemandCount<3 || now()-entry.lastTouched>=touchMs);}
@@ -95,7 +97,7 @@ export function createCatalogMetadataCache({validateRef,load,store=createSupabas
     try {await entry.writing;} finally {entry.writing=null;}
   }
   async function obtain(provider,ref) {
-    const row=store && now()>=storageRetryAt ? await persisted(()=>store.get(provider,ref)) : null;
+    const row=store && now()>=storageRetryAt ? await read(ref,()=>persisted(()=>store.get(provider,ref))) : null;
     let value,expires,persistedCount=Number(row?.request_count)||0,metadataWrite=false,newUntil=null;
     const persistedDemandCount=(Array.isArray(row?.demand_hits) ? row.demand_hits : []).filter(stamp=>Date.parse(stamp)>=now()-7*86400000).length;
     if(row && Date.parse(row.refresh_after)>now()) {
@@ -108,7 +110,7 @@ export function createCatalogMetadataCache({validateRef,load,store=createSupabas
     const entry={provider,ref,value,expires,persistedCount,persistedDemandCount,metadataWrite,newUntil,pendingCount:0,lastTouched:now(),writing:null};
     if(entries.size>=maxEntries && !entries.has(ref)) {
       const oldest=entries.keys().next().value,evicted=entries.get(oldest);
-      if(evicted) await flush(evicted,true);
+      if(evicted) void flush(evicted,true);
       entries.delete(oldest);
     }
     entries.set(ref,entry);return entry;
@@ -132,13 +134,13 @@ export function createCatalogMetadataCache({validateRef,load,store=createSupabas
         if(!pending.has(ref)) {
           if(pending.size>=maxPending) throw Error('CATALOG_BUSY');
           const previous=entry;
-          const work=(async()=>{if(previous) await flush(previous,true);return obtain(provider,ref);})();pending.set(ref,work);
+          const work=(async()=>{if(previous) void flush(previous,true);return obtain(provider,ref);})();pending.set(ref,work);
           work.finally(()=>pending.delete(ref)).catch(()=>{});
         }
         entry=await pending.get(ref);
       }
       entry.pendingCount+=1;
-      await flush(entry);
+      void flush(entry);
       return structuredClone(entry.value);
     },
     async flush() {await Promise.all([...entries.values()].map(entry=>flush(entry,true)));},

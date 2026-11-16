@@ -62,6 +62,8 @@ def field(source, name, constants):
 
 def inventory():
     files = sorted((ROOT / 'server/scrapers/sites').glob('*.mjs'))
+    replacement_text = (ROOT / 'server/scrapers/replacements.mjs').read_text()
+    replacements = dict(re.findall(r"([a-z0-9_-]+):\s*'([a-z0-9_-]+)'", replacement_text))
     registry = (ROOT / 'server/scrapers/registry.mjs').read_text()
     engine = (ROOT / 'server/scrapers/index.mjs').read_text()
     html = (ROOT / 'index.html').read_text()
@@ -142,9 +144,11 @@ def inventory():
                          'count_as_additional_provider': path.stem not in known and ALIASES.get(path.stem, path.stem) not in known})
     configs = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / 'edge/config').glob('*')
                      if path.suffix in ('.json', '.jsonc') and path.name != 'episodes.json')
-    return {'schema_version': 1, 'scope': 'static repository declarations; no network requests',
+    return {'schema_version': 1, 'scope': 'static repository declarations; no network requests', 'explicit_replacements': replacements,
             'counts': {'site_modules_with_metadata': len(units),
                        'registered_modules': sum(unit['registered'] for unit in units),
+                       'active_registered_modules': sum(unit['registered'] and unit['id'] not in replacements for unit in units),
+                       'legacy_compatible_modules': len(replacements),
                        'najd_scrapers': sum(unit['registered'] for unit in units),
                        'beta_scrapers': sum(unit['registered'] for unit in beta_units),
                        'total_scraper_implementations': sum(unit['registered'] for unit in units + beta_units),
@@ -174,6 +178,7 @@ def render(data):
     lines = ['# جرد قواشط نجد TV والبيتا من الشفرة', '',
              'هذا تقرير آلي ساكن؛ لا يرسل أي طلب للمزودين ولا يثبت نجاح التشغيل.', '',
              f"- قواشط نجد: **{c['najd_scrapers']}**؛ قواشط البيتا: **{c['beta_scrapers']}**؛ مجموع وحدات التنفيذ المنفصلة: **{c['total_scraper_implementations']}**.",
+             f"- المعروضة افتراضيًا: **{c['active_registered_modules']}**؛ وحدات التوافق القديمة المخفية: **{c['legacy_compatible_modules']}**. لا يتم تحويل المراجع القديمة إلى مصدر آخر تلقائيًا.",
              f"- وحدات مواقع ذات تعريف PROVIDER_META: **{c['site_modules_with_metadata']}**؛ المسجل منها: **{c['registered_modules']}**.",
              f"- مرآتان مصرح بهما في التعريف: **{c['explicit_mirrors']}**؛ الوحدات غير الموسومة كمرآة: **{c['not_marked_as_mirror']}**. هذا لا يثبت استقلال مالكي المواقع.",
              f"- مصادر الواجهة المستنتجة من الشفرة: **{c['ui_spellings']}**؛ وحدات البحث المثبت المربوطة برمجيًا: **{c['pinned_search_modules']}**.",

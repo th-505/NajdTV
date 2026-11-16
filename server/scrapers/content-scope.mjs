@@ -2,8 +2,8 @@
 const specialist=Object.freeze({
  '3isk':{languages:['tr'],kinds:['movie','series']},
  '3cktv':{languages:['tr'],kinds:['movie','series']},
- anime4up:{animation:true},anime4up_rest:{animation:true},witanime:{animation:true},ristoanime:{animation:true},
- egydead_live:{live:true},yallashoot:{live:true},
+ anime4up:{animation:true},anime4up_rest:{animation:true},witanime:{animation:true},ristoanime:{animation:true},animezid:{animation:true},
+ egydead_live:{live:true},yallashoot:{live:true},mewsry:{live:true},
 });
 export function providerScope(id){return specialist[id]||{general:true}}
 export function supportsContent(id,{original_language,originalLanguage,type,genres}={}){

@@ -84,7 +84,8 @@ test('5TV episode parent and navigation work in canonical harvesting and beta gr
 });
 
 test('5TV is routed by Najd search and the separate beta implementation with the same source identity', async () => {
-  assert(listSourceCapabilities().some(s => s.id === 'fivetv'));
+  assert(!listSourceCapabilities().some(s => s.id === 'fivetv'));
+  assert(listSourceCapabilities().some(s => s.id === 'movizland'));
   const entry = getProvider('fivetv');
   const search = createSourceSearch({loadModule: () => ({scrapeSearch: (q, n) => entry.module.scrapeSearch(q, n, {fixtureHtml: fixture.SEARCH_HTML})})});
   const hits = await search('فرانشيسكا', 'fivetv');

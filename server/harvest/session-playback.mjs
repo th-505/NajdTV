@@ -5,11 +5,11 @@ import {createHarvestPipeline} from './pipeline.mjs';
 // no shared media writes, pending-promise reuse, or invalidation of another viewer.
 export function createSessionPlayback({store, entries, now=Date.now, probe}={}) {
   return async function resolve({work, row, season=0, episode=0, platform='native'}) {
-    let media=[];
+    let media=[], scan=null;
     const isolatedStore={
       getWork:async()=>work,
       getEpisode:async()=>null,
-      setEpisode:async(_work,_provider,_source,patch)=>{if(patch.media)media=patch.media;},
+      setEpisode:async(_work,_provider,_source,patch)=>{if(patch.media)media=patch.media;if(patch.server_scan)scan=patch.server_scan;},
       request:async()=>[], event:async()=>{},
     };
     const pipeline=createHarvestPipeline({store:isolatedStore,entries,now,probe});
@@ -21,7 +21,9 @@ export function createSessionPlayback({store, entries, now=Date.now, probe}={}) 
         observed_episode:evidence||{season,episode,source_season:season,source_episode:episode,numbering_basis:'source-season'},
       }});
     const session=randomUUID();
-    return media.filter(m=>Date.parse(m.expires_at)>now()+30000)
+    const result=media.filter(m=>Date.parse(m.expires_at)>now()+30000)
       .map(m=>({...m,playback_session:session,playback_scope:'request'}));
+    if(scan)Object.defineProperty(result,'server_scan',{value:scan});
+    return result;
   };
 }

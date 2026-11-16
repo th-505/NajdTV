@@ -1,3 +1,4 @@
+import {PROVIDER_REPLACEMENTS} from './replacements.mjs';
 import {providerScope} from './content-scope.mjs';
 import { contentIdentity } from '../../shared/content-identity.js';
 import { searchTraceEvent } from '../diagnostics/search-trace.mjs';
@@ -17,7 +18,10 @@ export const SOURCE_REGISTRY = Object.freeze(listProviders()
 
 export function getSource(provider) {
   const id = aliases[provider] || provider;
-  return SOURCE_REGISTRY.find(source => source.id === id) || null;
+  const active=SOURCE_REGISTRY.find(source => source.id === id);
+  if(active)return active;
+  if(PROVIDER_REPLACEMENTS[id] && getProvider(id)?.meta.capabilities?.search) return {id,aliases:[],search:true,live_verified:false,retired:true,replacement:PROVIDER_REPLACEMENTS[id]};
+  return null;
 }
 
 function normalizeTitle(value) {
@@ -48,7 +52,7 @@ export function createSourceSearch({ loadModule = source => getProvider(source.i
     if (!Array.isArray(items)) { const error = new Error('STRUCTURE_CHANGED'); error.code = 'STRUCTURE_CHANGED'; throw error; }
     const result = items
       .filter(item => item && titleMatchesQuery(item.title, q))
-      .map(item => ({ ...item, ...contentIdentity(item), selected_source: source.id }));
+      .map(item => ({ ...item, ...contentIdentity(item), ...(providerScope(source.id).live?{type:'live'}:{}), selected_source: source.id }));
     searchTraceEvent('title_filter', { raw_count: items.length, kept_count: result.length, reason: items.length && !result.length ? 'TITLE_FILTER_REJECTED_ALL' : null });
     return result;
   };
@@ -61,6 +65,7 @@ export function listSourceCapabilities() {
   return SOURCE_REGISTRY.filter(source => getProvider(source.id).meta.enabled !== false).map(({ id, aliases, search }) => {
     const meta = getProvider(id).meta;
     return { id, aliases: [...aliases], search, scope:providerScope(id), name_ar:SOURCE_NAMES[id] || meta.name,
+      content_type:meta.capabilities?.live===true&&meta.capabilities?.episodes!==true?'live':'vod',
       domain:new URL((getProvider(meta.mirrorOf)?.meta || meta).domains[0]).hostname };
   });
 }
@@ -70,7 +75,7 @@ export function createMultiSourceSearch({
   queue = createConcurrencyQueue({ concurrency: 20, maxQueued: 200 }),
 } = {}) {
   return async query => {
-    const settled = await Promise.allSettled(SOURCE_REGISTRY.map(source =>
+    const settled = await Promise.allSettled(SOURCE_REGISTRY.filter(source=>!providerScope(source.id).live).map(source =>
       queue.run(() => search(query, source.id))
     ));
     if (settled.every(result => result.status === 'rejected')) throw Error('SOURCES_UNAVAILABLE');

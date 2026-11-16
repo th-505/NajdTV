@@ -1,3 +1,4 @@
+import { createOptionalCacheReader } from '../optional-cache.mjs';
 import { createBrowserStore } from "./store.mjs";
 import {
   installBrowserConfigs,
@@ -9,7 +10,9 @@ import { getProvider } from "./registry.mjs";
 export function createBrowserConfiguration({
   store = createBrowserStore(),
   now = Date.now,
+  budgetMs = 400,
 } = {}) {
+  const read = createOptionalCacheReader({ budgetMs, now });
   let pending = null,
     next = 0,
     available = false;
@@ -19,7 +22,8 @@ export function createBrowserConfiguration({
     if (now() < next) return;
     pending = (async () => {
       try {
-        const rows = await store.configs();
+        const rows = await read("browser-config", () => store.configs());
+        if (!Array.isArray(rows)) throw Error("BROWSER_CONFIG_UNAVAILABLE");
         installBrowserConfigs(rows);
         available = true;
         next = now() + 30000;

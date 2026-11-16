@@ -163,3 +163,21 @@ test('Akwam old native caches recover through the real web extraction pipeline f
   assert.equal(ready.state,'ready');assert.equal(ready.servers.length,1);assert.equal(ready.servers[0].web_playable,true);assert.deepEqual(probes,['native','web']);
  }
 });
+test('source continuation reuses guarded provider HTML and retains the root title across owned seasons', async()=>{
+ const store=memoryStore(),base='https://animezid.org',root=base+'/series/fixture/',child=root+'season/2/';
+ const original='animezid:'+Buffer.from(root).toString('base64url');const ref=workReference(original);
+ let fallbackFetches=0;
+ const entry={meta:{id:'animezid',domains:[base],capabilities:{search:true,details:true}},module:{scrapeDetails:async(input,options)=>{
+  const url=input.startsWith('https://')?input:root;
+  const season=url===child;
+  options.onProviderPage({url,html:season?'<h1>Different child title</h1>':'<h1>Root title</h1><a href="/series/fixture/season/2/">Different child title</a>'});
+  return {title:season?'Different child title':'Root title',type:'series',sourceUrl:url,year:season?'2020':'2019',episodes:season?[{ref:'animezid:'+Buffer.from(base+'/watch.php?vid=one').toString('base64url'),url:base+'/watch.php?vid=one',title:'الحلقة 1',season:2,number:1}]:[]};
+ }}};
+ const pipeline=createHarvestPipeline({store,entries:[entry],fetchPage:async()=>{fallbackFetches++;throw Error('DUPLICATE_FETCH');},now:()=>20000});
+ await pipeline.provider({content_ref:ref,provider:'animezid',payload:{source_ref:original}});
+ const continuation=[...store.jobs.values()].find(j=>j.payload.phase==='source_page');assert(continuation);
+ await pipeline.provider(continuation);
+ assert.equal(fallbackFetches,0);
+ assert.equal(store.works.get(ref).title,'Root title');assert.equal(store.works.get(ref).year,2019);
+ assert.equal([...store.episodeRows.values()][0].season,2);
+});

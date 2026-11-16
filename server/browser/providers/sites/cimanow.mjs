@@ -187,7 +187,8 @@ async function fetchCimaNowHtmlWithFallback(targetUrl, options = {}) {
     });
   }
 
-  let lastErr = null;
+  let lastErr = null, availabilityError = null;
+  const deadline = Date.now() + Math.min(12000, options.timeoutMs || 12000);
   const candidateUrls = [targetUrl];
 
   try {
@@ -202,6 +203,7 @@ async function fetchCimaNowHtmlWithFallback(targetUrl, options = {}) {
   } catch (_) {}
 
   for (const url of candidateUrls) {
+    if (Date.now() >= deadline) break;
     try {
       const origin = new URL(url).origin;
       const res = await fetchProviderHtml(url, {
@@ -211,17 +213,21 @@ async function fetchCimaNowHtmlWithFallback(targetUrl, options = {}) {
           ...buildAntiBanHeaders(url, origin + '/'),
           ...(options.headers || {})
         },
-        providerId: PROVIDER_META.id
+        providerId: PROVIDER_META.id, maxRetries: 0,
+        timeoutMs: Math.max(1, deadline - Date.now())
       });
       if (res.ok && res.html) {
+        if (/^\/(?:signin|login)(?:\/|$)/i.test(new URL(res.url || url).pathname)) throw new ScraperError(SCRAPER_ERROR_CODES.ACCESS_BLOCKED, 'CIMANOW_LOGIN_REQUIRED');
         if(new URL(url).pathname!=='/'&&new URL(res.url||url).pathname==='/')throw new ScraperError(SCRAPER_ERROR_CODES.STRUCTURE_CHANGED,'CIMANOW_UNRELATED_HOME_REDIRECT');
         return res;
       }
     } catch (err) {
       lastErr = err;
+      if (err.code === SCRAPER_ERROR_CODES.ACCESS_BLOCKED) availabilityError = err;
     }
   }
 
+  if (availabilityError) throw availabilityError;
   if (lastErr) throw lastErr;
   return fetchProviderHtml(targetUrl, {
     ...options,

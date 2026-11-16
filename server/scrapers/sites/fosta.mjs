@@ -9,11 +9,11 @@ import { extractRawStreamsFromText, isValidDirectMediaUrl, unwrapEmbedToDirectSt
 import { FOSTA_CATEGORIES, FOSTA_CATEGORY_LABELS } from './fosta-categories.mjs';
 
 // Search redirects observed and validated over guarded HTTPS on 2026-11-07.
-const ORIGIN = 'https://ffosta-tv.lat';
-const HOSTS = ['ffosta-tv.lat', 'ffosta-tv.autos'];
+const ORIGIN = 'https://ffosta-tv.baby';
+const HOSTS = ['ffosta-tv.baby', 'ffosta-tv.lat', 'ffosta-tv.autos'];
 const allowedHosts = () => effectiveProviderDomains('fosta', HOSTS);
 export const PROVIDER_META = Object.freeze({ id: 'fosta', name: 'فوستا', code: 'FO',
-  domains: [ORIGIN, 'https://ffosta-tv.autos'], mirrorOf: null, resolveOnDetails: true,
+  domains: [ORIGIN, 'https://ffosta-tv.lat', 'https://ffosta-tv.autos'], mirrorOf: null, resolveOnDetails: true,
   capabilities: { catalog: true, search: true, details: true, episodes: true, servers: true, resolve: true, live: false },
   searchSpec: { method: 'GET', pathTemplate: '/search.php?keywords={query}', queryParam: 'keywords', encoding: 'utf-8', pagination: true },
   notImplemented: {},
@@ -26,8 +26,9 @@ export function decodeProviderRef(value) {
   let raw = String(value || '');
   if (raw.startsWith('fosta:')) {
     raw = raw.slice(6);
-    if (!raw.startsWith('https://')) raw = Buffer.from(raw, 'base64url').toString('utf8');
+    if (!raw.startsWith('https://') && !raw.startsWith('/')) raw = Buffer.from(raw, 'base64url').toString('utf8');
   }
+  if (/^\/(?!\/)/.test(raw) && !/[\\\x00-\x20]/.test(raw)) raw = new URL(raw, ORIGIN).href;
   const url = assertSafeScraperUrl(raw, { allowHttp: false, allowedHosts: allowedHosts() });
   if (!['/watch.php', '/view-serie.php', '/play.php'].includes(url.pathname)) throw Error('FOSTA_INVALID_REFERENCE');
   return url.href;

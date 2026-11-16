@@ -1,3 +1,4 @@
+import {observedEpisodeMetadata} from '../scrapers/shared/episode-metadata.mjs';
 import {cascadeResolveStream} from '../scrapers/stream-unwrapper.mjs';
 import {sourceEpisodeEvidence} from '../scrapers/shared/source-episode-evidence.mjs';
 import {resolveProviderMedia} from '../scrapers/shared/provider-media.mjs';
@@ -87,7 +88,7 @@ export function createHarvestPipeline({store,metadata,entries,now=Date.now,probe
   await store.putSource({work_ref:ref,provider:entry.meta.id,source_ref:sourceRef,identity_score:identity.score,evidence:identity.evidence,state:partial?'partial':'indexed',progress:{observed_references:index.episodes.length,distinct_episodes:new Set(index.episodes.map(row=>row.season+':'+row.episode)).size,source_declared_references:index.source_declared_references,canonical_declared_episodes:declared,source_index_complete:!repeatedPage&&!index.pages.length&&index.source_declared_references!==null&&index.episodes.length>=index.source_declared_references,additional_pages:index.pages.length,parent_pages:index.parents.length},updated_at:new Date(now()).toISOString()});
   const series=cached.type==='series';const rows=series?mapSourceEpisodes(index.episodes,expected):[{source_ref:sourceRef,season:0,episode:0,title:details.title||expected.title}];
   // All observed rows are retained; batching is transport sizing, never an episode cap.
-  await store.putEpisodes(rows.map(({source_ref,season,episode,title})=>({source_ref,season,episode,title,work_ref:ref,provider:entry.meta.id})));
+  await store.putEpisodes(rows.map(({source_ref,season,episode,title,poster,duration_seconds})=>({source_ref,season,episode,title,...(poster?{poster}:{}),...(duration_seconds?{duration_seconds}:{}),work_ref:ref,provider:entry.meta.id})));
   const children=rows.slice(0,1).map(row=>job(ref,entry.meta.id,'episode',row.source_ref,{source_ref:row.source_ref,cycle:payload.cycle,identity_evidence:identity.evidence,observed_identity:{title:observed.title,year:observed.year},observed_episode:{season:row.season,episode:row.episode,source_season:row.source_season,source_episode:row.source_episode,numbering_basis:row.numbering_basis,numbering_offset:row.numbering_offset}},expected.title,row.season,row.episode));
   for(const page of (repeatedPage?[]:[...index.parents,...index.pages]))children.push(job(ref,entry.meta.id,'provider','catalog:'+page,{...payload,phase:'catalog',url:page,source_ref:entry.meta.id+':'+Buffer.from(page).toString('base64url'),hit:payload.hit||{},page:(payload.page||1)+1,parent_fingerprint:index.page_fingerprint},expected.title));
   await store.enqueueMany(children);
@@ -113,6 +114,8 @@ export function createHarvestPipeline({store,metadata,entries,now=Date.now,probe
     if(!episodeMatchesMapping(identity,input))throw Error('HARVEST_EPISODE_IDENTITY_CONFLICT');
     if(!containsWorkTitle(work.metadata,d.title||d.series_title||d.parent_title))throw Error('HARVEST_EPISODE_WORK_UNCONFIRMED');
   }else if(work.metadata.identity_scope==='source'?!containsWorkTitle(work.metadata,d.title):!matchHarvestIdentity(work.metadata,d).accepted)throw Error('HARVEST_WORK_IDENTITY_UNCONFIRMED');
+  const episodeMetadata=d.requested_episode_metadata?.source_ref===source?observedEpisodeMetadata(d.requested_episode_metadata,d.sourceUrl):{};
+  if(Object.keys(episodeMetadata).length)await store.setEpisode(ref,entry.meta.id,source,episodeMetadata);
   const probeFailures=[];
   const inspect=async candidates=>{const accepted=[];
   for(const candidate of candidates){
@@ -126,7 +129,7 @@ export function createHarvestPipeline({store,metadata,entries,now=Date.now,probe
   let media=await resolveProviderMedia(entry,source,{details:d,network,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:inspect});
   if(!media.length){const target=referenceUrl(source,domains(entry));media=await inspect(await unwrapEmbedToDirectStreams(target,target));}
   const expiry=media.length?Math.min(...media.map(x=>Date.parse(x.expires_at))):null;
-  await store.setEpisode(ref,entry.meta.id,source,{state:media.length?'playable':'unavailable',media,media_expires_at:expiry?new Date(expiry).toISOString():null,last_checked_at:new Date(now()).toISOString()});
+  await store.setEpisode(ref,entry.meta.id,source,{state:media.length?'playable':'unavailable',media,server_scan:media._meta||null,media_expires_at:expiry?new Date(expiry).toISOString():null,last_checked_at:new Date(now()).toISOString()});
   if(media.length)await store.request('najd_work_catalog',{ref:'eq.'+ref},'PATCH',{state:'playable',updated_at:new Date(now()).toISOString()});
   await event(ref,entry.meta.id,'episode',media.length?'playable':'unavailable',media.length?null:'DIRECT_MEDIA_NOT_FOUND',{season:input.season_number,episode:input.episode_number,media_count:media.length,server_scan:media._meta||null,probe_failures:probeFailures.slice(0,10)});
   return {refreshAt:expiry?Math.max(now()+60000,expiry-5*60000):now()+3600000,progress:{outcome:media.length?'playable':'unavailable',media_count:media.length,server_scan:media._meta||null}};

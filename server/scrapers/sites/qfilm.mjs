@@ -32,7 +32,7 @@ import {
 export const PROVIDER_ID = 'qfilm';
 export const PROVIDER_NAME = 'كيو فيلم (QFilm)';
 export const PROVIDER_CODE = 'QM';
-export const PRIMARY_BASE_URL = 'https://a.qfilm.tv';
+export const PRIMARY_BASE_URL = 'https://movie.qfilm.tv';
 export const FALLBACK_BASE_URL = 'https://qfilm.tv';
 
 export const PROVIDER_META = Object.freeze({

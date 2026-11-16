@@ -40,7 +40,7 @@ console.log('1. Checking PROVIDER_META and QFILM_CONFIG contract...');
 assert.equal(PROVIDER_META.id, 'qfilm');
 assert.equal(PROVIDER_META.name, 'كيو فيلم (QFilm)');
 assert.equal(PROVIDER_META.code, 'QM');
-assert.deepEqual(PROVIDER_META.domains, ['https://a.qfilm.tv', 'https://qfilm.tv']);
+assert.deepEqual(PROVIDER_META.domains, ['https://movie.qfilm.tv', 'https://qfilm.tv']);
 assert.equal(PROVIDER_META.mirrorOf, null);
 assert.equal(PROVIDER_META.capabilities.catalog, true);
 assert.equal(PROVIDER_META.capabilities.search, true);
@@ -56,7 +56,7 @@ assert.equal(PROVIDER_META.searchSpec.encoding, 'utf-8');
 
 assert.equal(QFILM_CONFIG.id, 'qfilm');
 assert.equal(QFILM_CONFIG.code, 'QM');
-assert.equal(QFILM_CONFIG.baseUrl, 'https://a.qfilm.tv');
+assert.equal(QFILM_CONFIG.baseUrl, 'https://movie.qfilm.tv');
 assert.equal(QFILM_CONFIG.fallbackUrl, 'https://qfilm.tv');
 console.log('   ✓ PROVIDER_META and QFILM_CONFIG verified');
 
