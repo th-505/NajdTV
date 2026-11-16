@@ -1,3 +1,4 @@
+import {observedEpisodeMetadata} from '../scrapers/shared/episode-metadata.mjs';
 import {cascadeResolveStream} from '../scrapers/stream-unwrapper.mjs';
 import {sourceEpisodeEvidence} from "../scrapers/shared/source-episode-evidence.mjs";
 import {resolveProviderMedia} from "../scrapers/shared/provider-media.mjs";
@@ -561,6 +562,8 @@ export function createBrowserWorkService({
       episodes: page.map((e) => ({
         ref: w.ref + ":s" + e.season + ":e" + e.episode,
         title: e.title,
+        ...(e.poster ? {poster:e.poster} : {}),
+        ...(e.duration_seconds ? {duration_seconds:e.duration_seconds} : {}),
         episode_number: e.episode,
         season_number: e.season,
         watch_available: true,
@@ -597,6 +600,7 @@ export function createBrowserWorkService({
       return {
         state: servers.length ? "ready" : "unavailable",
         servers,
+        server_scan:cached.server_scan||null,
         reason: servers.length ? null : "PINNED_DIRECT_WEB_UNAVAILABLE",
         cache_hit: true,
       };
@@ -632,6 +636,7 @@ export function createBrowserWorkService({
         w.adapter.mediaQueue.run(() =>
           runInBrowserLane(async () => {
             const servers = [];
+            let serverScan=null;
             for (const row of rows) {
               const d = await w.adapter.module.scrapeDetails(
                 row.source_ref,
@@ -651,6 +656,7 @@ export function createBrowserWorkService({
                       row.season) !== season))
               )
                 throw Error("BROWSER_EPISODE_IDENTITY_CONFLICT");
+              if(d.requested_episode_metadata?.source_ref===row.source_ref){Object.assign(row,observedEpisodeMetadata(d.requested_episode_metadata,d.sourceUrl));persist(w);}
               const chosen=await resolveProviderMedia(w.adapter,row.source_ref,{details:d,network,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
                const accepted=[];
               for (const candidate of candidates) {
@@ -691,11 +697,12 @@ export function createBrowserWorkService({
               }
                return accepted;
               }});
+              if(chosen._meta)serverScan=chosen._meta;
               servers.push(...chosen);if(chosen.length)break;
             }
             if (servers.length) {
               media.set(key, {
-                servers,
+                servers,server_scan:serverScan,
                 expires: Math.min(
                   ...servers.map((s) => Date.parse(s.expires_at)),
                 ),
@@ -708,6 +715,7 @@ export function createBrowserWorkService({
             return {
               state: visible.length ? "ready" : "unavailable",
               servers: visible,
+              server_scan:serverScan,
               reason: visible.length ? null : "DIRECT_MEDIA_NOT_FOUND",
             };
           }),

@@ -95,7 +95,7 @@ class FakeBridge implements StreamBridge {
 
 void main() {
   testWidgets(
-    'failed server tries alternate decoder then switches source at saved position',
+    'failed server switches its verified server without retrying an unrelated decoder, preserving position',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       final store = await LocalLibraryStore.create();
@@ -170,8 +170,8 @@ void main() {
       expect(find.text('استئناف التشغيل'), findsOneWidget);
       await tester.tap(find.text('استئناف التشغيل'));
       await tester.pump(const Duration(milliseconds: 300));
-      expect(engines.length, 3);
-      expect(engines[1].software, true);
+      expect(engines.length, 2);
+      expect(engines[1].software, false);
       expect(engines.last.uri.queryParameters['id'], 'good');
       expect(engines.last.seeks.first, const Duration(seconds: 40));
       expect(find.byKey(const Key('test-video-surface')), findsOneWidget);

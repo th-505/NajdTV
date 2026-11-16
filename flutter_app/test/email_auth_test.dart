@@ -59,6 +59,8 @@ http.Response jsonReply(Object body, [int status = 200]) => http.Response(
 class RejectingAuth implements NajdAccountAuthentication {
   int requests = 0;
   @override
+  Future<bool> checkConfirmation() async => false;
+  @override
   Future<bool> submit(
     String email,
     String password, {
@@ -126,6 +128,10 @@ void main() {
     () async {
       final client = sdk((request) async {
         expect(request.url.path, '/auth/v1/signup');
+        expect(
+          request.url.queryParameters['redirect_to'],
+          NajdEmailAuth.confirmationReturn,
+        );
         return jsonReply(user());
       });
       final auth = NajdEmailAuth(client, null);
@@ -147,6 +153,10 @@ void main() {
     final client = sdk((request) async {
       paths.add(request.url.path);
       if (request.url.path.endsWith('/user')) {
+        expect(
+          request.url.queryParameters['redirect_to'],
+          NajdEmailAuth.confirmationReturn,
+        );
         return jsonReply(user(anonymous: true));
       }
       if (request.url.path.endsWith('/verify')) return jsonReply(session());
@@ -211,4 +221,18 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
+  test('returning from the confirmation link refreshes the same legacy owner without a numeric OTP', () async {
+    final client = sdk((request) async {
+      expect(request.url.path, '/auth/v1/token');
+      expect(request.url.queryParameters['grant_type'], 'refresh_token');
+      return jsonReply(session());
+    });
+    await client.auth.recoverSession(jsonEncode(session(anonymous: true)));
+    final owner = client.auth.currentUser!.id;
+    final auth = NajdEmailAuth(client, null);
+    expect(await auth.checkConfirmation(), true);
+    expect(client.auth.currentUser!.id, owner);
+    expect(auth.signedIn, true);
+    await client.dispose();
+  });
 }

@@ -16,7 +16,7 @@
 |---|---|---|---|---|---|
 | `3cktv` | — | catalog, search, details, episodes, servers, resolve | — | 3cktv | `server/scrapers/sites/3cktv.mjs:37` |
 | `3isk` | — | catalog, search, details, episodes, servers, resolve | — | 3isk | `server/scrapers/sites/3isk.mjs:56` |
-| `ahwak` | — | catalog, search, details, episodes, servers, resolve | — | ahwak | `server/scrapers/sites/ahwak.mjs:11` |
+| `ahwak` | — | catalog, search, details, episodes, servers, resolve | — | ahwak | `server/scrapers/sites/ahwak.mjs:12` |
 | `akwam` | — | catalog, search, details, episodes, servers, resolve | — | akwam, akoam | `server/scrapers/sites/akwam.mjs:34` |
 | `alooy` | — | catalog, search, details, episodes, servers, resolve | — | alooy | `server/scrapers/sites/alooy.mjs:53` |
 | `anime4up` | — | catalog, search, details, episodes, servers, resolve | — | anime4up | `server/scrapers/sites/anime4up.mjs:50` |

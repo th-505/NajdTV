@@ -1,0 +1,1 @@
+(() => { const failed = new URLSearchParams(location.search).has('error') || new URLSearchParams(location.hash.slice(1)).has('error'); history.replaceState(null, '', location.pathname); if (failed) document.getElementById('status').textContent = 'تعذّر تأكيد الرابط أو انتهت صلاحيته. ارجع إلى التطبيق وأعد طلب التفعيل.'; })();

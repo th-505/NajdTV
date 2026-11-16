@@ -44,7 +44,7 @@ console.log('Pinned source routing: 23 concrete search modules, aliases, filteri
 
 const capabilities = listSourceCapabilities();
 assert.equal(capabilities.length, SOURCE_REGISTRY.length);
-assert.deepEqual(Object.keys(capabilities[0]).sort(), ['aliases', 'domain', 'id', 'name_ar', 'scope', 'search']);
+assert.deepEqual(Object.keys(capabilities[0]).sort(), ['aliases', 'content_type', 'domain', 'id', 'name_ar', 'scope', 'search']);
 let active = 0, maxActive = 0;
 const searched = [];
 const allSearch = createMultiSourceSearch({ search: async (query, provider) => {
@@ -58,9 +58,14 @@ const allSearch = createMultiSourceSearch({ search: async (query, provider) => {
     { title: query, selected_source: provider, ref: `${provider}:same` }, { title: 'unrelated' }];
 } });
 const combined = await allSearch('test');
-assert.equal(searched.length, SOURCE_REGISTRY.length);
-assert.equal(combined.length, SOURCE_REGISTRY.length - 1);
+const vodSources=capabilities.filter(source=>source.scope?.live!==true);
+assert.equal(searched.length, vodSources.length);
+assert(!searched.includes('mewsry'));
+assert.equal(combined.length, vodSources.length - 1);
 assert.equal(maxActive, 20);
 const unavailable = createMultiSourceSearch({ search: async () => { throw Error('DOWN'); } });
 await assert.rejects(unavailable('test'), /SOURCES_UNAVAILABLE/);
-console.log('Unified search: all registered searchers, twenty concurrent provider calls, isolation and deduplication passed.');
+console.log('Unified search: registered VOD searchers, live-source exclusion, twenty concurrent provider calls, isolation and deduplication passed.');
+
+assert.equal(listSourceCapabilities().find(s=>s.id==='mewsry').content_type,'live');
+assert.equal(listSourceCapabilities().find(s=>s.id==='mewsry').scope.live,true);

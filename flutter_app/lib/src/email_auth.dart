@@ -10,6 +10,7 @@ import 'library_store.dart';
 abstract interface class NajdAccountAuthentication {
   Future<bool> submit(String email, String password, {required bool create});
   Future<bool> verify(String email, String token);
+  Future<bool> checkConfirmation();
 }
 
 class NajdEmailAuth implements NajdAccountAuthentication {
@@ -17,6 +18,8 @@ class NajdEmailAuth implements NajdAccountAuthentication {
   final SupabaseClient client;
   final LocalLibraryStore? store;
   static bool _changing = false;
+  static const confirmationReturn =
+      'https://th-505.github.io/NajdTV/auth-callback.html';
   OtpType verificationType = OtpType.signup;
   bool get signedIn => hasRegisteredNajdAccount(client);
   static bool validEmail(String value) =>
@@ -58,10 +61,15 @@ class NajdEmailAuth implements NajdAccountAuthentication {
         verificationType = OtpType.emailChange;
         await client.auth.updateUser(
           UserAttributes(email: email, password: password),
+          emailRedirectTo: confirmationReturn,
         );
       } else if (create) {
         verificationType = OtpType.signup;
-        await client.auth.signUp(email: email, password: password);
+        await client.auth.signUp(
+          email: email,
+          password: password,
+          emailRedirectTo: confirmationReturn,
+        );
       } else {
         await client.auth.signInWithPassword(email: email, password: password);
       }
@@ -80,6 +88,11 @@ class NajdEmailAuth implements NajdAccountAuthentication {
       type: verificationType,
     );
   });
+  @override
+  Future<bool> checkConfirmation() => _change(() async {
+    if (client.auth.currentSession != null) await client.auth.refreshSession();
+  });
+
   Future<void> signOut() async {
     await _change(() async {
       await client.auth.signOut(scope: SignOutScope.local);
@@ -100,7 +113,46 @@ class NajdEmailAuthPanel extends StatefulWidget {
   State<NajdEmailAuthPanel> createState() => _NajdEmailAuthPanelState();
 }
 
-class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel> {
+class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _verify && !_busy) {
+      unawaited(_checkConfirmation());
+    }
+  }
+
+  Future<void> _checkConfirmation() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final ready = await widget.auth.checkConfirmation();
+      if (!mounted) return;
+      if (ready) {
+        widget.onSignedIn();
+      } else {
+        setState(
+          () => _message = 'إن فتحت رابط التأكيد، اختر تسجيل الدخول أدناه. لا تحتاج رمزًا إلا إذا وصل في الرسالة.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _message =
+              'تعذّر فحص التأكيد. جرّب تسجيل الدخول بعد فتح رابط البريد.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   final _form = GlobalKey<FormState>();
   final _email = TextEditingController(),
       _password = TextEditingController(),
@@ -110,6 +162,7 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel> {
   String _message = '';
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
@@ -251,7 +304,12 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel> {
                       : 'كلمتا المرور غير متطابقتين',
                 ),
               ],
-              if (_verify)
+              if (_verify) ...[
+                OutlinedButton(
+                  onPressed: _busy ? null : _checkConfirmation,
+                  child: const Text('فتحت رابط التفعيل — تحقق الآن'),
+                ),
+                const Text('أو أدخل الرمز إن كانت رسالتك تحتوي رمزًا:'),
                 TextFormField(
                   controller: _token,
                   enabled: !_busy,
@@ -266,6 +324,7 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel> {
                       ? null
                       : 'أدخل رمز التأكيد',
                 ),
+              ],
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _busy ? null : _submit,

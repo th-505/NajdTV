@@ -52,7 +52,7 @@ export function createSourceApi({store,worker,now=Date.now,resolvePlayback=null}
   const metadata=work.metadata||{},seasons=metadata.seasons||[];let selected=Number(season);
   if(work.type==='movie')selected=0;else if(!seasons.some(s=>Number(s.season_number)===selected))selected=Number(seasons[0]?.season_number)||1;
   const rows=work.type==='movie'?[]:await store.episodes(key,{season:selected,limit:100,offset,indexedSince:metadata.index_started_at});
-  return{...metadata,ref:key,genres:work.genres||metadata.genres||[],source_title:metadata.title,source_poster:metadata.poster||'',title:metadata.catalog_metadata?.title||metadata.title,poster:metadata.catalog_metadata?.poster||metadata.poster||'',year:metadata.catalog_metadata?.year||metadata.year||null,observed_year:metadata.year||null,observed_overview:metadata.overview||'',overview:metadata.catalog_metadata?.overview||metadata.overview||'',plot:metadata.catalog_metadata?.overview||metadata.overview||'',available_seasons:seasons.map(s=>s.season_number),season_number:selected,episodes:(rows||[]).map(row=>({id:shortHash(row.source_ref),ref:key+':s'+row.season+':e'+row.episode,title:String(row.title||'الحلقة '+row.episode).slice(0,200),episode_number:row.episode,season_number:row.season,watch_available:row.episode>0})),episode_pagination:{has_more:rows?.length===100,next_offset:rows?.length===100?offset+100:null}};
+  return{...metadata,ref:key,genres:work.genres||metadata.genres||[],source_title:metadata.title,source_poster:metadata.poster||'',title:metadata.catalog_metadata?.title||metadata.title,poster:metadata.catalog_metadata?.poster||metadata.poster||'',year:metadata.catalog_metadata?.year||metadata.year||null,observed_year:metadata.year||null,observed_overview:metadata.overview||'',overview:metadata.catalog_metadata?.overview||metadata.overview||'',plot:metadata.catalog_metadata?.overview||metadata.overview||'',available_seasons:seasons.map(s=>s.season_number),season_number:selected,episodes:(rows||[]).map(row=>({id:shortHash(row.source_ref),ref:key+':s'+row.season+':e'+row.episode,title:String(row.title||'الحلقة '+row.episode).slice(0,200),episode_number:row.episode,season_number:row.season,...(row.poster?{poster:row.poster}:{}),...(row.duration_seconds?{duration_seconds:row.duration_seconds}:{}),watch_available:row.episode>0})),episode_pagination:{has_more:rows?.length===100,next_offset:rows?.length===100?offset+100:null}};
  }
  async function playback(ref,{season=1,episode=1,platform='native',refresh=false,playbackSession=''}={}){
   if(!store)throw Error('HARVEST_NOT_CONFIGURED');const key=workReference(ref);if(!sourceWorkRef(key))throw Error('SOURCE_WORK_REQUIRED');
@@ -62,17 +62,19 @@ export function createSourceApi({store,worker,now=Date.now,resolvePlayback=null}
   const rows=await store.episodes(key,{season,episode,limit:100,indexedSince:work.metadata.index_started_at});if(!rows?.length)return{state:'unavailable',reason:'SOURCE_EPISODE_NOT_FOUND'};
   if(resolvePlayback){
    const extract=async()=>{
-   const servers=[];
+   const servers=[], inventories=[];
    for(const row of rows.slice(0,3)){
     const fresh=await resolvePlayback({work,row,season,episode,platform});
+    if(fresh.server_scan)inventories.push(fresh.server_scan);
     servers.push(...fresh.map(media=>({...media,provider_id:row.provider,source_ref:row.source_ref,
       edition:work.metadata.edition,label:work.metadata.source_edition==='dubbed'?'مدبلج':work.metadata.source_edition==='subtitled'?'مترجم':media.quality||'المصدر'})));
    }
+   if(inventories.length){const inventory=[...new Map(inventories.flatMap(s=>s.server_inventory||[]).map(s=>[s.id,s])).values()];Object.defineProperty(servers,'server_scan',{value:{server_inventory:inventory,observed_servers:inventory.length,playable_servers:inventory.filter(s=>s.state==='playable').length,server_scan_complete:inventories.every(s=>s.server_scan_complete===true)}});}
    return servers;
    };
    if(playbackSession)return sessions(playbackSession,[key,season,episode,platform],extract);
    const servers=await extract();
-   return servers.length?{state:'ready',servers,cache_hit:false,source:'request-extraction'}:
+   return servers.length?{state:'ready',servers,server_scan:servers.server_scan||null,cache_hit:false,source:'request-extraction'}:
     {state:'unavailable',reason:'DIRECT_MEDIA_NOT_FOUND'};
   }
   const matching=await store.request('matv_discovery_jobs',{content_ref:'eq.'+key,stage:'eq.episode',season_number:'eq.'+season,episode_number:'eq.'+episode,select:'job_key,status,error_code,payload,updated_at',limit:100});
@@ -83,7 +85,7 @@ export function createSourceApi({store,worker,now=Date.now,resolvePlayback=null}
    if(refresh||row.state!=='playable'||!directCandidate(media)||media.identity_verified!==true||!(Date.parse(media.expires_at)>now()+30000)||(platform==='web'&&media.web_playable!==true)||Number(media.observed_identity?.season)!==season||Number(media.observed_identity?.episode)!==episode||seen.has(media.url))continue;
    seen.add(media.url);servers.push({...media,provider_id:row.provider,source_ref:row.source_ref,edition:work.metadata.edition,label:work.metadata.source_edition==='dubbed'?'مدبلج':work.metadata.source_edition==='subtitled'?'مترجم':media.quality||'المصدر'});
   }
-  if(servers.length)return{state:'ready',servers,cache_hit:true,source:'najd-source-edition-cache'};
+  if(servers.length)return{state:'ready',servers,server_scan:rows.find(r=>r.server_scan)?.server_scan||null,cache_hit:true,source:'najd-source-edition-cache'};
   // A native-only cached link is a web cache miss. Try the source extractor
   // once before concluding that this provider cannot serve the browser.
   if(platform==='web'&&!refresh&&(matching||[]).some(j=>j.status==='ready'&&j.payload?.platform==='web'&&Date.parse(j.updated_at)>now()-60000))return{state:'unavailable',reason:'PINNED_DIRECT_WEB_UNAVAILABLE'};

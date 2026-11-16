@@ -501,6 +501,7 @@ class MitvApi implements MediaRepository {
           'media_type': first['media_type'],
           'playback_mode': 'direct',
           'media_sources': sources,
+          'server_scan': data['server_scan'],
           'headers': first['headers'] ?? {},
           'expires_at': first['expires_at'],
           'edition': first['edition'] ?? '',
@@ -891,7 +892,13 @@ class MitvApi implements MediaRepository {
       }
     }
     return _list(json['data'])
-        .where((source) => source['search'] == true && source['id'] is String)
+        .where(
+          (source) =>
+              source['search'] == true &&
+              source['id'] is String &&
+              source['content_type'] != 'live' &&
+              (source['scope'] is! Map || source['scope']['live'] != true),
+        )
         .map((source) => source['id'] as String)
         .where((id) => RegExp(r'^[a-z0-9][a-z0-9_-]{1,29}$').hasMatch(id))
         .toSet()
@@ -1187,7 +1194,10 @@ class MitvApi implements MediaRepository {
     bool refresh = false,
   }) async {
     if (ref.startsWith('live:iptv-org:')) {
-      final json = await _getJson('/api/v1/live/playback', {'ref': ref, if (refresh) 'refresh': '1'});
+      final json = await _getJson('/api/v1/live/playback', {
+        'ref': ref,
+        if (refresh) 'refresh': '1',
+      });
       final data = json['data'];
       if (data is! Map) throw const ApiException('LIVE_INVALID_PLAYBACK');
       final details = TitleDetails.fromJson(data.cast<String, dynamic>());

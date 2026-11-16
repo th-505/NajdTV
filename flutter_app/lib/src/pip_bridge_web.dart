@@ -44,7 +44,12 @@ class NajdPipBridge {
     required bool playing,
     required double width,
     required double height,
-  }) async {}
+  }) async {
+    try {
+      _find()?.setProperty('autoPictureInPicture'.toJS, playing.toJS);
+    } catch (_) {}
+  }
+
   Future<bool> enter({
     required String url,
     required Map<String, String> headers,

@@ -2,21 +2,15 @@ import 'package:mitv/src/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test(
-    'missing episode number remains unverified for alignment and subtitle search',
-    () {
-      final unknown = EpisodeItem.fromJson({'id': '123', 'season': 1});
-      expect(unknown.hasEpisodeNumber, false);
-      expect(
-        EpisodeItem.fromJson({
-          'id': '123',
-          'season': 1,
-          'number': 2,
-        }).hasEpisodeNumber,
-        true,
-      );
-    },
-  );
+  test('missing episode number remains unverified for alignment and subtitle search', () {
+    final unknown = EpisodeItem.fromJson({'id': '123', 'season': 1});
+    expect(unknown.hasEpisodeNumber, false);
+    expect(
+      EpisodeItem.fromJson({'id': '123', 'season': 1, 'number': 2})
+          .hasEpisodeNumber,
+      true,
+    );
+  });
 
   test('catalog runtime mapping keeps poster year and opaque ref', () {
     final item = CatalogItem.fromJson({
@@ -103,22 +97,19 @@ void main() {
     expect(match.ref, 'match:opaque');
   });
 
-  test(
-    'authoritative top-level match score wins over nested placeholders in Flutter',
-    () {
-      final match = MatchItem.fromJson({
-        'team1': {'name': 'راسينج سانتاندير', 'goals': 0},
-        'team2': {'name': 'ألافيس', 'goals': 0},
-        'home_score': 2,
-        'away_score': 1,
-        'status': 'ended',
-        'ref': 'match:authoritative',
-      });
-      expect(match.homeGoals, 2);
-      expect(match.awayGoals, 1);
-      expect(match.hasScore, true);
-    },
-  );
+  test('authoritative top-level match score wins over nested placeholders in Flutter', () {
+    final match = MatchItem.fromJson({
+      'team1': {'name': 'راسينج سانتاندير', 'goals': 0},
+      'team2': {'name': 'ألافيس', 'goals': 0},
+      'home_score': 2,
+      'away_score': 1,
+      'status': 'ended',
+      'ref': 'match:authoritative',
+    });
+    expect(match.homeGoals, 2);
+    expect(match.awayGoals, 1);
+    expect(match.hasScore, true);
+  });
 
   test(
     'explicit authoritative 0-0 remains a legitimate ended result in Flutter',
@@ -197,5 +188,25 @@ void main() {
     });
     expect(server.ref, startsWith('server:'));
     expect(playback.mediaPath, startsWith('/api/matches/media?'));
+  });
+  test('source episode images and exact duration survive UI parsing', () {
+    final episode = EpisodeItem.fromJson({
+      'id': 'one',
+      'ref': 'source:fixture:s1:e1',
+      'episode_number': 1,
+      'poster': 'https://images.example/one.jpg',
+      'duration_seconds': 2780,
+    });
+    expect(episode.poster, 'https://images.example/one.jpg');
+    expect(episode.durationLabel, '46:20');
+    final details = TitleDetails.fromJson({
+      'title': 'Fixture',
+      'server_scan': {'observed_servers': 5, 'playable_servers': 2},
+    });
+    expect(details.serverScan['observed_servers'], 5);
+    expect(
+      details.copyWith(title: 'Renamed').serverScan['playable_servers'],
+      2,
+    );
   });
 }
