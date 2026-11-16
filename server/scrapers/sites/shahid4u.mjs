@@ -37,8 +37,9 @@ import { buildAntiBanHeaders, generateAntiBanHeaders } from '../anti-ban.mjs';
 export const PROVIDER_ID = 'shahid4u';
 export const PROVIDER_NAME = 'شاهد فور يو (Shahid4U)';
 export const PROVIDER_CODE = 'SU';
-export const PRIMARY_BASE_URL = 'https://shahidfu.cam';
+export const PRIMARY_BASE_URL = 'https://shahidfu.live';
 export const MIRROR_DOMAINS = Object.freeze([
+  'https://shahidfu.cam',
   'https://cdn.shahid4u.asia',
   'https://sh4u.news',
   'https://shahid4u.vip',

@@ -55,3 +55,11 @@ test('a probe deadline retains usable sources but never claims all observed qual
  let clock=0;const rows=await resolveProviderMedia({module:{}},'provider:episode',{now:()=>clock,resolverBudgetMs:1000,details:{media_sources:Array.from({length:20},(_,i)=>({url:`https://cdn.example/${i}.mp4`}))},accept:async candidates=>{clock+=600;return candidates;}});
  assert(rows.length>0&&rows.length<20);assert.equal(rows._meta.server_scan_complete,false);assert.equal(rows._meta.observed_media_candidates,20);
 });
+
+test('five observed host servers remain visible in diagnostics when only two contain playable media',async()=>{
+ const entry={module:{scrapeServers:async()=>Array.from({length:5},(_,i)=>({url:`https://player.example/${i}?private=opaque`,type:'embed',label:'Server '+i})),resolveStream:async()=>null}};
+ const rows=await resolveProviderMedia(entry,'https://source.example/episode',{resolveEmbed:async target=>['/1','/3'].includes(new URL(target).pathname)?[{url:'https://cdn.example'+new URL(target).pathname+'.mp4'}]:[]});
+ assert.equal(rows.length,2);assert.equal(rows._meta.observed_servers,5);assert.equal(rows._meta.playable_servers,2);
+ assert.equal(rows._meta.server_inventory.filter(s=>s.state==='unavailable').length,3);
+ assert(!JSON.stringify(rows._meta).includes('private='));assert.equal(rows._meta.server_scan_complete,true);
+});

@@ -8,7 +8,8 @@ try {
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.data.length, 23);
-  assert(body.data.some(source => source.id === 'fivetv'));
+  assert(!body.data.some(source => source.id === 'fivetv'));
+  assert(body.data.some(source => source.id === 'movizland'));
   assert(body.data.some(source => source.id === 'brstej'));
   const manifest = await (await fetch(base + '/api/v1/sources')).json();
   assert.equal(manifest.schema_version, 1);

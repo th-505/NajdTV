@@ -42,3 +42,22 @@ test('hybrid VOD providers retain their film and episode catalogue outside the l
  const browser=createProviderBrowser({providers:()=>[meta],lookup:()=>({meta,module:{scrapeCatalog:async()=>[]}})});
  assert.equal(browser.sources()[0].content_type,'vod');
 });
+
+test('observed next URLs remain private, expire and cannot cross a provider or category',async()=>{
+ let clock=100;const calls=[];
+ const lookup=id=>({meta:{id,name:id,domains:['https://'+id+'.example'],capabilities:{catalog:true}},module:{CONFIG:{categories:{movies:'/',series:'/series/'}},scrapeCatalog:async(category,page,options)=>{
+  calls.push({id,category,page,next:options.searchPageUrl});
+  const rows=[{ref:id+':'+page,title:'Observed'}];
+  Object.defineProperty(rows,'_meta',{value:{next_page:page===1?2:null,next_url:'https://one.example/observed/?cursor=public-metadata'}});return rows;
+ }}});
+ const browser=createProviderBrowser({lookup,now:()=>clock,catalogTtlMs:1000});
+ const first=await browser.catalog('one','movies',1);
+ assert(!JSON.stringify(first).includes('cursor='),'upstream pagination URLs are server-private metadata');
+ await browser.catalog('one','movies',2);
+ assert.equal(calls.at(-1).next,'https://one.example/observed/?cursor=public-metadata');
+ await browser.catalog('one','series',2);assert.equal(calls.at(-1).next,undefined);
+ await browser.catalog('two','movies',1);await browser.catalog('two','movies',2);
+ assert.equal(calls.at(-1).next,undefined,'foreign-host pagination must be rejected');
+ clock+=1001;await browser.catalog('one','movies',2);
+ assert.equal(calls.at(-1).next,undefined,'expired page evidence must never be reused');
+});

@@ -1,4 +1,5 @@
-import {getProviderConfig} from './shared/provider-config.mjs';
+import {assertSafeScraperUrl} from './shared/http.mjs';
+import {getProviderConfig,effectiveProviderDomains} from './shared/provider-config.mjs';
 import {runInBrowserLane} from '../browser/traffic.mjs';
 import {classifyNetworkError} from './shared/errors.mjs';
 import { getProvider, listIndependentProviders } from '../browser/registry.mjs';
@@ -39,14 +40,18 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
       const selected = category || allowed[0]?.id;
       if (selected && !allowed.some(item => item.id === selected)) throw Error('BROWSER_BAD_CATEGORY');
       const config=getProviderConfig(id);
-      const key=JSON.stringify([id,selected,page,config?.revision||0,config?.primary_domain||provider.meta.domains[0]]);
+      const cacheKey=number=>JSON.stringify([id,selected,number,config?.revision||0,config?.primary_domain||provider.meta.domains[0]]);
+      const key=cacheKey(page);
       const cached=successful.get(key);
       if(cached&&cached.expires>now())return structuredClone(cached.data);
       if(cached)drop(key);
       if(pending.has(key))return structuredClone(await pending.get(key));
+      let observedNextUrl=null;
       async function fetchPage(){
+      const previous=successful.get(cacheKey(page-1));
+      const nextUrl=previous?.expires>now()&&previous.data.pagination.next_page===page?previous.nextUrl:null;
       let result;
-      try{result=await queue.run(()=>runInBrowserLane(()=>provider.module.scrapeCatalog(selected,page,{strict:true,allowHttp:false,timeoutMs:8000,maxRetries:0})));}
+      try{result=await queue.run(()=>runInBrowserLane(()=>provider.module.scrapeCatalog(selected,page,{strict:true,allowHttp:false,timeoutMs:8000,maxRetries:0,...(nextUrl?{searchPageUrl:nextUrl}:{})})));}
       catch(error){const failure=new Error('BROWSER_SOURCE_UNAVAILABLE');failure.code=error.code||classifyNetworkError(error).code;throw failure;}
       if(result?._meta?.errorCode&&result._meta.errorCode!=='EMPTY_RESULT'){
         const failure=new Error('BROWSER_SOURCE_UNAVAILABLE');failure.code=result._meta.errorCode;throw failure;
@@ -56,6 +61,9 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
       const meta = result?._meta || {};
       const nextPage = Number(meta.next_page);
       const observedNext = Number.isInteger(nextPage) && nextPage > page;
+      if(observedNext&&typeof meta.next_url==='string'&&meta.next_url.length<=4096){
+        try{observedNextUrl=assertSafeScraperUrl(meta.next_url,{allowHttp:false,allowedHosts:effectiveProviderDomains(id,provider.meta.domains.map(domain=>new URL(domain).hostname))}).href;}catch{}
+      }
       const explicitPagination = Object.hasOwn(meta, 'next_page') || Object.hasOwn(meta, 'has_more');
       return { status: 'success', provider: id, category: selected || null,
         items: items.filter(item => item?.ref && item?.title).map(item => ({
@@ -76,7 +84,7 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
           if(bytes<=256*1024){
             drop(key);
             while(successful.size>=80||cachedBytes+bytes>8*1024*1024){drop(successful.keys().next().value);}
-            successful.set(key,{data:structuredClone(data),bytes,expires:now()+Math.max(0,Math.min(120000,catalogTtlMs))});cachedBytes+=bytes;
+            successful.set(key,{data:structuredClone(data),nextUrl:observedNextUrl,bytes,expires:now()+Math.max(0,Math.min(120000,catalogTtlMs))});cachedBytes+=bytes;
           }
         }
         return data;

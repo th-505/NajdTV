@@ -44,3 +44,13 @@ for(const[scope,family]of[['najd',najd],['beta',beta]]){
  const rows=await family.getProvider('egydead_live').module.scrapeCatalog('live',1,{fixtureHtml:'<li class="movieItem"><a href="https://a1.egydead.media/movie/">Film</a></li>'});assert.equal(rows.length,0);assert.equal(rows._meta.errorCode,'STRUCTURE_CHANGED');assert.equal(rows._meta.errorMessage,'LIVE_SOURCE_NOW_RETURNS_VOD_NOT_CHANNELS');
  });
 }
+for (const [scope, family] of [['najd', najd], ['beta', beta]]) test(scope + ' CimaNow login redirects report availability, never missing content', async () => {
+ const rows = await family.getProvider('cimanow').module.scrapeSearch('Fixture', 1, {
+   maxRetries: 0, dnsLookupImpl: async () => [{ address: '93.184.216.34', family: 4 }],
+   fetchImpl: async url => new URL(url).pathname === '/signin/'
+     ? new Response('<h1>Sign in</h1><input type="password">')
+     : new Response('', { status: 302, headers: { location: '/signin/' } }),
+ });
+ assert.equal(rows.length, 0);
+ assert.equal(rows._meta.errorCode, 'ACCESS_BLOCKED');
+});

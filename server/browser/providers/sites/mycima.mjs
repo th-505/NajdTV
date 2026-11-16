@@ -39,6 +39,7 @@ export const PROVIDER_NAME = 'ماي سيما (MyCima / WeCima)';
 export const PROVIDER_CODE = 'MA';
 export const PRIMARY_BASE_URL = 'https://mycima.gdn';
 export const MIRROR_DOMAINS = Object.freeze([
+  'https://mycima.house',
   'https://mycima.gripe',
   'https://wecima.show',
   'https://mywecima.casa',

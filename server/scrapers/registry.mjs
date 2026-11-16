@@ -1,3 +1,7 @@
+import * as egybestMod from './sites/egybest.mjs';
+import * as movizlandMod from './sites/movizland.mjs';
+import * as animezidMod from './sites/animezid.mjs';
+import {activeProvider} from './replacements.mjs';
 import {wrapConfiguredProvider} from './configurable-provider.mjs';
 // server/scrapers/registry.mjs
 // Central Capability Registry for all MATV scrapers & providers
@@ -29,6 +33,10 @@ import * as larozaMod from './sites/laroza.mjs';
 import * as fivetvMod from './sites/fivetv.mjs';
 
 const PROVIDER_ENTRIES = [
+  {meta:animezidMod.PROVIDER_META,module:animezidMod},
+  {meta:movizlandMod.PROVIDER_META,module:movizlandMod},
+  {meta:egybestMod.PROVIDER_META,module:egybestMod},
+
   { meta: ahwakMod.PROVIDER_META, module: ahwakMod },
   { meta: brstejMod.PROVIDER_META, module: brstejMod },
   { meta: fostaMod.PROVIDER_META, module: fostaMod },
@@ -75,15 +83,15 @@ export function getProviderByCode(code) {
 }
 
 export function listProviders() {
-  return PROVIDER_ENTRIES.map((e) => wrapConfiguredProvider(e).meta);
+  return PROVIDER_ENTRIES.filter(e => activeProvider(e.meta.id)).map((e) => wrapConfiguredProvider(e).meta);
 }
 
 export function listIndependentProviders() {
-  return PROVIDER_ENTRIES.filter((e) => !e.meta.mirrorOf).map((e) => wrapConfiguredProvider(e).meta);
+  return PROVIDER_ENTRIES.filter((e) => activeProvider(e.meta.id) && !e.meta.mirrorOf).map((e) => wrapConfiguredProvider(e).meta);
 }
 
 export function listMirrorProviders() {
-  return PROVIDER_ENTRIES.filter((e) => Boolean(e.meta.mirrorOf)).map((e) => wrapConfiguredProvider(e).meta);
+  return PROVIDER_ENTRIES.filter((e) => activeProvider(e.meta.id) && Boolean(e.meta.mirrorOf)).map((e) => wrapConfiguredProvider(e).meta);
 }
 
 export default {

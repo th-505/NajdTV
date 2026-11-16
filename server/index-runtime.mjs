@@ -1,3 +1,4 @@
+import { createLiveCatalog } from './live-catalog.mjs';
 import {sourceResponse,providerErrorCode} from '../shared/provider-contract.js';
 import { allowedOrigin, protectServer } from './security-boundary.mjs';
 import { searchTraceEvent } from './diagnostics/search-trace.mjs';
@@ -79,6 +80,7 @@ function fallbackIdentity(url) {
 
 export function createMitvRuntimeServer({
   baseServer = createProductionServer(),
+  liveCatalog = createLiveCatalog(),
   tmdbRuntime = createTmdbRuntime(),
   fallbackRuntime = createFallbackPlaybackRuntime(),
 } = {}) {
@@ -91,6 +93,23 @@ export function createMitvRuntimeServer({
       url = new URL(req.url || "/", "http://localhost");
     } catch {
       return baseHandler(req, res);
+    }
+
+    if (['/api/v1/live/groups', '/api/v1/live/catalog', '/api/v1/live/playback'].includes(url.pathname)) {
+      applyCors(req, res);
+      if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+      if (req.method !== 'GET') return sendJson(req, res, 405, { status: 'error', message: 'METHOD_NOT_ALLOWED' });
+      try {
+        if (url.pathname.endsWith('/groups')) return sendJson(req, res, 200, { status: 'success', data: liveCatalog.groups() });
+        if (url.pathname.endsWith('/playback')) return sendJson(req, res, 200,
+          await liveCatalog.playback(url.searchParams.get('ref') || '', url.searchParams.get('refresh') === '1'));
+        return sendJson(req, res, 200, await liveCatalog.catalog({
+          group: url.searchParams.get('group') || 'sa', page: Number(url.searchParams.get('page') || 1), q: url.searchParams.get('q') || '',
+        }));
+      } catch (error) {
+        const known = ['LIVE_UNKNOWN_GROUP', 'LIVE_BAD_QUERY', 'LIVE_BAD_REFERENCE', 'LIVE_CHANNEL_NOT_FOUND'].includes(error.message);
+        return sendJson(req, res, known ? 400 : 503, { status: 'error', message: known ? error.message : 'LIVE_UPSTREAM_UNAVAILABLE' });
+      }
     }
 
     if (TMDB_ROUTES.has(url.pathname)) {

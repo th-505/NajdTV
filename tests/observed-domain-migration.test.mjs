@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import fs f
 import * as najd from '../server/scrapers/registry.mjs';import * as beta from '../server/browser/registry.mjs';
 import {installProviderConfigs} from '../server/scrapers/shared/provider-config.mjs';
 import {installBrowserConfigs} from '../server/browser/traffic.mjs';
-const sources=[{id:'fosta',current:'ffosta-tv.lat',legacy:'ffosta-tv.autos',parse:'parseFostaCatalog',path:'/watch.php?vid=abc123'},{id:'brstej',current:'brstej.garden',fixtureHost:'prstej.study',legacy:'su.brstej.com',parse:'parseBrstejCatalog',path:'/video.php?vid=abc123'}];
+const sources=[{id:'fosta',current:'ffosta-tv.baby',fixtureHost:'ffosta-tv.lat',legacy:'ffosta-tv.autos',parse:'parseFostaCatalog',path:'/watch.php?vid=abc123'},{id:'brstej',current:'brstej1.com',fixtureHost:'prstej.study',legacy:'su.brstej.com',parse:'parseBrstejCatalog',path:'/video.php?vid=abc123'}];
 const ref=(id,url)=>id+':'+Buffer.from(url).toString('base64url');
 for(const [scope,family]of [['najd',najd],['beta',beta]])for(const s of sources)test(scope+' '+s.id+' keeps new cards, next pages, old references and strict URL guards',()=>{
  const entry=family.getProvider(s.id),html=fs.readFileSync(new URL('../scripts/fixtures/providers/domain-migrations/'+s.id+'-search-card.html',import.meta.url),'utf8');
@@ -23,4 +23,15 @@ for(const s of sources)test(s.id+' owner domain updates are synchronous and inde
   assert.equal(typeof decoded,'string');assert.equal(new URL(decoded).origin,domain);
   assert.throws(()=>entry.module.decodeProviderRef(ref(s.id,other+s.path)));
  }}finally{installProviderConfigs([]);installBrowserConfigs([])}
+});
+
+for (const [scope, family] of [['najd', najd], ['beta', beta]]) test(scope + ' Fosta relative references stay on the approved provider', () => {
+ const module = family.getProvider('fosta').module;
+ const path = '/watch.php?vid=abc123';
+ for (const value of [path, 'fosta:' + path, ref('fosta', path)]) {
+   assert.equal(module.decodeProviderRef(value), 'https://ffosta-tv.baby' + path);
+ }
+ for (const value of ['//127.0.0.1/watch.php?vid=x', '/\\evil.example/watch.php?vid=x', 'javascript:alert(1)']) {
+   assert.throws(() => module.decodeProviderRef(value));
+ }
 });

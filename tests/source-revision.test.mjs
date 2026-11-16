@@ -1,3 +1,4 @@
+import {PRODUCT_VERSION} from '../server/content-runtime.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {readSourceRevision} from '../server/source-revision.mjs';
 import {createServer} from '../server/app.mjs';
@@ -13,7 +14,7 @@ test('health exposes revision and safe harvest booleans without credential mater
   const server=createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));
   try{
     const response=await fetch(`http://127.0.0.1:${server.address().port}/health`),body=await response.json();
-    assert.equal(response.status,200);assert.equal(body.version,'4.0.2');
+    assert.equal(response.status,200);assert.equal(body.version,PRODUCT_VERSION);
     assert(body.source_commit===null || /^[a-f0-9]{40}$/.test(body.source_commit));
     assert.equal(typeof body.harvest_enabled,'boolean');assert.equal(typeof body.harvest_configured,'boolean');
     assert(!/apikey|service_role|authorization/i.test(JSON.stringify(body)));

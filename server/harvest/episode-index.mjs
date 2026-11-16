@@ -1,3 +1,4 @@
+import {observedEpisodeMetadata} from '../scrapers/shared/episode-metadata.mjs';
 import * as cheerio from 'cheerio';
 import {explicitEpisode,contentIdentity,identityDigits,explicitSeason} from '../../shared/content-identity.js';
 import {resolveSafeUrl,assertSafeScraperUrl} from '../scrapers/shared/http.mjs';
@@ -21,11 +22,11 @@ export function scanEpisodeIndex(html,url,{provider,domains,title='',episodes=[]
   if(!Number.isSafeInteger(number)||number<1||number>100000)return;
   const season=Number(raw.season_number??raw.season)||explicitSeason(text,target)||parentSeason||1;
   const ref=raw.ref||provider+':'+Buffer.from(target).toString('base64url');
-  byRef.set(target,{source_ref:ref,url:target,title:text||'الحلقة '+number,season,episode:number});
+  byRef.set(target,{...byRef.get(target),...observedEpisodeMetadata(raw,url),source_ref:ref,url:target,title:text||'الحلقة '+number,season,episode:number});
  }
  for(const row of episodes)add(row);
  $('.sh-single-episode-grid a[href],.EpisodesList a[href],.episodes-list a[href],.episodes-grid a[href],.episodes a[href],a.episode-tile[href],a.br-series-detail-card-link[href]').each((_,el)=>{
-  const a=$(el);add({url:a.attr('href'),title:a.find('.sh-episode-tile-title,.episode-title,.ep-title').first().text()||a.attr('title')||a.text(),number:a.attr('data-episode'),season:a.attr('data-season')});
+  const a=$(el), card=a.closest('.episode-tile,.thumbnail,.episode,.episode-card,.sh-episode-tile').length?a.closest('.episode-tile,.thumbnail,.episode,.episode-card,.sh-episode-tile'):a;const image=card.find('img').first();add({poster:image.attr('data-echo')||image.attr('data-src')||image.attr('src')||'',duration:card.find('time[datetime]').attr('datetime')||card.find('.pm-label-duration,.duration,.video-time,.episode-duration').first().text().trim(),url:a.attr('href'),title:a.find('.sh-episode-tile-title,.episode-title,.ep-title').first().text()||a.attr('title')||a.text(),number:a.attr('data-episode'),season:a.attr('data-season')});
  });
  const pages=new Set();
  const current=new URL(url);const page=Number(current.searchParams.get('page')||current.searchParams.get('paged')||current.searchParams.get('p'))||Number(current.pathname.match(/\/page\/(\d+)/)?.[1])||1;
@@ -49,6 +50,19 @@ export function scanEpisodeIndex(html,url,{provider,domains,title='',episodes=[]
   const parent=safePage(link.url,url,domains);
   const edition=t=>/مدبلج|dubbed/i.test(t)?'dubbed':/مترجم|subtit/i.test(t)?'subtitled':null;
   if(parent&&parent!==url&&Number.isSafeInteger(link.season)&&link.season>0&&cleanTitle(link.title)===cleanTitle(title)&&(!edition(title)||!edition(link.title)||edition(title)===edition(link.title)))parents.add(parent);
+ }
+ // AnimeZid groups provider-owned editions behind explicit season URLs. Its
+ // "latest episodes" rail is not season one and must not create false numbering.
+ if(provider==='animezid'){
+  const root=current.pathname.match(/^\/series\/([^/]+)\/$/);
+  if(root){
+   const owned=new Set();
+   $('a[href]').each((_,el)=>{const next=safePage($(el).attr('href'),url,domains);if(!next)return;
+    const path=new URL(next).pathname.match(/^\/series\/([^/]+)\/season\/(\d+)\/$/);
+    if(path&&path[1]===root[1]&&Number(path[2])>0)owned.add(next);
+   });
+   if(owned.size){byRef.clear();for(const next of owned)pages.add(next);}
+  }
  }
  const declared=identityDigits($('.br-series-stats').text()).match(/(\d{1,5})\s*(?:حلقات|حلقة)/)?.[1]||identityDigits($('.anime-info').text()).match(/عدد الحلقات\s*:\s*(\d{1,5})/)?.[1];
  return {source_declared_references:declared?Number(declared):null,episodes:[...byRef.values()],pages:[...pages],parents:[...parents],page_fingerprint:shortHash([...byRef.keys()].sort().join('\n')),declared_title:$('h1').first().text().trim()};

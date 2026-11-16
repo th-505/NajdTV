@@ -47,7 +47,7 @@ def check_repository(root_path="."):
         # Only the exact original archive uploaded by the owner is a source-input exception.
         if relative==archive_path and os.path.getsize(filepath)<=32*1024*1024 and hashlib.sha256(open(filepath,'rb').read()).hexdigest()==archive_sha:
             continue
-        approved_web_face=(relative.startswith('assets/assets/najd/fonts/') and filename in approved_web and hashlib.sha256(open(filepath,'rb').read()).hexdigest()==approved_web[filename])
+        approved_web_face=(relative.startswith(('assets/assets/najd/fonts/', 'internal_web/assets/assets/najd/fonts/')) and filename in approved_web and hashlib.sha256(open(filepath,'rb').read()).hexdigest()==approved_web[filename])
         for ext in FORBIDDEN_EXTENSIONS:
             if filename.endswith(ext) and not (ext == '.symbols' and relative in PUBLIC_SDK_SYMBOLS): errors.append(f"❌ ملف ممنوع ({ext}): {filepath}")
         if 'thmanyah' in relative.lower() and filename.lower().endswith(('.otf','.ttf','.woff','.woff2')) and not approved_web_face:

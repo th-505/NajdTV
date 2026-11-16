@@ -62,6 +62,7 @@ export function isCloudflareOrAccessBlock(status, html = '', headers = null) {
   }
 
   const body = String(html || '');
+  if (/<title[^>]*>\s*(?:Bot Verification|Robot Verification|Security Verification)\s*<\/title>/i.test(body) || /<form[^>]+action=["']\/\.lsrecap\/recaptcha/i.test(body)) return true;
   if (
     /Just a moment\.\.\.|Attention Required! \| Cloudflare|cf-browser-verification|cf_chl_opt|challenge-platform\/h\/[bg]\/orchestrate|Enable JavaScript and cookies to continue|DDoS-Guard|_Incapsula_Resource|Request unsuccessful\. Incapsula|incident_id=|alliance4creativity\.com|seized by/i.test(
       body

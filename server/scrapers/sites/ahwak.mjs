@@ -1,3 +1,4 @@
+import {observedEpisodeMetadata} from '../shared/episode-metadata.mjs';
 // Independent Ahwak adapter. Routes/selectors observed on 2026-11-04.
 import * as cheerio from 'cheerio';
 import { fetchProviderHtml, assertSafeScraperUrl, resolveSafeUrl } from '../shared/http.mjs';
@@ -87,7 +88,8 @@ export function parseAhwakDetails(html, baseUrl) {
       const node = $(anchor), observedTitle = node.attr('title') || node.text().trim();
       const url = resolveSafeUrl(node.attr('href') || '', baseUrl, { allowHttp: false, allowedHosts: ['yam.ahwaktv.net'] });
       if (!url || !observedTitle) return;
-      episodes.push({ title: observedTitle, url, ref: refFor(url), season,
+      const card=node.closest('.thumbnail'), image=card.find('img').first();
+      episodes.push({ ...observedEpisodeMetadata({poster:image.attr('data-echo')||image.attr('data-src')||image.attr('src')||'',duration:card.find('.pm-label-duration,.duration').first().text().trim()},baseUrl), title: observedTitle, url, ref: refFor(url), season,
         number: extractEpisodeNumber(observedTitle, url) });
     });
   });
@@ -104,6 +106,7 @@ export async function scrapeDetails(ref, options = {}) {
   const original = result.url;
   const $ = cheerio.load(result.html);
   const parent = $('a[href*="view-serie.php?"]').first().attr('href');
+  const requestedMetadata = new URL(original).pathname === '/watch.php' ? {source_ref:refFor(original),...observedEpisodeMetadata({poster:$('meta[property="og:image"]').attr('content')||'',duration:$('.pm-label-duration,.pm-video-duration,.video-duration').first().text().trim()||$('body').text().match(/مدة العرض\s*[:：]\s*(\d{1,3}:\d{2}(?::\d{2})?)/)?.[1]||''},original)} : null;
   let parentRef = null;
   if (new URL(original).pathname === '/watch.php' && parent) {
     const target = decodeProviderRef(new URL(parent, original).href);
@@ -111,7 +114,7 @@ export async function scrapeDetails(ref, options = {}) {
     parentRef = refFor(target);
   }
   return attachResultMeta({ ...parseAhwakDetails(result.html, result.url),
-    requested_source_ref: refFor(original), observed_parent_ref: parentRef },
+    requested_source_ref: refFor(original), observed_parent_ref: parentRef, requested_episode_metadata: requestedMetadata },
     { ok: true, providerId: 'ahwak', url: result.url });
 }
 export async function scrapeEpisodes(ref, options = {}) { return (await scrapeDetails(ref, options)).episodes; }
@@ -133,7 +136,7 @@ export async function scrapeServers(ref, options = {}) {
 }
 export async function resolveStream(ref, options = {}) {
   const servers = await scrapeServers(ref, options), direct = [];
-  const pending = servers.slice(0, 6);
+  const pending = servers.slice(0, 64);
   let cursor = 0;
   async function worker() {
     while (cursor < pending.length) {

@@ -292,3 +292,15 @@ test('beta retains every verified quality/server from an observed episode instea
  assert.equal(result.state,'ready');assert.equal(result.servers.length,3);
  assert.deepEqual(result.servers.map(row=>row.quality),['720p','1080p','1440p']);
 });
+test('beta reuses guarded provider HTML and follows only source-owned season editions without replacing root metadata',async()=>{
+ const root='https://animezid.org/series/fixture/',child=root+'season/2/';let fallback=0;
+ const entry={meta:{id:'animezid',domains:['https://animezid.org']},module:{scrapeDetails:async(url,options)=>{
+  const season=url===child;
+  options.onProviderPage({url,html:season?'<h1>Different source season</h1>':'<h1>Root title</h1><a href="/series/fixture/season/2/">Different source season</a>'});
+  return {title:season?'Different source season':'Root title',type:'series',sourceUrl:url,episodes:season?[{url:'https://animezid.org/watch.php?vid=one',title:'الحلقة 1',season:2,number:1}]:[]};
+ }}};
+ const service=createBrowserWorkService({lookup:()=>entry,fetchPage:async()=>{fallback++;throw Error('DUPLICATE_FETCH');},store:null});
+ const admitted=await service.request('animezid:'+Buffer.from(root).toString('base64url'));await service.settle();
+ const details=await service.details(admitted.ref);
+ assert.equal(fallback,0);assert.equal(details.title,'Root title');assert.equal(details.episodes.length,1);assert.equal(details.episodes[0].season_number,2);
+});

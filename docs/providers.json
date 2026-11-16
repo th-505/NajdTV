@@ -1,17 +1,24 @@
 {
   "schema_version": 1,
   "scope": "static repository declarations; no network requests",
+  "explicit_replacements": {
+    "cimanow": "egybest",
+    "fivetv": "movizland",
+    "witanime": "animezid"
+  },
   "counts": {
-    "site_modules_with_metadata": 25,
-    "registered_modules": 25,
-    "najd_scrapers": 25,
-    "beta_scrapers": 25,
-    "total_scraper_implementations": 50,
+    "site_modules_with_metadata": 28,
+    "registered_modules": 28,
+    "active_registered_modules": 25,
+    "legacy_compatible_modules": 3,
+    "najd_scrapers": 28,
+    "beta_scrapers": 28,
+    "total_scraper_implementations": 56,
     "explicit_mirrors": 2,
-    "not_marked_as_mirror": 23,
+    "not_marked_as_mirror": 26,
     "ui_spellings": 0,
     "static_ui_array_entries": 0,
-    "pinned_search_modules": 23,
+    "pinned_search_modules": 26,
     "seed_only_entries": 6
   },
   "ui_delivery": {
@@ -97,8 +104,8 @@
       "code": "AH",
       "mirror_of": null,
       "path": "server/scrapers/sites/ahwak.mjs",
-      "metadata_line": 11,
-      "source_sha256": "ab9bd7170e35a6718d5b059229a5389afc08613e14fcdee835c1ef32506e4a0c",
+      "metadata_line": 12,
+      "source_sha256": "8259bb63900995626950f0751ce182544ddfc08b53b674328124d5f35120887b",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -258,6 +265,39 @@
       "live_validation": "not_run"
     },
     {
+      "id": "animezid",
+      "name": "أنمي زد",
+      "code": "AZ",
+      "mirror_of": null,
+      "path": "server/scrapers/sites/animezid.mjs",
+      "metadata_line": 3,
+      "source_sha256": "1959fa18418675c5799ffd3a1c2336c1892c6f53e5507b2b764d427d42edbbd3",
+      "registered": true,
+      "declared_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "exported_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "ui_spellings": [],
+      "pinned_search_spellings": [
+        "animezid"
+      ],
+      "live_validation": "not_run"
+    },
+    {
       "id": "arabseed",
       "name": "عرب سيد (ArabSeed)",
       "code": "AD",
@@ -297,7 +337,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/brstej.mjs",
       "metadata_line": 13,
-      "source_sha256": "a388a3ab48f629d248cc7a50efbc2040d8ba9d65a5299c966a9b138d5e9100a1",
+      "source_sha256": "2605fed3b7f886dc07ef876e4baedb37957ba0b11616ea645577959f6eee4cfb",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -330,7 +370,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/cimanow.mjs",
       "metadata_line": 32,
-      "source_sha256": "6b152153ba45e694c5a83ba69bee04679d6053fd3ab86a682d72bf786a603ae1",
+      "source_sha256": "330022e3587171056a8966223f74dc2cc65cf95fd80e08439550428d83a9fafe",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -353,6 +393,39 @@
       "ui_spellings": [],
       "pinned_search_spellings": [
         "cimanow"
+      ],
+      "live_validation": "not_run"
+    },
+    {
+      "id": "egybest",
+      "name": "إيجي بست",
+      "code": "EB",
+      "mirror_of": null,
+      "path": "server/scrapers/sites/egybest.mjs",
+      "metadata_line": 3,
+      "source_sha256": "b1d56b37c7d8491eddfaa7527a21acff8e6e663a901bf38aba872544f77301e1",
+      "registered": true,
+      "declared_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "exported_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "ui_spellings": [],
+      "pinned_search_spellings": [
+        "egybest"
       ],
       "live_validation": "not_run"
     },
@@ -460,7 +533,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/fosta.mjs",
       "metadata_line": 15,
-      "source_sha256": "936f77dd3befb5b49d7cb08f120a9a5e77963cad2fa4a84b254464e5886478a4",
+      "source_sha256": "a7927945b76cfb6659faff1fa8e69ea96d06397964d6b5db52509a2c0639ee0d",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -586,6 +659,39 @@
       "live_validation": "not_run"
     },
     {
+      "id": "movizland",
+      "name": "موفيز لاند",
+      "code": "ML",
+      "mirror_of": null,
+      "path": "server/scrapers/sites/movizland.mjs",
+      "metadata_line": 3,
+      "source_sha256": "e3cd677fcb94e52a3219b006df08f3c247b17882348d041aca4da18c01acf307",
+      "registered": true,
+      "declared_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "exported_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "ui_spellings": [],
+      "pinned_search_spellings": [
+        "movizland"
+      ],
+      "live_validation": "not_run"
+    },
+    {
       "id": "moviztime",
       "name": "وقت الأفلام",
       "code": "ME",
@@ -624,8 +730,8 @@
       "code": "MA",
       "mirror_of": null,
       "path": "server/scrapers/sites/mycima.mjs",
-      "metadata_line": 48,
-      "source_sha256": "ead01875b532d245c784a3578b201781a435c8897e6bfcc3ede11db75d5dbc60",
+      "metadata_line": 49,
+      "source_sha256": "276900231e44438c477f8a3fdb8f753365302250b714c8007b3c474e4f190186",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -659,7 +765,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/qfilm.mjs",
       "metadata_line": 38,
-      "source_sha256": "4008bedc8ac90f71fc6dcfbb2bcbb2ed1c77d5d840212e717be48dd073173f1c",
+      "source_sha256": "f0ee009e56aeda1c38aafc0aa994e4e0a4bdbe8a99b459e9001e7b4fca3a32d7",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -692,7 +798,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/ristoanime.mjs",
       "metadata_line": 24,
-      "source_sha256": "9b5863327d373889a408365206fe622f2eadd27cf0410d6e15b74051700f4a94",
+      "source_sha256": "692027b198a01883a474de455eb8d971a41275d8d6397ad9236f6739db4ddd0f",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -724,8 +830,8 @@
       "code": "SU",
       "mirror_of": null,
       "path": "server/scrapers/sites/shahid4u.mjs",
-      "metadata_line": 48,
-      "source_sha256": "11b860dee2424821554a9807c55e451dec718356924cffef50359bf6a0cc9868",
+      "metadata_line": 49,
+      "source_sha256": "d7003b496c466032548c566d8ac4df5e81afc2d10729ed9e3c035e7a47060622",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -872,7 +978,7 @@
       "id": "ahwak",
       "scope": "beta",
       "path": "server/browser/providers/sites/ahwak.mjs",
-      "source_sha256": "d5dd86966d56b0077cda785a18a5d1d28ef82a7c41412a5f5f3b2e694ebf966e",
+      "source_sha256": "894e49f9ffae6d0614b196e057894ee3822315b5c7eb9555f709178a3e014163",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -914,6 +1020,15 @@
       "live_validation": "not_run"
     },
     {
+      "id": "animezid",
+      "scope": "beta",
+      "path": "server/browser/providers/sites/animezid.mjs",
+      "source_sha256": "1959fa18418675c5799ffd3a1c2336c1892c6f53e5507b2b764d427d42edbbd3",
+      "registered": true,
+      "mirror_of": null,
+      "live_validation": "not_run"
+    },
+    {
       "id": "arabseed",
       "scope": "beta",
       "path": "server/browser/providers/sites/arabseed.mjs",
@@ -926,7 +1041,7 @@
       "id": "brstej",
       "scope": "beta",
       "path": "server/browser/providers/sites/brstej.mjs",
-      "source_sha256": "4457a30b6e6c6d6f76ec4749c88da32af835c5e84888f40802ffd2484639c5f6",
+      "source_sha256": "ef8af2d1368359cd33aa5c5bc71a2afb75fc3d726d5663f5e379c5ab7aae11ad",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -935,7 +1050,16 @@
       "id": "cimanow",
       "scope": "beta",
       "path": "server/browser/providers/sites/cimanow.mjs",
-      "source_sha256": "9bc60411b54e5df7ba34f7c7b2594db465549cddde2e5e2fc6bf4859186d517d",
+      "source_sha256": "4f385d7143f391e287a10b46cd3631c92ea05b62a31e8a8c658c4786ec82861a",
+      "registered": true,
+      "mirror_of": null,
+      "live_validation": "not_run"
+    },
+    {
+      "id": "egybest",
+      "scope": "beta",
+      "path": "server/browser/providers/sites/egybest.mjs",
+      "source_sha256": "b1d56b37c7d8491eddfaa7527a21acff8e6e663a901bf38aba872544f77301e1",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -971,7 +1095,7 @@
       "id": "fosta",
       "scope": "beta",
       "path": "server/browser/providers/sites/fosta.mjs",
-      "source_sha256": "33ca9be6342ad6c841fc333065fa50e6cb96a7899f130b544a790444158545bf",
+      "source_sha256": "05d81452e583c5d5adf78d27c271db7867b295caddb3a63101850eef12d44029",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -1004,6 +1128,15 @@
       "live_validation": "not_run"
     },
     {
+      "id": "movizland",
+      "scope": "beta",
+      "path": "server/browser/providers/sites/movizland.mjs",
+      "source_sha256": "e3cd677fcb94e52a3219b006df08f3c247b17882348d041aca4da18c01acf307",
+      "registered": true,
+      "mirror_of": null,
+      "live_validation": "not_run"
+    },
+    {
       "id": "moviztime",
       "scope": "beta",
       "path": "server/browser/providers/sites/moviztime.mjs",
@@ -1016,7 +1149,7 @@
       "id": "mycima",
       "scope": "beta",
       "path": "server/browser/providers/sites/mycima.mjs",
-      "source_sha256": "8157c993bfc1b5f5a7f2da43875718bd79647b91a94b18a57a40564900dbc049",
+      "source_sha256": "557807e743c5e7815f15da57e99e4d172848b0a793076b3e6a21b488fb45a6ad",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -1025,7 +1158,7 @@
       "id": "qfilm",
       "scope": "beta",
       "path": "server/browser/providers/sites/qfilm.mjs",
-      "source_sha256": "047c03a8c26884aae602e1c9a59175ad622a553c104e22f0f0158aaa00f3cc88",
+      "source_sha256": "7c96c12b0b1c56ef05fc470cd586e02fafd86021c13a281740331bdac765ad2c",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -1034,7 +1167,7 @@
       "id": "ristoanime",
       "scope": "beta",
       "path": "server/browser/providers/sites/ristoanime.mjs",
-      "source_sha256": "3e2fbe94a4184f4277289bde48d164ec0bd9e9b719b237e1642887f867d5a0bf",
+      "source_sha256": "e95dbaa1ce3417f396ee3cbe9ca16e972c4409d2bc2f733557d95561c0eec070",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
@@ -1043,7 +1176,7 @@
       "id": "shahid4u",
       "scope": "beta",
       "path": "server/browser/providers/sites/shahid4u.mjs",
-      "source_sha256": "52712ddab79ccf22547585e821e965291f3bd0f9daddfb74ca73fe0f7c2186fc",
+      "source_sha256": "fbe5de821d9c77269ac31009ad367f9fb0f2395c7f7183d2c96ffb091377ea0d",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"

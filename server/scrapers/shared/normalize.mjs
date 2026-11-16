@@ -1,3 +1,4 @@
+import {observedEpisodeMetadata} from './episode-metadata.mjs';
 import { contentIdentity, explicitEpisode, explicitSeason } from '../../../shared/content-identity.js';
 // server/scrapers/shared/normalize.mjs
 // Unified normalizers for Arabic/English numbers, episodes, seasons, catalog items, details, and servers
@@ -126,6 +127,7 @@ export function normalizeEpisodeList(rawEpisodes = [], context = {}) {
     const dedupKey = `${season}:${number}:${url}`;
     if (!byKey.has(url) && !byKey.has(dedupKey)) {
       const normalizedEp = {
+        ...observedEpisodeMetadata(ep,baseUrl),
         id: ep.id || url,
         episode_number:number,
         watch_available:number!==null&&ep.watch_available!==false,
