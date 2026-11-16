@@ -43,7 +43,8 @@ export function createServiceChecks({
         const options = {
           strict: true,
           allowHttp: false,
-          timeoutMs: 5000,
+          // Real catalogs can exceed five seconds without being unavailable.
+          timeoutMs: 10000,
           maxRetries: 0,
         };
         const step = async (name, fn) => {

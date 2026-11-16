@@ -15,6 +15,25 @@ const cleanTitle=x=>identityTitle(x).replace(/^(?:انمي|أنمي|anime)\s+/i,
 /** Observed links only. Never synthesize a guessed page count or number range. */
 export function scanEpisodeIndex(html,url,{provider,domains,title='',episodes=[],seasonLinks=[]}={}){
  const $=cheerio.load(html);const byRef=new Map();const parentSeason=explicitSeason(title,url);
+ const metadataByUrl=new Map();
+ function ownsCard(parent,target){
+  const pending=[parent[0]];let visited=0,links=0;
+  while(pending.length){const node=pending.pop();if(++visited>64||(node.children?.length||0)>64)return false;
+   if(node.name==='a'&&node.attribs?.href){const href=safePage(node.attribs.href,url,domains);if(href){if(href!==target||++links>4)return false;}}
+   for(const child of node.children||[])pending.push(child);
+  }
+  return links>0;
+ }
+ // Enrich only an already-observed exact episode URL. A card spanning different
+ // episodes must never donate the first image/time to all of them.
+ $('a[href]').each((_,el)=>{
+  const a=$(el),target=safePage(a.attr('href'),url,domains);if(!target)return;
+  let card=a;const parent=a.closest('li,.thumbnail,.episode-tile,.episode-card,.episode,.ep-item,.video-item,.sh-episode-tile');
+  if(parent.length&&ownsCard(parent,target))card=parent;
+  const image=card.find('img').first();
+  const observed=observedEpisodeMetadata({poster:image.attr('data-echo')||image.attr('data-src')||image.attr('src')||'',duration:a.attr('data-duration')||card.attr('data-duration')||card.find('time[datetime]').attr('datetime')||card.find('.pm-label-duration,.duration,.video-time,.episode-duration').first().text().trim()},url);
+  if(Object.keys(observed).length)metadataByUrl.set(target,{...metadataByUrl.get(target),...observed});
+ });
  function add(raw){
   let candidate=raw.url||raw.link||'';if(!candidate&&raw.ref){try{candidate=referenceUrl(raw.ref,domains)}catch{return}}
   const target=safePage(candidate,url,domains);if(!target)return;
@@ -22,7 +41,7 @@ export function scanEpisodeIndex(html,url,{provider,domains,title='',episodes=[]
   if(!Number.isSafeInteger(number)||number<1||number>100000)return;
   const season=Number(raw.season_number??raw.season)||explicitSeason(text,target)||parentSeason||1;
   const ref=raw.ref||provider+':'+Buffer.from(target).toString('base64url');
-  byRef.set(target,{...byRef.get(target),...observedEpisodeMetadata(raw,url),source_ref:ref,url:target,title:text||'الحلقة '+number,season,episode:number});
+  byRef.set(target,{...byRef.get(target),...metadataByUrl.get(target),...observedEpisodeMetadata(raw,url),source_ref:ref,url:target,title:text||'الحلقة '+number,season,episode:number});
  }
  for(const row of episodes)add(row);
  $('.sh-single-episode-grid a[href],.EpisodesList a[href],.episodes-list a[href],.episodes-grid a[href],.episodes a[href],a.episode-tile[href],a.br-series-detail-card-link[href]').each((_,el)=>{

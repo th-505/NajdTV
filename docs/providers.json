@@ -105,7 +105,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/ahwak.mjs",
       "metadata_line": 12,
-      "source_sha256": "8259bb63900995626950f0751ce182544ddfc08b53b674328124d5f35120887b",
+      "source_sha256": "beb684e64db56441af0704c0bcc5e4e431c7e46f5700f3ed36b9498d44294e5f",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -978,7 +978,7 @@
       "id": "ahwak",
       "scope": "beta",
       "path": "server/browser/providers/sites/ahwak.mjs",
-      "source_sha256": "894e49f9ffae6d0614b196e057894ee3822315b5c7eb9555f709178a3e014163",
+      "source_sha256": "3e33eae916e059c6f92b48468098736dbb68f0fe360ea6ac2b335cc448f06202",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"

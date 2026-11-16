@@ -107,7 +107,7 @@ export async function scrapeDetails(ref, options = {}) {
   const original = result.url;
   const $ = cheerio.load(result.html);
   const parent = $('a[href*="view-serie.php?"]').first().attr('href');
-  const requestedMetadata = new URL(original).pathname === '/watch.php' ? {source_ref:refFor(original),...observedEpisodeMetadata({poster:$('meta[property="og:image"]').attr('content')||'',duration:$('.pm-label-duration,.pm-video-duration,.video-duration').first().text().trim()||$('body').text().match(/مدة العرض\s*[:：]\s*(\d{1,3}:\d{2}(?::\d{2})?)/)?.[1]||''},original)} : null;
+  const requestedMetadata = new URL(original).pathname === '/watch.php' ? {source_ref:refFor(original),...observedEpisodeMetadata({poster:$('meta[property="og:image"]').attr('content')||'',duration:$('.pm-label-duration,.pm-video-duration,.video-duration').first().text().trim()||$('body').text().match(/مدة العرض\s*[:：]\s*([0-9٠-٩۰-۹]{1,3}:[0-9٠-٩۰-۹]{2}(?::[0-9٠-٩۰-۹]{2})?)/)?.[1]||''},original)} : null;
   let parentRef = null;
   if (new URL(original).pathname === '/watch.php' && parent) {
     const target = decodeProviderRef(new URL(parent, original).href);

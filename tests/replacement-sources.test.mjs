@@ -38,3 +38,20 @@ for(const [scope,path]of [['najd','../server/harvest/episode-index.mjs'],['beta'
  assert.equal(graph.episodes.length,0);
  assert.deepEqual(graph.pages.sort(),['https://animezid.org/series/naruto/season/1/','https://animezid.org/series/naruto/season/2/']);
 });
+
+for(const [scope,family]of [['najd',najd],['beta',beta]])test(scope+' AnimeZid reports an observed external watch gateway instead of false empty media',async()=>{
+ const mod=family.getProvider('animezid').module;
+ await assert.rejects(mod.scrapeServers('https://animezid.org/watch.php?vid=fixture',{
+  fixtureHtml:'<h1>Fixture</h1><a class="az-cinema-button--primary" href="https://gateway.example/skip?post=fixture">شاهد وحمّل الآن</a>'
+ }),error=>error.code==='UNSUPPORTED_CAPABILITY' && error.message==='SOURCE_EXTERNAL_WATCH_GATEWAY');
+});
+for(const [scope,family]of [['najd',najd],['beta',beta]])test(scope+' observed resolver retains the fifth and later public media servers',async()=>{
+ const mod=family.getProvider('animezid').module;
+ const links=Array.from({length:6},(_,i)=>`https://media.example.com/server-${i+1}.mp4`);
+ const result=await mod.resolveStream('https://animezid.org/watch.php?vid=fixture',{
+  fixtureHtml:`<h1>Fixture</h1><div id="player"><script>const observed=${JSON.stringify(links)};</script></div>`
+ });
+ assert.equal(result.ok,true);
+ assert.equal(result.servers.length,6);
+ assert.deepEqual(new Set(result.servers.map(row=>row.url)),new Set(links));
+});
