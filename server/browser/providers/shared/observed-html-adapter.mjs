@@ -2,7 +2,7 @@ import * as cheerio from 'cheerio';
 import {fetchProviderHtml, assertSafeScraperUrl, resolveSafeUrl} from '../../../scrapers/shared/http.mjs';
 import {effectiveProviderDomains} from '../../../scrapers/shared/provider-config.mjs';
 import {normalizeCatalogItem, normalizeDetailsResult, normalizeEpisodeList, normalizeServerList, extractEpisodeNumber, extractSeasonNumber, extractYear, inferContentType} from '../../../scrapers/shared/normalize.mjs';
-import {attachResultMeta} from '../../../scrapers/shared/errors.mjs';
+import {attachResultMeta,ScraperError,SCRAPER_ERROR_CODES} from '../../../scrapers/shared/errors.mjs';
 import {extractRawStreamsFromText, isValidDirectMediaUrl, cascadeResolveStream} from '../../../scrapers/stream-unwrapper.mjs';
 
 // This family owns its parser. Other families have their own implementation.
@@ -107,6 +107,12 @@ export function createObservedHtmlAdapter(meta, config) {
       result=await page(action,{...options,method:'POST',body:'view=1',headers:{...options.headers,'content-type':'application/x-www-form-urlencoded'},referer:result.url});$=cheerio.load(result.html);
     }
     const play=$(config.playControl || 'a.__no_control__').first().attr('href');
+    if(meta.id==='animezid' && !play){
+      const watch=resolveSafeUrl($('.az-cinema-button--primary[href]').first().attr('href')||'',result.url,{allowHttp:false});
+      if(watch && new URL(watch).origin!==new URL(result.url).origin && !isValidDirectMediaUrl(watch)){
+        throw new ScraperError(SCRAPER_ERROR_CODES.UNSUPPORTED_CAPABILITY,'SOURCE_EXTERNAL_WATCH_GATEWAY',{providerId:meta.id});
+      }
+    }
     if(play){result=await page(target(resolveSafeUrl(play,result.url,{allowHttp:false,allowedHosts:hosts()})),options);$=cheerio.load(result.html);}
     const documents=[{html:result.html,url:result.url}];
     if(meta.id==='movizland' && !options.fixtureHtml){
@@ -135,7 +141,7 @@ export function createObservedHtmlAdapter(meta, config) {
     const servers=await scrapeServers(ref,options), direct=[];
     const deadline=Date.now()+12000;
     let cursor=0;
-    const pending=servers.slice(0,4);
+    const pending=servers;
     async function worker(){while(cursor<pending.length&&Date.now()<deadline){
       const server=pending[cursor++];
       if(isValidDirectMediaUrl(server.url))direct.push(server);
