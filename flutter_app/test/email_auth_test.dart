@@ -74,6 +74,21 @@ class RejectingAuth implements NajdAccountAuthentication {
   Future<bool> verify(String email, String token) async => false;
 }
 
+class PendingLinkAuth extends RejectingAuth {
+  int confirmations = 0;
+  @override
+  Future<bool> submit(
+    String email,
+    String password, {
+    required bool create,
+  }) async => false;
+  @override
+  Future<bool> checkConfirmation() async {
+    confirmations++;
+    return false;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -235,4 +250,45 @@ void main() {
     expect(auth.signedIn, true);
     await client.dispose();
   });
+  testWidgets(
+    'email-link confirmation never requires a numeric code by default',
+    (tester) async {
+      final auth = PendingLinkAuth();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: NajdEmailAuthPanel(auth: auth, onSignedIn: () {}),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('ليس لدي حساب — إنشاء حساب'));
+      await tester.pump();
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'qa@example.com',
+      );
+      await tester.enterText(
+        find.byType(TextFormField).at(1),
+        'long enough secret phrase',
+      );
+      await tester.enterText(
+        find.byType(TextFormField).at(2),
+        'long enough secret phrase',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'إنشاء الحساب'));
+      await tester.pumpAndSettle();
+      expect(find.text('تأكيد بريد حساب نجد'), findsOneWidget);
+      expect(find.text('رمز تأكيد البريد'), findsNothing);
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'فتحت رابط التفعيل — تحقق الآن'),
+      );
+      await tester.pumpAndSettle();
+      expect(auth.confirmations, 1);
+      await tester.tap(find.text('وصلني رمز بدل الرابط'));
+      await tester.pump();
+      expect(find.text('رمز تأكيد البريد'), findsOneWidget);
+    },
+  );
 }

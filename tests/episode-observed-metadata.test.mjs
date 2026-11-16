@@ -18,3 +18,11 @@ for(const [family,path]of [['najd','../server/harvest/episode-index.mjs'],['beta
  const {scanEpisodeIndex}=await import(path);const result=scanEpisodeIndex('<h1>Fixture</h1>','https://source.example/series',{provider:'fixture',domains:['source.example'],episodes:[{url:'/episode-19',title:'الحلقة 19',number:19,poster:'/19.jpg',duration:'46:20'}]});
  assert.equal(result.episodes[0].episode,19);assert.equal(result.episodes[0].duration_seconds,2780);assert.equal(result.episodes[0].poster,'https://source.example/19.jpg');
 });
+
+for(const [family,path]of [['najd','../server/harvest/episode-index.mjs'],['beta','../server/browser/episode-index.mjs']])test(family+' enriches arbitrary provider episode cards only by their exact owned URL',async()=>{
+ const {scanEpisodeIndex}=await import(path);
+ const html='<li><a href="/episode-19"><img data-src="/19.jpg"></a><a href="/episode-19">الحلقة 19</a><time datetime="PT46M20S"></time></li><li><a href="/episode-20">الحلقة 20</a><a href="/episode-21"><img src="/21.jpg"></a><span class="duration">12:34</span></li>';
+ const graph=scanEpisodeIndex(html,'https://source.example/series',{provider:'fixture',domains:['source.example'],episodes:[{url:'/episode-19',title:'الحلقة 19'},{url:'/episode-20',title:'الحلقة 20'}]});
+ assert.equal(graph.episodes.length,2);assert.equal(graph.episodes[0].poster,'https://source.example/19.jpg');assert.equal(graph.episodes[0].duration_seconds,2780);
+ assert.equal(graph.episodes[1].poster,undefined);assert.equal(graph.episodes[1].duration_seconds,undefined);
+});
