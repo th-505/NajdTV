@@ -48,19 +48,34 @@ jobs:
           source=run['head_sha']; assert re.fullmatch('[a-f0-9]{40}', source)
           with open(os.environ['GITHUB_OUTPUT'],'a') as output: output.write('sha='+source+'\n')
           PY
-      - name: Require unchanged application and artifact verifier
+      - name: Require merged application and matching production API
+        id: readiness
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
           set -euo pipefail
-          git merge-base --is-ancestor "$SOURCE_SHA" HEAD
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" HEAD; then
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo 'Review artifacts are ready; publication waits for the source to merge.'
+            exit 0
+          fi
           git diff --exit-code "$SOURCE_SHA" HEAD -- flutter_app shared assets/brand scripts/verify_device_artifacts.py
+          python3 - <<'PYAPI'
+          import json, pathlib, re, urllib.request
+          expected = re.search(r'^version: (\d+\.\d+\.\d+)\+', pathlib.Path('flutter_app/pubspec.yaml').read_text(), re.M).group(1)
+          with urllib.request.urlopen('https://najdtv.onrender.com/health', timeout=90) as response:
+              health = json.load(response)
+          assert health.get('version') == expected, 'Production API version must match the reviewed client before publication'
+          PYAPI
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
+        if: steps.readiness.outputs.ready == 'true'
         with:
           github-token: ${{ github.token }}
           run-id: ${{ env.REVIEW_RUN_ID }}
           path: device-artifacts
       - name: Reverify and publish the complete package set
+        if: steps.readiness.outputs.ready == 'true'
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: |
