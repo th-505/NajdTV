@@ -158,7 +158,11 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
       _password = TextEditingController(),
       _confirm = TextEditingController(),
       _token = TextEditingController();
-  bool _create = false, _busy = false, _hide = true, _verify = false;
+  bool _create = false,
+      _busy = false,
+      _hide = true,
+      _verify = false,
+      _useCode = false;
   String _message = '';
   @override
   void dispose() {
@@ -224,7 +228,11 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
                 color: Theme.of(context).colorScheme.primary,
               ),
               Text(
-                _create ? 'إنشاء حساب نجد' : 'تسجيل الدخول إلى نجد',
+                _verify
+                    ? 'تأكيد بريد حساب نجد'
+                    : _create
+                    ? 'إنشاء حساب نجد'
+                    : 'تسجيل الدخول إلى نجد',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
@@ -305,34 +313,45 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
                 ),
               ],
               if (_verify) ...[
-                OutlinedButton(
-                  onPressed: _busy ? null : _checkConfirmation,
-                  child: const Text('فتحت رابط التفعيل — تحقق الآن'),
+                const Text(
+                  'افتح رابط التفعيل في بريدك، ثم عد واضغط الزر أدناه.',
                 ),
-                const Text('أو أدخل الرمز إن كانت رسالتك تحتوي رمزًا:'),
-                TextFormField(
-                  controller: _token,
-                  enabled: !_busy,
-                  textDirection: TextDirection.ltr,
-                  keyboardType: TextInputType.number,
-                  autofillHints: const [AutofillHints.oneTimeCode],
-                  decoration: const InputDecoration(
-                    labelText: 'رمز تأكيد البريد',
-                  ),
-                  validator: (value) =>
-                      RegExp(r'^\d{6,10}$').hasMatch((value ?? '').trim())
+                TextButton(
+                  onPressed: _busy
                       ? null
-                      : 'أدخل رمز التأكيد',
+                      : () => setState(() => _useCode = !_useCode),
+                  child: Text(
+                    _useCode ? 'وصلني رابط تفعيل' : 'وصلني رمز بدل الرابط',
+                  ),
                 ),
+                if (_useCode)
+                  TextFormField(
+                    controller: _token,
+                    enabled: !_busy,
+                    textDirection: TextDirection.ltr,
+                    keyboardType: TextInputType.number,
+                    autofillHints: const [AutofillHints.oneTimeCode],
+                    decoration: const InputDecoration(
+                      labelText: 'رمز تأكيد البريد',
+                    ),
+                    validator: (value) =>
+                        RegExp(r'^\d{6,10}$').hasMatch((value ?? '').trim())
+                        ? null
+                        : 'أدخل رمز التأكيد',
+                  ),
               ],
               const SizedBox(height: 20),
               FilledButton(
-                onPressed: _busy ? null : _submit,
+                onPressed: _busy
+                    ? null
+                    : (_verify && !_useCode ? _checkConfirmation : _submit),
                 child: Text(
                   _busy
                       ? 'جارٍ التحقق…'
                       : _verify
-                      ? 'تأكيد البريد'
+                      ? (_useCode
+                            ? 'تأكيد الرمز'
+                            : 'فتحت رابط التفعيل — تحقق الآن')
                       : _create
                       ? 'إنشاء الحساب'
                       : 'تسجيل الدخول',
@@ -344,6 +363,7 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
                     : () => setState(() {
                         _create = !_create;
                         _verify = false;
+                        _useCode = false;
                         _message = '';
                         _password.clear();
                         _confirm.clear();
