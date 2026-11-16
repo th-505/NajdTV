@@ -17,6 +17,6 @@ This is a candidate, not a published release. Deterministic parser fixtures do n
 
 Email confirmation delivery and a real confirmed-account round trip remain pending. The Supabase project still permits anonymous sign-ins at the service level, although this application no longer requests them. Disable new anonymous sign-ins in Supabase Auth before public rollout; retain existing users and their libraries. Review SMTP delivery and enable leaked-password protection where the project plan supports it. No managed Auth-table workaround or broad RLS grant is introduced.
 
-Native packages require the existing six-target CI build, signing verification and artifact validation. Physical iPhone/Android/TV playback and all channel codecs have not been certified. The unsigned IPA still needs signing; macOS notarization is unchanged.
+The six-target CI build, signing verification and artifact validation passed for b20e24349ace974df9b873efaea61eeb75fccbd7. The subsequent server pagination correction requires a fresh CI run before publication. Physical iPhone/Android/TV playback and all channel codecs have not been certified. The unsigned IPA still needs signing; macOS notarization is unchanged.
 
 The release workflow defaults to review artifacts. Explicit publication additionally requires the production single-server API to report the same version as the clients. Do not publish until authentication delivery and representative live/VOD playback are verified.
