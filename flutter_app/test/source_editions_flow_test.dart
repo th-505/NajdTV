@@ -280,7 +280,10 @@ void main() {
       clock = clock.add(const Duration(seconds: 1));
       await tester.pump(const Duration(milliseconds: 20));
       await tester.pump();
-      expect(find.textContaining('لم يصل تقدم جديد خلال المهلة'), findsOneWidget);
+      expect(
+        find.textContaining('لم يصل تقدم جديد خلال المهلة'),
+        findsOneWidget,
+      );
       expect(find.byType(CircularProgressIndicator), findsNothing);
       await tester.pumpWidget(const SizedBox());
     },
@@ -311,7 +314,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.bookmark_border));
+      await tester.tap(find.byTooltip('إضافة إلى قائمتي'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('المفضلة'));
       await tester.pumpAndSettle();
       expect(store.isFavorite(item.ref), true);
       expect(find.text('أضيف إلى قائمتك'), findsOneWidget);
@@ -374,15 +379,7 @@ void main() {
     expect(find.text('الحلقة 1'), findsOneWidget);
     expect(find.text('الحلقة 3'), findsOneWidget);
     expect(find.text('الحلقة 2'), findsNothing);
-    final more = find.text('تحميل المزيد من حلقات المصدر');
-    await tester.scrollUntilVisible(
-      more,
-      180,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(more);
-    await tester.pumpAndSettle();
+    // Continuation loads automatically; no repeated manual 100-item paging.
     expect(requests.last['season'], '5');
     expect(requests.last['offset'], '2');
     await tester.scrollUntilVisible(

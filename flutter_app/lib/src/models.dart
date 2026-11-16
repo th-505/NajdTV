@@ -43,6 +43,7 @@ class MediaItem {
     this.identityVerified = false,
     this.workIdentityVerified = false,
     this.sourceRefs = const {},
+    this.libraryState = 'favorite',
   });
   final String id;
   final String title;
@@ -53,6 +54,7 @@ class MediaItem {
   final double rating, popularity;
   final String source;
   final String discoveryScope;
+  final String libraryState;
   final List<String> genres;
   List<String> get displayGenres => genres
       .where(
@@ -82,6 +84,7 @@ class MediaItem {
     double? popularity,
     String? source,
     String? discoveryScope,
+    String? libraryState,
     List<String>? genres,
     int? season,
     int? episode,
@@ -102,6 +105,7 @@ class MediaItem {
     popularity: popularity ?? this.popularity,
     source: source ?? this.source,
     discoveryScope: discoveryScope ?? this.discoveryScope,
+    libraryState: libraryState ?? this.libraryState,
     genres: List.unmodifiable(genres ?? this.genres),
     season: season ?? this.season,
     episode: episode ?? this.episode,
@@ -125,6 +129,7 @@ class MediaItem {
     'rating': rating,
     if (popularity > 0) 'popularity': popularity,
     'source': source,
+    if (libraryState != 'favorite') 'library_state': libraryState,
     if (discoveryScope == 'beta') 'discovery_scope': discoveryScope,
     'genres': genres,
     if (season != null) 'season_number': season,
@@ -150,6 +155,10 @@ class MediaItem {
         .toDouble(),
     source: '${json['source'] ?? 'mitv'}',
     discoveryScope: json['discovery_scope'] == 'beta' ? 'beta' : 'najd',
+    libraryState:
+        {'watched', 'watching', 'watchlist'}.contains(json['library_state'])
+        ? json['library_state'] as String
+        : 'favorite',
     genres: _descriptiveGenres(json),
     season: _positiveIdentityNumber(json['season_number'] ?? json['season']),
     episode: _positiveIdentityNumber(json['episode_number'] ?? json['episode']),

@@ -427,6 +427,21 @@ class LocalLibraryStore extends ChangeNotifier {
     _pending.add(key);
   }
 
+  Future<void> setLibraryState(CatalogItem item, String state) async {
+    if (!{'favorite', 'watched', 'watching', 'watchlist'}.contains(state) ||
+        item.ref.isEmpty ||
+        _stableReference(item.ref).isEmpty) {
+      return;
+    }
+    final safe = CatalogItem.fromJson(
+      item.copyWith(libraryState: state).toJson(),
+    );
+    _favorites[item.ref] = safe;
+    _change('favorite', item.ref, safe.toJson());
+    await _persistLibrary();
+    _notify();
+  }
+
   Future<void> toggleFavorite(CatalogItem item) async {
     if (item.ref.isEmpty || _stableReference(item.ref).isEmpty) return;
     if (_favorites.containsKey(item.ref)) {

@@ -1,3 +1,5 @@
+import 'stitch_design.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -177,7 +179,13 @@ class _LiveChannelsPanelState extends State<LiveChannelsPanel> {
             return FocusHighlight(
               child: ListTile(
                 key: ValueKey(row.ref),
-                leading: const Icon(Icons.live_tv),
+                leading: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: row.poster.isEmpty
+                      ? const Icon(Icons.live_tv)
+                      : NajdPoster(url: row.poster, fit: BoxFit.contain),
+                ),
                 title: Text(row.title),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(

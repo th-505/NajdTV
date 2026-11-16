@@ -144,125 +144,99 @@ class NajdWorkCard extends StatelessWidget {
       ),
       child: InkWell(
         onTap: onSelect ?? onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  NajdPoster(url: item.poster),
-                  if (rank != null)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black87,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '$rank',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ),
-                  Positioned(
-                    top: 9,
-                    right: 9,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(175),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        item.type == 'movie'
-                            ? 'فيلم'
-                            : item.type == 'anime'
-                            ? 'أنمي'
-                            : 'مسلسل',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
+            NajdPoster(url: item.poster),
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: [0, .48, 1],
+                    colors: [
+                      Colors.transparent,
+                      Color(0x10000000),
+                      Color(0xEE000000),
+                    ],
                   ),
-                  if (onSelect != null)
-                    Positioned(
-                      left: 8,
-                      top: 8,
-                      child: Icon(
-                        selected
-                            ? Icons.check_circle
-                            : Icons.radio_button_unchecked,
-                        color: selected ? NajdDesign.primary : Colors.white,
-                      ),
-                    ),
-                ],
+                ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
+            Positioned(
+              left: 10,
+              right: 10,
+              bottom: 10,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     item.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      height: 1.5,
+                      height: 1.3,
                     ),
                   ),
-                  if (sourceLabel != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 5),
-                      child: Text(
-                        sourceLabel!,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          [
-                            if (item.year != null) '${item.year}',
-                            ...item.displayGenres.take(1),
-                          ].join(' · '),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    [
+                      if (item.year != null) '${item.year}',
                       if (item.rating > 0)
-                        Text(
-                          '★ ${item.rating.toStringAsFixed(1)}',
-                          style: const TextStyle(
-                            color: NajdDesign.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                    ],
+                        '★ ${item.rating.toStringAsFixed(1)}',
+                      ?sourceLabel,
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],
               ),
             ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  item.type == 'movie'
+                      ? 'فيلم'
+                      : item.type == 'anime'
+                      ? 'أنمي'
+                      : 'مسلسل',
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                ),
+              ),
+            ),
+            if (rank != null || onSelect != null)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: onSelect != null
+                    ? Icon(
+                        selected
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        color: selected ? NajdDesign.primary : Colors.white,
+                      )
+                    : Container(
+                        padding: const EdgeInsets.all(6),
+                        color: Colors.black54,
+                        child: Text(
+                          '$rank',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+              ),
           ],
         ),
       ),
@@ -339,21 +313,14 @@ class _NajdFeatureCarouselState extends State<NajdFeatureCarousel> {
         onPointerDown: (_) => _pause(),
         child: LayoutBuilder(
           builder: (context, bounds) {
-            final visible = (bounds.maxWidth / 300).floor().clamp(
-              1,
-              _count.clamp(1, 10),
-            );
+            final visible = (bounds.maxWidth >= 900 ? 3 : 2).clamp(1, _count);
             return Column(
               children: [
                 SizedBox(
-                  height: isTvTarget
-                      ? (MediaQuery.sizeOf(context).height * .43).clamp(
-                          230.0,
-                          310.0,
-                        )
-                      : bounds.maxWidth < 600
-                      ? 270
-                      : 310,
+                  height: ((bounds.maxWidth / visible - 10) * 1.5).clamp(
+                    240.0,
+                    420.0,
+                  ),
                   child: PageView.builder(
                     controller: _pages,
                     onPageChanged: (value) => setState(() => _index = value),
@@ -393,7 +360,10 @@ class _NajdFeatureCarouselState extends State<NajdFeatureCarousel> {
                             _index > 0 ? _index - 1 : _count - 1,
                           );
                         },
-                        icon: const Icon(Icons.chevron_right),
+                        icon: const Icon(
+                          Icons.chevron_right,
+                          textDirection: TextDirection.ltr,
+                        ),
                       ),
                       for (var i = 0; i < _count; i++)
                         Padding(
@@ -416,7 +386,10 @@ class _NajdFeatureCarouselState extends State<NajdFeatureCarousel> {
                           _pause();
                           _pages.jumpToPage(_index + 1);
                         },
-                        icon: const Icon(Icons.chevron_left),
+                        icon: const Icon(
+                          Icons.chevron_left,
+                          textDirection: TextDirection.ltr,
+                        ),
                       ),
                     ],
                   ),
@@ -445,95 +418,99 @@ class NajdFeatureHero extends StatelessWidget {
     builder: (context, bounds) => SizedBox(
       key: const Key('stitch-feature-hero'),
       height: bounds.maxWidth < 600 ? 300 : 400,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            NajdPoster(url: item.poster),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: [0, .35, 1],
-                  colors: [
-                    Color(0x10000000),
-                    Color(0x55000000),
-                    Color(0xD91A1933),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              left: 22,
-              right: 22,
-              bottom: 24,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      if (item.year != null) _HeroTag('${item.year}'),
-                      if (item.rating > 0)
-                        _HeroTag('★ ${item.rating.toStringAsFixed(1)}'),
-                      _HeroTag(item.type == 'movie' ? 'فيلم' : 'مسلسل'),
+      child: GestureDetector(
+        onTap: onWatch,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              NajdPoster(url: item.poster),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: [0, .35, 1],
+                    colors: [
+                      Color(0x10000000),
+                      Color(0x55000000),
+                      Color(0xD91A1933),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    item.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      height: 1.4,
+                ),
+              ),
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        if (item.year != null) _HeroTag('${item.year}'),
+                        if (item.rating > 0)
+                          _HeroTag('★ ${item.rating.toStringAsFixed(1)}'),
+                        _HeroTag(item.type == 'movie' ? 'فيلم' : 'مسلسل'),
+                      ],
                     ),
-                  ),
-                  if (item.displayGenres.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        item.displayGenres.take(3).join(' · '),
-                        style: const TextStyle(color: Color(0xFFE6DDF7)),
+                    const SizedBox(height: 12),
+                    Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        height: 1.3,
                       ),
                     ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          key: const Key('stitch-hero-watch'),
-                          onPressed: onWatch,
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          label: const Text('مشاهدة الآن'),
+                    if (item.displayGenres.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          item.displayGenres.take(3).join(' · '),
+                          style: const TextStyle(color: Color(0xFFE6DDF7)),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: onSave,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white54),
-                            minimumSize: const Size(48, 52),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            key: const Key('stitch-hero-watch'),
+                            onPressed: onWatch,
+                            icon: const Icon(Icons.play_arrow_rounded),
+                            label: const Text('التفاصيل'),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              minimumSize: const Size(48, 48),
+                            ),
                           ),
+                        ),
+                        const SizedBox(width: 10),
+                        IconButton(
+                          tooltip: 'قائمتي',
+                          onPressed: onSave,
+                          color: Colors.white,
                           icon: Icon(
                             saved
                                 ? Icons.bookmark
                                 : Icons.bookmark_add_outlined,
                           ),
-                          label: const Text('قائمتي'),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ),

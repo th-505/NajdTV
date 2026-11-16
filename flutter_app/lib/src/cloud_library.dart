@@ -15,7 +15,11 @@ import 'watch_identity.dart';
 
 bool hasRegisteredNajdAccount(SupabaseClient? client) {
   final user = client?.auth.currentUser;
-  return user != null && !user.isAnonymous && user.emailConfirmedAt != null;
+  return client?.auth.currentSession != null &&
+      user != null &&
+      !user.isAnonymous &&
+      (user.email?.isNotEmpty ?? false) &&
+      user.emailConfirmedAt != null;
 }
 
 /// Small, owner-scoped adapter: no video URLs, service keys or Realtime sockets.

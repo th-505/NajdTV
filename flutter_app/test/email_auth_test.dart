@@ -163,6 +163,25 @@ void main() {
       await client.dispose();
     },
   );
+  test(
+    'an existing verified session cannot approve a different pending signup',
+    () async {
+      var requests = 0;
+      final client = sdk((_) async {
+        requests++;
+        return jsonReply(user());
+      });
+      await client.auth.recoverSession(jsonEncode(session()));
+      final auth = NajdEmailAuth(client, null);
+      await expectLater(
+        auth.submit('other@example.com', 'another secret phrase', create: true),
+        throwsA(isA<AuthException>()),
+      );
+      expect(requests, 0);
+      expect(client.auth.currentUser!.email, 'qa@example.com');
+      await client.dispose();
+    },
+  );
   test('legacy anonymous accounts upgrade the same UUID rather than losing their library', () async {
     final paths = <String>[];
     final client = sdk((request) async {
@@ -209,6 +228,10 @@ void main() {
       );
       await tester.tap(find.text('ليس لدي حساب — إنشاء حساب'));
       await tester.pump();
+      await tester.enterText(
+        find.byKey(const Key('account-display-name')),
+        'مشاهد الاختبار',
+      );
       await tester.enterText(
         find.byType(TextFormField).at(0),
         'qa@example.com',
@@ -265,6 +288,10 @@ void main() {
       );
       await tester.tap(find.text('ليس لدي حساب — إنشاء حساب'));
       await tester.pump();
+      await tester.enterText(
+        find.byKey(const Key('account-display-name')),
+        'مشاهد الاختبار',
+      );
       await tester.enterText(
         find.byType(TextFormField).at(0),
         'qa@example.com',

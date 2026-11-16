@@ -1,3 +1,4 @@
+import 'src/remote_bindings.dart';
 import 'src/live_channels_panel.dart';
 import 'src/catalog_collection_defs.dart';
 import 'src/catalog_shelf.dart';
@@ -62,6 +63,7 @@ class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
   late final Future<LocalLibraryStore> storeFuture = LocalLibraryStore.create();
   final _pointer = VirtualPointerController();
   final _browserObserver = BrowserRouteObserver();
+  final _scrollObserver = ScrollToTopNavigatorObserver();
   final _navigatorKey = GlobalKey<NavigatorState>();
   late final Future<CloudLibrarySync?> _cloudFuture;
   @override
@@ -69,6 +71,7 @@ class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(NajdPreferences.instance.load());
+    unawaited(RemoteBindings.instance.load());
     if (!_fontLicensesRegistered) {
       _fontLicensesRegistered = true;
       LicenseRegistry.addLicense(() async* {
@@ -110,7 +113,7 @@ class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
     // The URL/history bridge owns browser entries. Navigator's default single
     // entry mode unwinds existing multi-entry history on a page refresh.
     reportsRouteUpdateToEngine: false,
-    observers: [_browserObserver],
+    observers: [_browserObserver, _scrollObserver],
     onGenerateRoute: (settings) =>
         MaterialPageRoute(settings: settings, builder: _buildHome),
   );
@@ -442,6 +445,11 @@ class _ShellState extends State<Shell> {
       }),
     );
     if (found) return;
+    final panel = _browserNavigation.restorePanel(target);
+    if (panel != null) {
+      navigator.push(panel);
+      return;
+    }
     final section = NajdUi.pageIds.indexOf(page.isEmpty ? 'home' : page);
     if (section >= 0) {
       _selectPage(section, updateUrl: false);
@@ -1469,13 +1477,22 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _section(String title, IconData icon, List<Widget> children) =>
       NajdSurface(
         padding: EdgeInsets.zero,
-        child: ExpansionTile(
+        child: ListTile(
           key: PageStorageKey('settings-$title'),
-          maintainState: true,
           leading: Icon(icon),
           title: Text(title),
-          childrenPadding: const EdgeInsets.all(12),
-          children: children,
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => Scaffold(
+                appBar: AppBar(title: Text(title)),
+                body: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: children,
+                ),
+              ),
+            ),
+          ),
         ),
       );
   Widget _open(String title, IconData icon, WidgetBuilder builder) => ListTile(
@@ -1570,6 +1587,11 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ]),
       _section('الأجهزة والتحكم', Icons.devices_outlined, [
+        _open(
+          'تخصيص أزرار الريموت',
+          Icons.settings_remote,
+          (_) => const RemoteBindingsPage(),
+        ),
         if (isTvTarget && widget.pointer != null)
           AnimatedBuilder(
             animation: widget.pointer!,
@@ -2423,8 +2445,8 @@ class _CatalogPageState extends State<CatalogPage> {
                   controller: controller,
                   padding: EdgeInsets.all(isTvTarget ? 24 : 12),
                   gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: isTvTarget ? 215 : 185,
-                    childAspectRatio: isTvTarget ? .68 : .62,
+                    maxCrossAxisExtent: 185,
+                    childAspectRatio: 2 / 3,
                     crossAxisSpacing: isTvTarget ? 18 : 10,
                     mainAxisSpacing: isTvTarget ? 18 : 10,
                   ),
@@ -2877,8 +2899,8 @@ class _SearchPageState extends State<SearchPage> {
                 : GridView.builder(
                     controller: resultsController,
                     gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: isTvTarget ? 215 : 185,
-                      childAspectRatio: isTvTarget ? .68 : .62,
+                      maxCrossAxisExtent: 185,
+                      childAspectRatio: 2 / 3,
                       crossAxisSpacing: isTvTarget ? 18 : 10,
                       mainAxisSpacing: isTvTarget ? 18 : 10,
                     ),
@@ -2944,6 +2966,7 @@ class _LibraryPageState extends State<LibraryPage> {
   late NajdLibraryMode mode = widget.mode;
   bool editing = false;
   String filter = 'all';
+  String _libraryState = 'favorite';
   String _historyFilter = 'all', _historySort = 'recent';
   final selected = <String>{};
   Future<void> _clearHistory() async {
@@ -2978,7 +3001,11 @@ class _LibraryPageState extends State<LibraryPage> {
     builder: (context, _) {
       final favorites = widget.store
           .sortedFavorites()
-          .where((e) => filter == 'all' || e.type == filter)
+          .where(
+            (e) =>
+                (filter == 'all' || e.type == filter) &&
+                e.libraryState == _libraryState,
+          )
           .toList();
       final history = widget.store.history
           .where(
@@ -3047,11 +3074,30 @@ class _LibraryPageState extends State<LibraryPage> {
             Wrap(
               spacing: 8,
               children: [
+                for (final (value, label, icon) in [
+                  ('favorite', 'المفضلة', Icons.favorite),
+                  ('watched', 'تمت مشاهدته', Icons.check_circle_outline),
+                  ('watching', 'أشاهد حاليًا', Icons.play_circle_outline),
+                  ('watchlist', 'أرغب بمشاهدته', Icons.bookmark_add_outlined),
+                ])
+                  ChoiceChip(
+                    label: Text(label),
+                    avatar: Icon(icon, size: 18),
+                    selected: _libraryState == value,
+                    onSelected: (_) => setState(() => _libraryState = value),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
                 for (final (value, label) in [
                   ('all', 'الكل'),
                   ('movie', 'أفلام'),
                   ('series', 'مسلسلات'),
                   ('anime', 'أنمي'),
+                  ('turkish', 'تركي'),
                 ])
                   ChoiceChip(
                     label: Text(label),
@@ -3107,8 +3153,8 @@ class _LibraryPageState extends State<LibraryPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: isTvTarget ? 215 : 185,
-                  childAspectRatio: .61,
+                  maxCrossAxisExtent: 185,
+                  childAspectRatio: 2 / 3,
                   crossAxisSpacing: 14,
                   mainAxisSpacing: 14,
                 ),

@@ -206,7 +206,40 @@ class _DetailsPageState extends State<DetailsPage> {
   void retry() => setState(() => future = _loadDetails(widget.item.ref));
 
   Future<void> _toggleFavorite() async {
-    await widget.store.toggleFavorite(widget.item);
+    final state = await showNajdOptions<String>(
+      context,
+      title: 'إضافة إلى قائمتي',
+      options: [
+        const NajdOption('favorite', 'المفضلة', icon: Icons.favorite),
+        const NajdOption(
+          'watchlist',
+          'أرغب بمشاهدته',
+          icon: Icons.bookmark_add_outlined,
+        ),
+        const NajdOption(
+          'watching',
+          'أشاهد حاليًا',
+          icon: Icons.play_circle_outline,
+        ),
+        const NajdOption(
+          'watched',
+          'تمت مشاهدته',
+          icon: Icons.check_circle_outline,
+        ),
+        if (widget.store.isFavorite(widget.item.ref))
+          const NajdOption(
+            'remove',
+            'إزالة من قائمتي',
+            icon: Icons.delete_outline,
+          ),
+      ],
+    );
+    if (state == null || !mounted) return;
+    if (state == 'remove') {
+      await widget.store.toggleFavorite(widget.item);
+    } else {
+      await widget.store.setLibraryState(widget.item, state);
+    }
     if (!mounted) return;
     if (!widget.store.isFavorite(widget.item.ref)) return;
     ScaffoldMessenger.of(context)
@@ -457,20 +490,45 @@ class _DetailsPageState extends State<DetailsPage> {
   }
 
   bool _loadingEpisodePage = false;
+  final _requestedEpisodePages = <String>{};
+  void _continueEpisodeIndex(TitleDetails details) {
+    final offset = details.episodeNextOffset;
+    if (offset == null || _loadingEpisodePage || _seasonBusy) return;
+    final season = selectedSeason, generation = _seasonGeneration;
+    final key = '${details.sourceWorkRef}:$season:$offset';
+    if (!_requestedEpisodePages.add(key)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          generation == _seasonGeneration &&
+          season == selectedSeason) {
+        unawaited(_moreEpisodes());
+      }
+    });
+  }
+
   Future<void> _moreEpisodes() async {
     if (_loadingEpisodePage) return;
     setState(() => _loadingEpisodePage = true);
     try {
-      final current = await future;
+      final generation = _seasonGeneration, season = selectedSeason;
+      final current = _seasonDetails ?? await future;
       if (current.episodeNextOffset == null) return;
+      final offset = current.episodeNextOffset!;
       final next = await widget.api.moreSourceEpisodes(
         current.sourceWorkRef.isNotEmpty
             ? current.sourceWorkRef
             : widget.item.ref,
         season: selectedSeason,
-        offset: current.episodeNextOffset!,
+        offset: offset,
       );
-      if (!mounted) return;
+      if (!mounted ||
+          generation != _seasonGeneration ||
+          season != selectedSeason) {
+        return;
+      }
+      if (next.episodeNextOffset != null && next.episodeNextOffset! <= offset) {
+        throw const FormatException('EPISODE_CURSOR_DID_NOT_ADVANCE');
+      }
       final byRef = {
         for (final ep in [...current.episodes, ...next.episodes]) ep.ref: ep,
       };
@@ -479,7 +537,13 @@ class _DetailsPageState extends State<DetailsPage> {
         episodeNextOffset: next.episodeNextOffset,
         clearEpisodePagination: next.episodeNextOffset == null,
       );
-      setState(() => future = Future.value(merged));
+      setState(() {
+        if (_seasonDetails != null) {
+          _seasonDetails = merged;
+        } else {
+          future = Future.value(merged);
+        }
+      });
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -848,13 +912,13 @@ class _DetailsPageState extends State<DetailsPage> {
           actions: [
             IconButton(
               tooltip: widget.store.isFavorite(widget.item.ref)
-                  ? 'إزالة من قائمتي'
+                  ? 'تعديل التصنيف في قائمتي'
                   : 'إضافة إلى قائمتي',
               onPressed: _toggleFavorite,
               icon: Icon(
                 widget.store.isFavorite(widget.item.ref)
-                    ? Icons.bookmark
-                    : Icons.bookmark_border,
+                    ? Icons.favorite
+                    : Icons.favorite_border,
               ),
             ),
           ],
@@ -889,6 +953,7 @@ class _DetailsPageState extends State<DetailsPage> {
                     sourceIndexPartial: _seasonDetails!.sourceIndexPartial,
                     episodeNextOffset: _seasonDetails!.episodeNextOffset,
                   );
+            _continueEpisodeIndex(details);
             final sourceCard =
                 details.sourceIndexAuthoritative &&
                 widget.item.ref.startsWith('tmdb:');

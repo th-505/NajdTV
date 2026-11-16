@@ -17,6 +17,7 @@ class NajdEmailAuth implements NajdAccountAuthentication {
   NajdEmailAuth(this.client, this.store);
   final SupabaseClient client;
   final LocalLibraryStore? store;
+  String displayName = "";
   static bool _changing = false;
   static const confirmationReturn =
       'https://th-505.github.io/NajdTV/auth-callback.html';
@@ -47,20 +48,31 @@ class NajdEmailAuth implements NajdAccountAuthentication {
   }
 
   @override
-  Future<bool> submit(String email, String password, {required bool create}) {
+  Future<bool> submit(
+    String email,
+    String password, {
+    required bool create,
+  }) async {
     email = email.trim();
     if (!validEmail(email) ||
         password.isEmpty ||
         password.length > 128 ||
-        (create && password.length < 12)) {
+        (create && password.length < 6)) {
       throw const FormatException('INVALID_ACCOUNT_INPUT');
     }
-    return _change(() async {
+    if (create && signedIn) {
+      throw const AuthException('SIGN_OUT_BEFORE_CREATING_ACCOUNT');
+    }
+    final ready = await _change(() async {
       if (create && client.auth.currentUser?.isAnonymous == true) {
         // Keep the existing owner and its library while upgrading a legacy account.
         verificationType = OtpType.emailChange;
         await client.auth.updateUser(
-          UserAttributes(email: email, password: password),
+          UserAttributes(
+            email: email,
+            password: password,
+            data: {if (displayName.isNotEmpty) 'display_name': displayName},
+          ),
           emailRedirectTo: confirmationReturn,
         );
       } else if (create) {
@@ -68,12 +80,15 @@ class NajdEmailAuth implements NajdAccountAuthentication {
         await client.auth.signUp(
           email: email,
           password: password,
+          data: {if (displayName.isNotEmpty) 'display_name': displayName},
           emailRedirectTo: confirmationReturn,
         );
       } else {
         await client.auth.signInWithPassword(email: email, password: password);
       }
     });
+    return ready &&
+        client.auth.currentUser?.email?.toLowerCase() == email.toLowerCase();
   }
 
   @override
@@ -154,6 +169,7 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
   }
 
   final _form = GlobalKey<FormState>();
+  final _name = TextEditingController();
   final _email = TextEditingController(),
       _password = TextEditingController(),
       _confirm = TextEditingController(),
@@ -167,6 +183,7 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _name.dispose();
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
@@ -181,6 +198,9 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
       _message = '';
     });
     try {
+      if (_create && widget.auth is NajdEmailAuth) {
+        (widget.auth as NajdEmailAuth).displayName = _name.text.trim();
+      }
       final ready = _verify
           ? await widget.auth.verify(_email.text, _token.text)
           : await widget.auth.submit(
@@ -273,7 +293,7 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
                   decoration: InputDecoration(
                     labelText: 'كلمة المرور',
                     helperText: _create
-                        ? '12 حرفًا على الأقل؛ يمكنك استخدام عبارة طويلة'
+                        ? '6 خانات على الأقل؛ يُفضل اختيار كلمة أطول'
                         : null,
                     suffixIcon: IconButton(
                       tooltip: _hide
@@ -291,7 +311,7 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
                       value == null ||
                           value.isEmpty ||
                           value.length > 128 ||
-                          (_create && value.length < 12)
+                          (_create && value.length < 6)
                       ? 'تحقق من طول كلمة المرور'
                       : null,
                 ),
@@ -310,6 +330,19 @@ class _NajdEmailAuthPanelState extends State<NajdEmailAuthPanel>
                   validator: (value) => value == _password.text
                       ? null
                       : 'كلمتا المرور غير متطابقتين',
+                ),
+              ],
+              if (_create && !_verify) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const Key('account-display-name'),
+                  controller: _name,
+                  enabled: !_busy,
+                  maxLength: 64,
+                  decoration: const InputDecoration(labelText: 'اسم المستخدم'),
+                  autofillHints: const [AutofillHints.nickname],
+                  validator: (value) =>
+                      (value ?? '').trim().isEmpty ? 'أدخل اسم المستخدم' : null,
                 ),
               ],
               if (_verify) ...[

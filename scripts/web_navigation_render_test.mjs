@@ -34,6 +34,21 @@ try {
  await page.waitForTimeout(1000);
  const text = await page.locator('body').innerText();
  if (!text.includes('خصص تجربة المشاهدة')) throw new Error('INITIAL_SETTINGS_ROUTE_NOT_RESTORED '+page.url()+' '+await page.locator('body').innerText()+' '+JSON.stringify({errors,blockedHosts}));
+ // Exercise actual Chromium history, not mocked widget-test platform channels.
+ const settingsRoot=page.url();
+ await page.getByText('الأجهزة والتحكم',{exact:true}).click();await page.waitForTimeout(700);
+ const devicesUrl=page.url();
+ if(!new URL(devicesUrl).hash.includes('panel='))throw new Error('SETTINGS_PANEL_HAS_NO_HISTORY_ENTRY');
+ await page.getByText('تخصيص أزرار الريموت',{exact:true}).click();await page.waitForTimeout(700);
+ if(page.url()===devicesUrl)throw new Error('REMOTE_PANEL_HAS_NO_HISTORY_ENTRY');
+ await page.goBack();await page.waitForTimeout(700);
+ if(page.url()!==devicesUrl||!await page.getByText('اختصارات التحكم',{exact:true}).count())throw new Error('PANEL_BACK_LOST_PARENT');
+ await page.goForward();await page.waitForTimeout(700);
+ if(!await page.getByText('استعادة الأزرار الافتراضية',{exact:true}).count())throw new Error('PANEL_FORWARD_NOT_RESTORED');
+ await page.goBack();await page.waitForTimeout(500);
+ await page.goBack();await page.waitForTimeout(700);
+ if(page.url()!==settingsRoot)throw new Error('PANEL_BACK_DID_NOT_REACH_SETTINGS_ROOT');
+
  await page.reload(); await page.waitForTimeout(5000);
  await page.locator('flt-semantics-placeholder').evaluateAll(nodes => nodes.forEach(n => n.click()));
  await page.waitForTimeout(500);
@@ -65,5 +80,5 @@ try {
  await page.goto(`http://127.0.0.1:${server.address().port}${base}#/player?ref=tmdb%3Atv%3A123&number=0`);
  await page.waitForURL('**/#/home', {timeout:5000});
  if (errors.length) throw new Error(JSON.stringify(errors));
- console.log(JSON.stringify({initial_settings:true,refresh_settings:true,history_search:true,browser_back:true,browser_forward:true,title_refresh:true,player_episode_refresh:true,unnecessary_home_fetches:0,invalid_episode_rejected:true,errors}));
+ console.log(JSON.stringify({initial_settings:true,refresh_settings:true,panel_back:true,panel_forward:true,history_search:true,browser_back:true,browser_forward:true,title_refresh:true,player_episode_refresh:true,unnecessary_home_fetches:0,invalid_episode_rejected:true,errors}));
 }finally{await browser.close();server.close();}

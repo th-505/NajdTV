@@ -8,7 +8,7 @@ import 'app_target.dart';
 /// Internal layout evidence only. Never infer physical inches from unreliable DPI.
 class NajdViewportProfile {
   static const storageKey = 'najd.viewport.profile.v1';
-  static double tvScale(Size size) => (size.width / 1280).clamp(1.1, 1.6);
+  static double tvScale(Size size) => 1.0;
   static Map<String, Object> measure(MediaQueryData media) => {
     'schema_version': 1,
     'logical_width': media.size.width,

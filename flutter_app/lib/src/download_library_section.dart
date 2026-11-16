@@ -2,6 +2,8 @@ import 'najd_panels.dart';
 
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'stitch_design.dart';
 import 'download_activity.dart';
 
@@ -54,6 +56,15 @@ class _DownloadLibrarySectionState extends State<DownloadLibrarySection> {
   }
 
   Future<void> _reload() async {
+    if (kIsWeb) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = null;
+        });
+      }
+      return;
+    }
     if (mounted) {
       setState(() {
         _loading = true;
@@ -147,6 +158,14 @@ class _DownloadLibrarySectionState extends State<DownloadLibrarySection> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Text(
+          'تنزيلات المتصفح تُحفظ في مدير التنزيلات على جهازك. استخدم زر التحميل من المشغل؛ لا يستطيع الموقع قراءة الملفات المحفوظة خارج المتصفح.',
+        ),
+      );
+    }
     return ValueListenableBuilder<List<NajdDownloadJob>>(
       valueListenable: NajdDownloadActivity.instance,
       builder: (context, jobs, _) => Column(

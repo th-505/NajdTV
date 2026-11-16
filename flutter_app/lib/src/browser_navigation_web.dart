@@ -1,7 +1,7 @@
 import 'browser_content_route.dart';
 
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
@@ -29,6 +29,37 @@ class BrowserNavigation {
     }
   })();
   static final _contentRoutes = <Object, Uri>{};
+  static final _panelBuilders = <String, WidgetBuilder>{};
+  static final _panelRoutes = <Object>{};
+  static int _panelSequence = 0;
+
+  void enterPanel(MaterialPageRoute<dynamic> route) async {
+    if (_contentRoutes.containsKey(route) || !route.isCurrent) return;
+    final id = (++_panelSequence).toRadixString(36);
+    final base = currentRoute;
+    final uri = base.replace(
+      queryParameters: {...base.queryParameters, 'panel': id},
+    );
+    _panelBuilders[id] = route.builder;
+    while (_panelBuilders.length > 128) {
+      _panelBuilders.remove(_panelBuilders.keys.first);
+    }
+    _panelRoutes.add(route);
+    _contentRoutes[route] = uri;
+    await _ensureHistory();
+    if (!route.isCurrent || _contentRoutes[route] != uri) return;
+    await SystemNavigator.routeInformationUpdated(uri: uri);
+  }
+
+  Route<void>? restorePanel(Uri uri) {
+    final builder = _panelBuilders[uri.queryParameters['panel']];
+    if (builder == null) return null;
+    final route = MaterialPageRoute<void>(builder: builder);
+    _contentRoutes[route] = uri;
+    _panelRoutes.add(route);
+    return route;
+  }
+
   Uri get currentRoute {
     final hash = _window
         .getProperty<JSObject>('location'.toJS)
@@ -165,8 +196,24 @@ class BrowserNavigation {
 
 class BrowserRouteObserver extends NavigatorObserver {
   @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (previousRoute != null && route is MaterialPageRoute<dynamic>) {
+      // Details/player register their canonical URL during first layout.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!BrowserNavigation._contentRoutes.containsKey(route)) {
+          BrowserNavigation().enterPanel(route);
+        }
+      });
+    }
+  }
+
+  @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     BrowserNavigation.popped(route);
+    if (BrowserNavigation._panelRoutes.remove(route)) {
+      BrowserNavigation._contentRoutes.remove(route);
+    }
     super.didPop(route, previousRoute);
   }
 }

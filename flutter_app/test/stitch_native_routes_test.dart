@@ -63,6 +63,7 @@ void main() {
         Future<void> render(Widget child, String name) async {
           await tester.pumpWidget(
             MaterialApp(
+              key: ValueKey('route-$name'),
               theme: dark ? NajdThemes.dark : NajdThemes.light,
               home: Directionality(
                 textDirection: TextDirection.rtl,

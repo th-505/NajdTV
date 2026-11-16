@@ -211,7 +211,6 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                     _loading = true;
                     _provider = value;
                     _category = '';
-                    _query.clear();
                   });
                   await _rememberProvider();
                   await _load();
@@ -220,9 +219,17 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
               TextField(
                 controller: _query,
                 textInputAction: TextInputAction.search,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'بحث داخل المزود المختار',
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: IconButton(
+                    tooltip: 'مسح البحث',
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      _query.clear();
+                      _load();
+                    },
+                  ),
                 ),
                 onSubmitted: (_) => _load(),
               ),
@@ -292,8 +299,8 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
               : GridView.builder(
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 220,
-                    mainAxisExtent: 340,
+                    maxCrossAxisExtent: 185,
+                    childAspectRatio: 2 / 3,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                   ),

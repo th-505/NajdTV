@@ -4,6 +4,7 @@ class BrowserNavigation {
   Future<void> get ready async {}
   Uri get currentRoute => Uri(path: '/');
   bool matchesRoute(Object route, Uri uri) => false;
+  Route<void>? restorePanel(Uri uri) => null;
   void enterContent(Object route, String page, Map<String, String> identity) {}
   void leaveContent(Object route) {}
   void applyHistory(void Function() action) => action();

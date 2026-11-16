@@ -143,6 +143,20 @@ class _NajdAccountPageState extends State<NajdAccountPage> {
     }
   }
 
+  Widget _destination(String title, IconData icon, Widget child) => ListTile(
+    leading: Icon(icon),
+    title: Text(title),
+    trailing: const Icon(Icons.chevron_left),
+    onTap: () => Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(title)),
+          body: ListView(padding: const EdgeInsets.all(20), children: [child]),
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('حساب نجد')),
@@ -164,7 +178,11 @@ class _NajdAccountPageState extends State<NajdAccountPage> {
                 TextButton(onPressed: load, child: const Text('أعد المحاولة')),
               ],
               if (widget.store != null)
-                NajdSurface(child: LibraryBackupControl(store: widget.store!)),
+                _destination(
+                  'نسخة احتياطية للمكتبة',
+                  Icons.backup_outlined,
+                  LibraryBackupControl(store: widget.store!),
+                ),
             ],
           )
         : ListView(
@@ -244,9 +262,13 @@ class _NajdAccountPageState extends State<NajdAccountPage> {
                         }
                       },
               ),
-              const NajdSurface(child: NajdLinkPanel()),
+              _destination('ربط أجهزتك', Icons.devices, const NajdLinkPanel()),
               if (widget.store != null)
-                NajdSurface(child: LibraryBackupControl(store: widget.store!)),
+                _destination(
+                  'نسخة احتياطية للمكتبة',
+                  Icons.backup_outlined,
+                  LibraryBackupControl(store: widget.store!),
+                ),
             ],
           ),
   );

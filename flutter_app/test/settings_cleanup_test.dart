@@ -44,12 +44,7 @@ Future<void> revealSetting(WidgetTester tester, String label) async {
   await tester.scrollUntilVisible(
     find.text(label),
     180,
-    scrollable: find
-        .descendant(
-          of: find.byType(SettingsPage),
-          matching: find.byType(Scrollable),
-        )
-        .first,
+    scrollable: find.byType(Scrollable).last,
   );
   await tester.pumpAndSettle();
 }
@@ -123,6 +118,8 @@ void main() {
       }
       expect(store.isFavorite(item.ref), isTrue);
       expect(store.resumePosition(item.ref), const Duration(seconds: 15));
+      await tester.pageBack();
+      await tester.pumpAndSettle();
       await selectShellDestination(tester, 'home');
       await tester.pumpAndSettle();
       expect(
@@ -201,6 +198,8 @@ void main() {
     await tester.tap(find.text('مسح الكاش المحلي'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('حذف'));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pageBack();
     await tester.pump(const Duration(milliseconds: 350));
     await selectShellDestination(tester, 'movies');
     await tester.pump(const Duration(milliseconds: 350));

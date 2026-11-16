@@ -33,6 +33,7 @@ void main() {
         'role': 'authenticated',
         'is_anonymous': false,
         'email_confirmed_at': '2026-01-01T00:00:00Z',
+        'email': 'qa@example.com',
         'app_metadata': {
           'provider': 'email',
           'providers': ['email'],

@@ -54,7 +54,7 @@ void main() {
       expect(wide['safe_left'], 16);
       expect(wide['orientation'], 'landscape');
       expect(wide['layout'], isTvTarget ? 'tv' : 'wide');
-      expect(wide['tv_text_multiplier'], isTvTarget ? 1.5 : 1.0);
+      expect(wide['tv_text_multiplier'], 1.0);
       expect(
         wide.keys.any((key) => key.contains('inch') || key.contains('serial')),
         false,

@@ -1,3 +1,4 @@
+import 'remote_bindings.dart';
 import 'seek_burst.dart';
 import 'all_provider_search.dart';
 import 'playback_timeline.dart';
@@ -2824,7 +2825,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           },
           child: Focus(
             autofocus: true,
-            onKeyEvent: (_, event) {
+            onKeyEvent: (node, event) {
               if (_controlsLocked) {
                 if (event is KeyDownEvent &&
                     event.logicalKey == LogicalKeyboardKey.escape) {
@@ -2853,6 +2854,43 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               }
               if (event is KeyDownEvent && active != null) {
                 final key = event.logicalKey;
+                // Respect focused buttons, menus and text input before remapping.
+                if (node.hasPrimaryFocus) {
+                  final action = RemoteBindings.instance.actionFor(key);
+                  if (action != null) {
+                    switch (action) {
+                      case RemoteAction.playPause:
+                        unawaited(_togglePlay(active));
+                      case RemoteAction.forward:
+                        unawaited(
+                          _seekBy(
+                            Duration(
+                              seconds: NajdPreferences.instance.seekSeconds,
+                            ),
+                          ),
+                        );
+                      case RemoteAction.backward:
+                        unawaited(
+                          _seekBy(
+                            Duration(
+                              seconds: -NajdPreferences.instance.seekSeconds,
+                            ),
+                          ),
+                        );
+                      case RemoteAction.fullscreen:
+                        unawaited(_toggleFullscreen());
+                    }
+                    _revealControls();
+                    return KeyEventResult.handled;
+                  }
+                  if (key == LogicalKeyboardKey.enter ||
+                      key == LogicalKeyboardKey.select ||
+                      key == LogicalKeyboardKey.numpadEnter) {
+                    unawaited(_togglePlay(active));
+                    _revealControls();
+                    return KeyEventResult.handled;
+                  }
+                }
                 if (key == LogicalKeyboardKey.space ||
                     key == LogicalKeyboardKey.mediaPlayPause) {
                   unawaited(_togglePlay(active));
