@@ -84,3 +84,12 @@ test('polls reuse only their own session; renewing A never revokes or replaces B
  assert.equal(sessions(a,identity,extract).state,'running','expired capabilities must extract again');
  assert.throws(()=>sessions('forged',identity,extract),/INVALID_PLAYBACK_SESSION/);
 });
+
+test('fresh playback retains public observed episode metadata but never persists a viewer media URL',async()=>{
+ const now=Date.now(),writes=[],source='https://source.example/episode-1';
+ const entry={meta:{id:'fixture',capabilities:{search:true,details:true},domains:['https://source.example']},module:{scrapeDetails:async()=>({title:'Fixture',sourceUrl:'https://source.example/series/fixture',observed_parent_ref:'https://source.example/series/fixture',episodes:[{ref:source,title:'الحلقة 1',season:1,number:1,url:source}],requested_source_ref:source,requested_episode_metadata:{source_ref:source,poster:'https://images.example/1.jpg',duration_seconds:2780},servers:[{url:'https://cdn.example/1.mp4?viewer=private',kind:'direct'}]})}};
+ const resolve=createSessionPlayback({entries:[entry],now:()=>now,store:{setEpisode:async(...args)=>writes.push(args)},probe:async()=>({playable:true,container:'mp4',container_verified:true,statusCode:206})});
+ const media=await resolve({work:{ref:'source:fixture:0123456789abcdef01234567',metadata:{title:'Fixture',identity_scope:'source'}},row:{provider:'fixture',source_ref:source},season:1,episode:1});
+ await new Promise(r=>setImmediate(r));assert.equal(media.length,1);assert.equal(writes.length,1);
+ assert.deepEqual(writes[0][3],{poster:'https://images.example/1.jpg',duration_seconds:2780});assert(!JSON.stringify(writes).includes('viewer=private'));
+});

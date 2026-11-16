@@ -9,7 +9,12 @@ export function createSessionPlayback({store, entries, now=Date.now, probe}={}) 
     const isolatedStore={
       getWork:async()=>work,
       getEpisode:async()=>null,
-      setEpisode:async(_work,_provider,_source,patch)=>{if(patch.media)media=patch.media;if(patch.server_scan)scan=patch.server_scan;},
+      setEpisode:async(_work,_provider,_source,patch)=>{
+        if(patch.media)media=patch.media;if(patch.server_scan)scan=patch.server_scan;
+        const metadata={...(patch.poster?{poster:patch.poster}:{}),...(patch.duration_seconds?{duration_seconds:patch.duration_seconds}:{})};
+        // Only public observed metadata may update the shared index; no media, sessions or headers.
+        if(Object.keys(metadata).length&&store?.setEpisode)void Promise.resolve().then(()=>store.setEpisode(work.ref,row.provider,row.source_ref,metadata)).catch(()=>{});
+      },
       request:async()=>[], event:async()=>{},
     };
     const pipeline=createHarvestPipeline({store:isolatedStore,entries,now,probe});
