@@ -113,6 +113,18 @@ def apply_android(root: Path):
                 else:
                     tag = tag[:-1] + ' ' + key + '="true">'
             text = text.replace(activity.group(0), tag, 1)
+        # Device unlock secrets must never migrate through Android cloud/device backup.
+        backup = res / "xml/najd_backup_rules.xml"
+        backup.write_text('<full-backup-content><exclude domain="sharedpref" path="FlutterSecureStorage.xml"/><exclude domain="sharedpref" path="FlutterSecureKeyStorage.xml"/></full-backup-content>', encoding="utf-8")
+        extraction = res / "xml/najd_data_extraction_rules.xml"
+        excluded = '<exclude domain="sharedpref" path="FlutterSecureStorage.xml"/><exclude domain="sharedpref" path="FlutterSecureKeyStorage.xml"/>'
+        extraction.write_text('<data-extraction-rules><cloud-backup>' + excluded + '</cloud-backup><device-transfer>' + excluded + '</device-transfer></data-extraction-rules>', encoding="utf-8")
+        for attribute, value in (("fullBackupContent", "@xml/najd_backup_rules"), ("dataExtractionRules", "@xml/najd_data_extraction_rules")):
+            key = "android:" + attribute
+            if key + '=' in text:
+                text = re.sub(key + r'="[^"]*"', key + '="' + value + '"', text, count=1)
+            else:
+                text = re.sub(r'(<application\b)', r'\1 ' + key + '="' + value + '"', text, count=1)
         manifest.write_text(text, encoding="utf-8")
     # These tracked platform templates survive flutter create in hosted builds.
     source = Path(__file__).resolve().parents[1] / 'flutter_app/native/android/MainActivity.kt'
@@ -172,6 +184,21 @@ def apply_ios(root: Path):
         with plist.open("wb") as fh:
             plistlib.dump(data, fh, sort_keys=False)
 
+
+    # The PIN verifier is local to this app's Keychain; no shared App Group.
+    entitlements = ios / "Runner/Runner.entitlements"
+    if entitlements.parent.exists():
+        existing = plistlib.loads(entitlements.read_bytes()) if entitlements.exists() else {}
+        existing.setdefault("keychain-access-groups", [])
+        entitlements.write_bytes(plistlib.dumps(existing))
+    project = ios / "Runner.xcodeproj/project.pbxproj"
+    if project.exists():
+        def keychain_settings(match):
+            block = match.group(0)
+            if "INFOPLIST_FILE = Runner/Info.plist;" in block and "CODE_SIGN_ENTITLEMENTS" not in block:
+                block = block.replace("INFOPLIST_FILE = Runner/Info.plist;", "INFOPLIST_FILE = Runner/Info.plist;\n\t\t\t\tCODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;")
+            return block
+        project.write_text(re.sub(r"buildSettings = \{[^{}]*\};", keychain_settings, project.read_text()), encoding="utf-8")
 
     delegate = ios / "Runner/AppDelegate.swift"
     if delegate.exists():

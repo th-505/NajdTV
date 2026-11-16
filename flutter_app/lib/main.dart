@@ -1,3 +1,4 @@
+import 'src/quick_unlock_ui.dart';
 import 'src/remote_bindings.dart';
 import 'src/live_channels_panel.dart';
 import 'src/catalog_collection_defs.dart';
@@ -173,14 +174,17 @@ class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
         darkTheme: NajdThemes.dark,
         themeMode: NajdAppearance.instance.mode,
         builder: (context, child) => ScrollToTopOverlay(
-          child: NajdTvViewport(
-            child: NajdIntro(
-              child: isTvTarget
-                  ? VirtualPointerScope(
-                      controller: _pointer,
-                      child: FocusScrollScope(child: _navigationTree()),
-                    )
-                  : _navigationTree(),
+          child: DeviceUnlockGate(
+            storeFuture: storeFuture,
+            child: NajdTvViewport(
+              child: NajdIntro(
+                child: isTvTarget
+                    ? VirtualPointerScope(
+                        controller: _pointer,
+                        child: FocusScrollScope(child: _navigationTree()),
+                      )
+                    : _navigationTree(),
+              ),
             ),
           ),
         ),

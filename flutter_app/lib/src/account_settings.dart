@@ -1,3 +1,4 @@
+import 'quick_unlock_ui.dart';
 import 'email_auth.dart';
 import 'library_store.dart';
 import 'library_backup_control.dart';
@@ -235,6 +236,14 @@ class _NajdAccountPageState extends State<NajdAccountPage> {
                   padding: const EdgeInsets.all(12),
                   child: SelectableText('معرّف هذه النسخة: $installationId'),
                 ),
+              _destination(
+                'رمز الدخول السريع',
+                Icons.pin_outlined,
+                QuickUnlockSetupPage(
+                  authentication: authentication!,
+                  label: name.text,
+                ),
+              ),
               const SizedBox(height: 20),
               OutlinedButton.icon(
                 icon: const Icon(Icons.logout),

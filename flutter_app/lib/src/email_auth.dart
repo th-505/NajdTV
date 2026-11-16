@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'cloud_library.dart';
 import 'library_store.dart';
+import 'quick_unlock.dart';
 
 /// The SDK owns session storage. Passwords exist only in the form and request.
 abstract interface class NajdAccountAuthentication {
@@ -109,8 +110,14 @@ class NajdEmailAuth implements NajdAccountAuthentication {
   });
 
   Future<void> signOut() async {
+    final owner = client.auth.currentUser?.id;
     await _change(() async {
       await client.auth.signOut(scope: SignOutScope.local);
+      if (owner != null) {
+        try {
+          await QuickUnlockService.instance.disable(owner);
+        } catch (_) {}
+      }
       if (store != null) await CloudLibrarySync.bindLocalGuest(store!);
     });
   }
