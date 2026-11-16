@@ -74,6 +74,15 @@ class DownloadService {
   final DownloadDirectoryProvider _directoryProvider;
   final DownloadReconnectDelay? _reconnectDelayOverride;
 
+  int _running = 0;
+  bool _releaseWhenIdle = false, _closed = false;
+
+  /// Route disposal must not abort an active file transfer.
+  void closeWhenIdle() {
+    _releaseWhenIdle = true;
+    if (_running == 0) close();
+  }
+
   static const int _maxReconnectAttempts = 4;
   static const int _signatureProbeBytes = 512;
 
@@ -95,6 +104,9 @@ class DownloadService {
     DownloadProgressCallback? onProgress,
     DownloadCancellationToken? cancellationToken,
   }) async {
+    if (_closed || _releaseWhenIdle) {
+      throw const DownloadException('DOWNLOAD_SERVICE_CLOSED');
+    }
     final token = cancellationToken ?? DownloadCancellationToken();
     late final DownloadJobRegistration registration;
     try {
@@ -104,6 +116,7 @@ class DownloadService {
     } on DownloadCleanupInProgress {
       throw const DownloadException('DOWNLOAD_CLEANUP_IN_PROGRESS');
     }
+    _running++;
     final activity = NajdDownloadActivity.instance;
     final jobId =
         '${resumeKey ?? fallbackName}:${DateTime.now().microsecondsSinceEpoch}';
@@ -167,6 +180,8 @@ class DownloadService {
       rethrow;
     } finally {
       registration.complete();
+      _running--;
+      if (_releaseWhenIdle && _running == 0) close();
     }
   }
 
@@ -861,7 +876,11 @@ class DownloadService {
     return compact.isEmpty ? 'najdtv-media' : compact;
   }
 
-  void close() => _client.close();
+  void close() {
+    if (_closed) return;
+    _closed = true;
+    _client.close();
+  }
 }
 
 class _DownloadValue<T> {

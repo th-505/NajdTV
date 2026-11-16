@@ -14,11 +14,13 @@ class PlayerControls extends StatefulWidget {
     required this.onForward,
     required this.onPlaybackSpeedChanged,
     this.showSpeed = true,
+    this.isLive = false,
     this.seekSeconds = 10,
   });
 
   final int seekSeconds;
   final bool showSpeed;
+  final bool isLive;
   final bool isPlaying;
   final bool isTv;
   final double playbackSpeed;
@@ -81,26 +83,30 @@ class _PlayerControlsState extends State<PlayerControls> {
               ),
               key: const Key('player-rewind'),
               focusNode: _rewindFocus,
-              tooltip: 'رجوع ${widget.seekSeconds} ثانية',
+              tooltip: widget.isLive
+                  ? 'القناة السابقة'
+                  : 'رجوع ${widget.seekSeconds} ثانية',
               onPressed: widget.onRewind,
-              icon: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(Icons.replay, shadows: outline),
-                  Padding(
-                    padding: EdgeInsets.only(top: 3),
-                    child: Text(
-                      '${widget.seekSeconds}',
-                      style: TextStyle(
-                        fontFamily: 'ThmanyahSans',
-                        fontSize: compact ? 9 : 11,
-                        color: Colors.white,
-                        shadows: outline,
-                      ),
+              icon: widget.isLive
+                  ? const Icon(Icons.skip_previous, shadows: outline)
+                  : Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        const Icon(Icons.replay, shadows: outline),
+                        Padding(
+                          padding: EdgeInsets.only(top: 3),
+                          child: Text(
+                            '${widget.seekSeconds}',
+                            style: TextStyle(
+                              fontFamily: 'ThmanyahSans',
+                              fontSize: compact ? 9 : 11,
+                              color: Colors.white,
+                              shadows: outline,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
             IconButton(
               key: const Key('player-play-toggle'),
@@ -134,26 +140,30 @@ class _PlayerControlsState extends State<PlayerControls> {
               ),
               key: const Key('player-forward'),
               focusNode: _forwardFocus,
-              tooltip: 'تقديم ${widget.seekSeconds} ثانية',
+              tooltip: widget.isLive
+                  ? 'القناة التالية'
+                  : 'تقديم ${widget.seekSeconds} ثانية',
               onPressed: widget.onForward,
-              icon: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(Icons.rotate_right, shadows: outline),
-                  Padding(
-                    padding: EdgeInsets.only(top: 3),
-                    child: Text(
-                      '${widget.seekSeconds}',
-                      style: TextStyle(
-                        fontFamily: 'ThmanyahSans',
-                        fontSize: compact ? 9 : 11,
-                        color: Colors.white,
-                        shadows: outline,
-                      ),
+              icon: widget.isLive
+                  ? const Icon(Icons.skip_next, shadows: outline)
+                  : Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        const Icon(Icons.rotate_right, shadows: outline),
+                        Padding(
+                          padding: EdgeInsets.only(top: 3),
+                          child: Text(
+                            '${widget.seekSeconds}',
+                            style: TextStyle(
+                              fontFamily: 'ThmanyahSans',
+                              fontSize: compact ? 9 : 11,
+                              color: Colors.white,
+                              shadows: outline,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
             if (widget.showSpeed)
               NajdChoiceButton<double>(

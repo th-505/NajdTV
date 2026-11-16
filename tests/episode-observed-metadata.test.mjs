@@ -3,6 +3,9 @@ import {observedEpisodeMetadata,observedDurationSeconds} from '../server/scraper
 import {normalizeEpisodeList} from '../server/scrapers/shared/normalize.mjs';
 test('episode metadata accepts observed times and public images without inventing absent duration',()=>{
  assert.equal(observedDurationSeconds('46:20'),2780);assert.equal(observedDurationSeconds('٤٦:٢٠'),2780);
+ assert.equal(observedDurationSeconds('مدة العرض: ٤٦:٢٠'),2780);
+ assert.equal(observedDurationSeconds('Duration: 46:20'),2780);
+ assert.equal(observedDurationSeconds('release 46:20'),null);
  assert.equal(observedDurationSeconds('1:03:20'),3800);assert.equal(observedDurationSeconds('PT46M20S'),2780);
  for(const value of ['2026','46:99','-1:00','PT','unknown'])assert.equal(observedDurationSeconds(value),null);
  assert.deepEqual(observedEpisodeMetadata({poster:'https://127.0.0.1/private',duration:'unknown'},'https://source.example'),{});

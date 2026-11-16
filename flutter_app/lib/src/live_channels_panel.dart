@@ -12,7 +12,15 @@ import 'player_page.dart';
 
 /// The eight public feeds use the same API and player as the existing app.
 class LiveChannelsPanel extends StatefulWidget {
-  const LiveChannelsPanel({super.key, required this.api, required this.store});
+  const LiveChannelsPanel({
+    super.key,
+    required this.api,
+    required this.store,
+    this.initialGroup = 'sa',
+    this.onSelected,
+  });
+  final String initialGroup;
+  final ValueChanged<LiveChannelSelection>? onSelected;
   final MitvApi api;
   final LocalLibraryStore store;
   @override
@@ -39,6 +47,9 @@ class _LiveChannelsPanelState extends State<LiveChannelsPanel> {
   @override
   void initState() {
     super.initState();
+    _group = _groups.containsKey(widget.initialGroup)
+        ? widget.initialGroup
+        : 'sa';
     _scroll.addListener(_onScroll);
     unawaited(_load());
   }
@@ -187,18 +198,33 @@ class _LiveChannelsPanelState extends State<LiveChannelsPanel> {
                       : NajdPoster(url: row.poster, fit: BoxFit.contain),
                 ),
                 title: Text(row.title),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => PlayerPage(
-                      api: widget.api,
-                      store: widget.store,
-                      item: row,
-                      title: row.title,
-                      sourceRef: row.ref,
-                      isLive: true,
+                onTap: () {
+                  final selection = LiveChannelSelection(
+                    item: row,
+                    group: _group,
+                    query: _query,
+                    channels: List.unmodifiable(_rows),
+                    page: _page,
+                    hasMore: _more,
+                  );
+                  if (widget.onSelected != null) {
+                    widget.onSelected!(selection);
+                    return;
+                  }
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => PlayerPage(
+                        api: widget.api,
+                        store: widget.store,
+                        item: row,
+                        title: row.title,
+                        sourceRef: row.ref,
+                        isLive: true,
+                        liveSelection: selection,
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             );
           },

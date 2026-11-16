@@ -479,6 +479,7 @@ class _ShellState extends State<Shell> {
                     store: widget.store,
                     item: content.item,
                     title: content.item.title,
+                    isLive: content.item.type == 'live',
                     sourceRef: content.sourceRef,
                     episodeId: content.episodeId,
                     episodeNumber: content.episodeNumber,

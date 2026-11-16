@@ -14,3 +14,5 @@ Current batch: the user explicitly authorized server updates and six application
 
 ## Latest explicit authorization (2026-11-16)
 The user now authorizes the requested server updates and six application targets after all client acceptance tasks pass. Do not start final release builds with unfinished tasks. Release version confirmed: 5.2.0.
+
+Verification discipline: freeze functional Dart edits during a full Flutter run; an already running compiler can retain older imported libraries. Run Flutter tests and Web debug compilation sequentially in this shared workspace to avoid exhausting temporary disk. Only remove identified generated compilation caches, preserving user data, databases, source, fonts and retained test evidence.

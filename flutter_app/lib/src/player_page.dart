@@ -1,3 +1,5 @@
+import 'live_channels_panel.dart';
+import 'browser_download.dart';
 import 'remote_bindings.dart';
 import 'seek_burst.dart';
 import 'all_provider_search.dart';
@@ -198,6 +200,7 @@ class PlayerPage extends StatefulWidget {
     this.episodeId = '',
     this.episodeNumber,
     this.isLive = false,
+    this.liveSelection,
     this.localFileUri,
     this.persistProgress = true,
     this.subtitles,
@@ -226,6 +229,7 @@ class PlayerPage extends StatefulWidget {
   final String episodeId;
   final int? episodeNumber;
   final bool isLive;
+  final LiveChannelSelection? liveSelection;
   final Uri? localFileUri;
   final bool persistProgress;
   final SubtitleService? subtitles;
@@ -348,7 +352,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     final route = ModalRoute.of(context);
     if (route == null) return;
     _browserRoute = route;
-    if (widget.localFileUri != null || widget.isLive) return;
+    if (widget.localFileUri != null) return;
     BrowserNavigation().enterContent(
       route,
       'player',
@@ -1278,26 +1282,62 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     _revealControls();
   }
 
+  bool _seasonMenuBusy = false;
   Future<void> _seasonMenu() async {
-    final seasons =
-        _queue.map((ep) => ep.season).whereType<int>().toSet().toList()..sort();
+    if (_seasonMenuBusy || widget.isLive || widget.item.type == 'movie') return;
+    _seasonMenuBusy = true;
     _controlsTimer?.cancel();
-    final selected = await showNajdOptions<int>(
-      context,
-      title: 'المواسم',
-      icon: Icons.video_library_outlined,
-      options: [
-        for (final season in seasons)
-          NajdOption(
-            season,
-            'الموسم $season',
-            selected: season == widget.item.season,
-          ),
-      ],
-    );
-    if (!mounted) return;
-    if (selected != null) await _episodeMenu(season: selected);
-    _revealControls();
+    try {
+      var base = widget.item.ref.replaceFirst(RegExp(r':s\d+:e\d+$'), '');
+      final seasons = _queue.map((ep) => ep.season).whereType<int>().toSet();
+      try {
+        final details = await widget.api.details(
+          widget.sourceRef.isEmpty ? base : widget.sourceRef,
+        );
+        if (!mounted) return;
+        seasons.addAll(details.availableSeasons);
+        if (details.sourceWorkRef.isNotEmpty) base = details.sourceWorkRef;
+      } catch (_) {
+        /* An already observed season list remains usable offline. */
+      }
+      if (!mounted) return;
+      final ordered = seasons.where((s) => s > 0).toList()..sort();
+      final selected = await showNajdOptions<int>(
+        context,
+        title: 'المواسم',
+        icon: Icons.video_library_outlined,
+        options: [
+          for (final season in ordered)
+            NajdOption(
+              season,
+              'الموسم $season',
+              selected: season == _currentEpisodeSeason,
+            ),
+        ],
+      );
+      if (!mounted || selected == null) return;
+      if (!_queue.any((episode) => episode.season == selected)) {
+        final details = await widget.api.details('$base:s$selected:e1');
+        if (!mounted) return;
+        final observed = details.episodes.where(
+          (episode) => episode.season == selected,
+        );
+        final combined = {
+          for (final ep in [..._queue, ...observed]) ep.ref: ep,
+        };
+        setState(() => _loadedSourceQueue = combined.values.toList());
+      }
+      if (mounted) await _episodeMenu(season: selected);
+    } catch (_) {
+      if (mounted) {
+        _subtitleNotice(
+          'تعذر تحميل حلقات هذا الموسم. التشغيل الحالي مستمر؛ حاول مجددًا.',
+        );
+      }
+    } finally {
+      _seasonMenuBusy = false;
+      if (mounted) _revealControls();
+    }
   }
 
   Future<void> _providerCatalogue() async {
@@ -1758,6 +1798,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
 
   Future<void> _seekBy(Duration delta, {Duration? origin}) async {
     _revealControls();
+    if (widget.isLive) {
+      await _stepChannel(delta.isNegative ? -1 : 1);
+      return;
+    }
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
     final duration = controller.value.duration;
@@ -2127,8 +2171,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
               ),
             if (_nextEpisode != null)
               ('next', 'الحلقة التالية', Icons.skip_next),
-            if (!kIsWeb &&
-                !widget.isLive &&
+            if (!widget.isLive &&
                 widget.localFileUri == null &&
                 _currentMediaType == 'mp4')
               (
@@ -2233,8 +2276,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       await closingPlayer?.dispose();
       if (widget.subtitles == null) await _subtitles.dispose();
     }());
-    _downloadToken?.cancel();
-    _downloadService?.close();
+    _downloadService?.closeWhenIdle();
     unawaited(_streamBridge?.close() ?? Future.value());
     super.dispose();
   }
@@ -2663,6 +2705,15 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
             : _resolvedPlaybackMode,
         expiresAt: _expiresAt,
       );
+      if (kIsWeb) {
+        startBrowserDownload(uri, widget.title, _currentHeaders);
+        if (mounted) {
+          _subtitleNotice(
+            'فُتح رابط الملف في المتصفح؛ الحفظ متاح من مدير التنزيلات حسب دعم المصدر والمتصفح.',
+          );
+        }
+        return;
+      }
       await _downloadService!.download(
         uri,
         headers: _currentHeaders,
@@ -2680,12 +2731,15 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           ),
         );
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              token.isCancelled
+              error is FormatException &&
+                      error.message == 'BROWSER_DOWNLOAD_HEADERS_REQUIRED'
+                  ? 'هذا المصدر يتطلب ترويسات لا يستطيع المتصفح إرفاقها. استخدم التطبيق أو اختر ملفًا مباشرًا آخر.'
+                  : token.isCancelled
                   ? 'تم إلغاء التنزيل'
                   : 'تعذر تنزيل هذا المصدر. أعد استخراج الرابط ثم حاول مجددًا.',
             ),
@@ -2699,6 +2753,122 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           _downloadProgress = null;
         });
       }
+    }
+  }
+
+  LiveChannelSelection? _selectedLive;
+  Future<void> _openLiveChannel(LiveChannelSelection selection) async {
+    if (!mounted || _advancing) return;
+    if (selection.item.ref == widget.item.ref) {
+      setState(() => _selectedLive = selection);
+      _revealControls();
+      return;
+    }
+    if (!_failed && _controller?.value.isInitialized != true) return;
+    _advancing = true;
+    try {
+      await _controller?.pause();
+    } catch (_) {}
+    if (!mounted) return;
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => PlayerPage(
+          api: widget.api,
+          store: widget.store,
+          item: selection.item,
+          title: selection.item.title,
+          sourceRef: selection.item.ref,
+          isLive: true,
+          liveSelection: selection,
+          playerFactory: widget.playerFactory,
+          streamBridgeFactory: widget.streamBridgeFactory,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _channelMenu() async {
+    _controlsTimer?.cancel();
+    final selection = await showNajdPanel<LiveChannelSelection>(
+      context,
+      title: 'القنوات المباشرة',
+      icon: Icons.live_tv,
+      body: (panelContext) => SizedBox(
+        height: (MediaQuery.sizeOf(context).height * .5).clamp(160.0, 500.0),
+        child: LiveChannelsPanel(
+          api: widget.api,
+          store: widget.store,
+          initialGroup:
+              widget.liveSelection?.group ??
+              (widget.item.ref.startsWith('live:iptv-org:')
+                  ? widget.item.ref.split(':')[2]
+                  : 'sa'),
+          onSelected: (choice) => Navigator.pop(panelContext, choice),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (selection != null) {
+      unawaited(_openLiveChannel(selection));
+    } else {
+      _revealControls();
+    }
+  }
+
+  bool _changingChannel = false;
+  Future<void> _stepChannel(int direction) async {
+    final current = _selectedLive ?? widget.liveSelection;
+    if (_changingChannel) return;
+    if (current == null) {
+      await _channelMenu();
+      return;
+    }
+    _changingChannel = true;
+    try {
+      var rows = [...current.channels],
+          page = current.page,
+          more = current.hasMore;
+      final index = rows.indexWhere((row) => row.ref == widget.item.ref);
+      if (direction > 0 && index == rows.length - 1 && more) {
+        final result = await widget.api.liveChannels(
+          current.group,
+          query: current.query,
+          page: page + 1,
+        );
+        if (!mounted) return;
+        final seen = rows.map((row) => row.ref).toSet();
+        rows.addAll(
+          (result['data'] as List)
+              .whereType<Map>()
+              .map((row) => CatalogItem.fromJson(row.cast<String, dynamic>()))
+              .where((row) => seen.add(row.ref)),
+        );
+        page++;
+        more =
+            result['pagination'] is Map &&
+            result['pagination']['has_more'] == true;
+      }
+      if (rows.isEmpty || !mounted) return;
+      final target = rows[(index + direction) % rows.length];
+      if (target.ref == widget.item.ref) return;
+      unawaited(
+        _openLiveChannel(
+          LiveChannelSelection(
+            item: target,
+            group: current.group,
+            channels: List.unmodifiable(rows),
+            query: current.query,
+            page: page,
+            hasMore: more,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        _subtitleNotice('تعذر تحميل القناة التالية؛ القناة الحالية مستمرة.');
+      }
+    } finally {
+      _changingChannel = false;
     }
   }
 
@@ -2731,6 +2901,21 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       onPressed: action,
       child: Text(title, textAlign: TextAlign.center),
     );
+    if (widget.isLive) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          button('player-live-channels', 'القنوات والتصنيفات', _channelMenu),
+          IconButton(
+            key: const Key('player-more'),
+            tooltip: 'المزيد',
+            onPressed: () => _moreMenu(controller),
+            icon: const Icon(Icons.more_horiz, color: Colors.white),
+          ),
+          button('player-live-audio', 'الصوت', () => _audioMenu(controller)),
+        ],
+      );
+    }
     final controls = <Widget>[
       if (hasEpisodes && _previousEpisode != null)
         button(
@@ -3256,23 +3441,39 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                   setState(() => _controlsLocked = true);
                                 }
                                 if (action == 'seasons') await _seasonMenu();
+                                if (action == 'quality') {
+                                  await _qualityMenu(active);
+                                }
+                                if (action == 'download') {
+                                  await _downloadCurrent();
+                                }
                                 if (action == 'fullscreen') {
                                   await _toggleFullscreen();
                                 }
                               },
                               itemBuilder: (_) => [
+                                const PopupMenuItem(
+                                  value: 'quality',
+                                  child: Text('جودة الفيديو'),
+                                ),
+                                if (!widget.isLive &&
+                                    widget.localFileUri == null &&
+                                    _currentMediaType == 'mp4')
+                                  PopupMenuItem(
+                                    value: 'download',
+                                    child: Text(
+                                      _downloadToken == null
+                                          ? 'تحميل الفيديو'
+                                          : 'إلغاء التحميل',
+                                    ),
+                                  ),
                                 if (kIsWeb)
                                   const PopupMenuItem(
                                     value: 'fullscreen',
                                     child: Text('ملء الشاشة'),
                                   ),
                                 if (widget.item.type != 'movie' &&
-                                    _queue
-                                            .map((e) => e.season)
-                                            .whereType<int>()
-                                            .toSet()
-                                            .length >
-                                        1)
+                                    !widget.isLive)
                                   const PopupMenuItem(
                                     value: 'seasons',
                                     child: Text('المواسم'),
@@ -3294,21 +3495,28 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                           valueListenable: active,
                           builder: (context, value, _) => PlayerControls(
                             isPlaying: value.isPlaying,
+                            isLive: widget.isLive,
                             seekSeconds: NajdPreferences.instance.seekSeconds,
                             showSpeed: false,
                             isTv: isTvTarget,
                             playbackSpeed: _playbackSpeed,
-                            onRewind: () => _seekBy(
-                              Duration(
-                                seconds: -NajdPreferences.instance.seekSeconds,
-                              ),
-                            ),
+                            onRewind: widget.isLive
+                                ? () => _stepChannel(-1)
+                                : () => _seekBy(
+                                    Duration(
+                                      seconds:
+                                          -NajdPreferences.instance.seekSeconds,
+                                    ),
+                                  ),
                             onTogglePlay: () => _togglePlay(active),
-                            onForward: () => _seekBy(
-                              Duration(
-                                seconds: NajdPreferences.instance.seekSeconds,
-                              ),
-                            ),
+                            onForward: widget.isLive
+                                ? () => _stepChannel(1)
+                                : () => _seekBy(
+                                    Duration(
+                                      seconds:
+                                          NajdPreferences.instance.seekSeconds,
+                                    ),
+                                  ),
                             onPlaybackSpeedChanged: _setPlaybackSpeed,
                           ),
                         ),

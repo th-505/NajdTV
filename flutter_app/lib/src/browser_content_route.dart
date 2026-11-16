@@ -88,7 +88,15 @@ class BrowserContentRoute {
         ref: ref,
         title: bounded('title', 512, 'التفاصيل'),
         poster: '',
-        type: ['movie', 'series', 'anime', 'turkish', 'tv'].contains(q['type'])
+        type:
+            [
+              'movie',
+              'series',
+              'anime',
+              'turkish',
+              'tv',
+              'live',
+            ].contains(q['type'])
             ? q['type']!
             : 'series',
         year: number('year', 2200),

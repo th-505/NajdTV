@@ -58,6 +58,48 @@ void main() {
   );
 
   test(
+    'leaving the route releases the client only after an active file finishes',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'najd-download-detach',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final ready = Completer<void>(), release = Completer<void>();
+      final media = _mp4Bytes();
+      final service = DownloadService(
+        client: MockClient((_) async {
+          ready.complete();
+          await release.future;
+          return http.Response.bytes(
+            media,
+            200,
+            headers: {'content-type': 'video/mp4'},
+          );
+        }),
+        directoryProvider: () async => root,
+      );
+      final result = service.download(
+        Uri.parse('https://cdn.example.com/episode.mp4'),
+      );
+      await ready.future;
+      service.closeWhenIdle();
+      release.complete();
+      final file = await result;
+      expect(await File(file.path).readAsBytes(), media);
+      await expectLater(
+        service.download(Uri.parse('https://cdn.example.com/other.mp4')),
+        throwsA(
+          isA<DownloadException>().having(
+            (e) => e.code,
+            'code',
+            'DOWNLOAD_SERVICE_CLOSED',
+          ),
+        ),
+      );
+      service.close();
+    },
+  );
+  test(
     'download writes atomically using a sanitized trusted filename',
     () async {
       final root = await Directory.systemTemp.createTemp('mitv-download-test');
@@ -121,47 +163,44 @@ void main() {
     },
   );
 
-  test(
-    '206 Content-Range total wins over chunk Content-Length and rejects invalid resume ranges',
-    () async {
-      final root = await Directory.systemTemp.createTemp(
-        'mitv-download-range-test',
-      );
-      addTearDown(() async {
-        if (await root.exists()) await root.delete(recursive: true);
-      });
-      final service = DownloadService(
-        client: MockClient(
-          (_) async => http.Response.bytes(
-            _mp4Bytes().sublist(0, 8),
-            206,
-            headers: {
-              'content-range': 'bytes 0-7/16',
-              'content-length': '8',
-              'content-disposition': 'attachment; filename="partial.mp4"',
-              'content-type': 'video/mp4',
-            },
-          ),
+  test('206 Content-Range total wins over chunk Content-Length and rejects invalid resume ranges', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'mitv-download-range-test',
+    );
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+    final service = DownloadService(
+      client: MockClient(
+        (_) async => http.Response.bytes(
+          _mp4Bytes().sublist(0, 8),
+          206,
+          headers: {
+            'content-range': 'bytes 0-7/16',
+            'content-length': '8',
+            'content-disposition': 'attachment; filename="partial.mp4"',
+            'content-type': 'video/mp4',
+          },
         ),
-        directoryProvider: () async => root,
-      );
-      addTearDown(service.close);
+      ),
+      directoryProvider: () async => root,
+    );
+    addTearDown(service.close);
 
-      await expectLater(
-        service.download(
-          Uri.parse('https://cdn.example.com/episode.mp4?token=fixture'),
+    await expectLater(
+      service.download(
+        Uri.parse('https://cdn.example.com/episode.mp4?token=fixture'),
+      ),
+      throwsA(
+        isA<DownloadException>().having(
+          (e) => e.code,
+          'code',
+          'INVALID_RESUME_RANGE',
         ),
-        throwsA(
-          isA<DownloadException>().having(
-            (e) => e.code,
-            'code',
-            'INVALID_RESUME_RANGE',
-          ),
-        ),
-      );
-      expect(root.listSync().whereType<File>(), isEmpty);
-    },
-  );
+      ),
+    );
+    expect(root.listSync().whereType<File>(), isEmpty);
+  });
 
   test(
     'cancellation interrupts a streaming download and removes the partial file',
@@ -231,37 +270,32 @@ void main() {
     expect(root.listSync().whereType<File>(), isEmpty);
   });
 
-  test(
-    'local download list ignores partial and empty files and sorts newest first',
-    () async {
-      final root = await Directory.systemTemp.createTemp(
-        'mitv-download-list-test',
-      );
-      addTearDown(() async {
-        if (await root.exists()) await root.delete(recursive: true);
-      });
-      final oldFile = File('${root.path}${Platform.pathSeparator}old.mp4')
-        ..writeAsBytesSync(_mp4Bytes(4));
-      final newFile = File('${root.path}${Platform.pathSeparator}new.mp4')
-        ..writeAsBytesSync(_mp4Bytes(12));
-      File(
-        '${root.path}${Platform.pathSeparator}ignored.part',
-      ).writeAsBytesSync(_mp4Bytes());
-      File(
-        '${root.path}${Platform.pathSeparator}empty.mp4',
-      ).writeAsBytesSync(const []);
-      final now = DateTime.now();
-      await oldFile.setLastModified(now.subtract(const Duration(minutes: 2)));
-      await newFile.setLastModified(now);
+  test('local download list ignores partial and empty files and sorts newest first', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'mitv-download-list-test',
+    );
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+    final oldFile = File('${root.path}${Platform.pathSeparator}old.mp4')
+      ..writeAsBytesSync(_mp4Bytes(4));
+    final newFile = File('${root.path}${Platform.pathSeparator}new.mp4')
+      ..writeAsBytesSync(_mp4Bytes(12));
+    File('${root.path}${Platform.pathSeparator}ignored.part')
+        .writeAsBytesSync(_mp4Bytes());
+    File('${root.path}${Platform.pathSeparator}empty.mp4')
+        .writeAsBytesSync(const []);
+    final now = DateTime.now();
+    await oldFile.setLastModified(now.subtract(const Duration(minutes: 2)));
+    await newFile.setLastModified(now);
 
-      final service = DownloadService(directoryProvider: () async => root);
-      addTearDown(service.close);
+    final service = DownloadService(directoryProvider: () async => root);
+    addTearDown(service.close);
 
-      final items = await service.listDownloads();
-      expect(items.map((item) => item.name).toList(), ['new.mp4', 'old.mp4']);
-      expect(items.first.bytes, _mp4Bytes(12).length);
-    },
-  );
+    final items = await service.listDownloads();
+    expect(items.map((item) => item.name).toList(), ['new.mp4', 'old.mp4']);
+    expect(items.first.bytes, _mp4Bytes(12).length);
+  });
 
   test(
     'deleteDownload deletes safe local file and rejects unsafe stored names',

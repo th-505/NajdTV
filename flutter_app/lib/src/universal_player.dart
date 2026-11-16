@@ -205,6 +205,15 @@ class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
   Future<void> dispose() async {
     if (_closed) return;
     _closed = true;
+    // WebVideoController attaches on the next frame. Releasing its Player
+    // before that attachment finishes races the plugin's async constructor.
+    if (kIsWeb && _video != null) {
+      try {
+        await _video!.platform.future.timeout(const Duration(seconds: 1));
+      } catch (_) {
+        /* A failed attachment must not retain a closed player. */
+      }
+    }
     // Start all cancellation before releasing libmpv. In particular, an
     // unawaited widget disposal must not keep the native allocation alive while
     // waiting for a chain of stream cancellation futures.

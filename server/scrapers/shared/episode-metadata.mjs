@@ -2,7 +2,8 @@ import {resolveSafeUrl} from './http.mjs';
 /** Pure observed metadata normalization, shared across independent site parsers. */
 export function observedDurationSeconds(value) {
  if(typeof value!=='string'||value.length>80)return null;
- const text=value.trim().replace(/[٠-٩]/g,c=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(c))).replace(/[۰-۹]/g,c=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(c)));
+ let text=value.trim().replace(/[٠-٩]/g,c=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(c))).replace(/[۰-۹]/g,c=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(c)));
+ const labeled=/^(?:مدة العرض|مدة الحلقة|Duration)\s*[:：]\s*(\d{1,3}:\d{2}(?::\d{2})?)$/i.exec(text);if(labeled)text=labeled[1];
  let seconds=null;
  if(/^\d{1,3}:\d{2}(?::\d{2})?$/.test(text)){
   const parts=text.split(':').map(Number);if(parts.slice(1).some(x=>x>59))return null;

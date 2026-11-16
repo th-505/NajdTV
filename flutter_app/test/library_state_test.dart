@@ -39,4 +39,22 @@ void main() {
     expect(CatalogItem.fromJson(item.toJson()).libraryState, 'favorite');
     restored.dispose();
   });
+  test(
+    'catalog metadata cannot decide the user library classification',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final store = await LocalLibraryStore.create();
+      final item = CatalogItem.fromJson({
+        'id': 'x',
+        'ref': 'tmdb:movie:2',
+        'title': 'عمل',
+        'poster': '',
+        'type': 'movie',
+        'library_state': 'watched',
+      });
+      await store.toggleFavorite(item);
+      expect(store.favorites.single.libraryState, 'favorite');
+      store.dispose();
+    },
+  );
 }

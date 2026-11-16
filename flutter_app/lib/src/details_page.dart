@@ -1,3 +1,4 @@
+import 'browser_download.dart';
 import 'poster_preview.dart';
 import 'person_works_grid.dart';
 import 'episode_browser.dart';
@@ -138,9 +139,6 @@ class _DetailsPageState extends State<DetailsPage> {
   @override
   void dispose() {
     if (_browserRoute != null) BrowserNavigation().leaveContent(_browserRoute!);
-    for (final token in _downloadTokens.values) {
-      token.cancel();
-    }
     _directPlayFocus.dispose();
     for (final node in _episodeFocusNodes.values) {
       node.dispose();
@@ -148,7 +146,7 @@ class _DetailsPageState extends State<DetailsPage> {
     for (final node in _episodeDownloadFocusNodes.values) {
       node.dispose();
     }
-    if (_ownsDownloads) _downloads.close();
+    if (_ownsDownloads) _downloads.closeWhenIdle();
     super.dispose();
   }
 
@@ -849,6 +847,35 @@ class _DetailsPageState extends State<DetailsPage> {
       if (token.isCancelled) {
         throw const DownloadException('DOWNLOAD_CANCELLED');
       }
+      if (kIsWeb) {
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('تحميل ملف الفيديو'),
+            content: Text(
+              downloadHeaders.isEmpty
+                  ? 'سيُسلّم الرابط إلى المتصفح. الحفظ واستمرار التنزيل يعتمدان على دعم المصدر ومدير تنزيلات جهازك.'
+                  : 'هذا المصدر يتطلب ترويسات لا يمكن إرفاقها عند تنزيل ملف من المتصفح. استخدم التطبيق أو اختر مصدرًا مباشرًا آخر.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('إغلاق'),
+              ),
+              if (downloadHeaders.isEmpty)
+                FilledButton(
+                  onPressed: () {
+                    startBrowserDownload(uri, title, downloadHeaders);
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('فتح رابط التنزيل'),
+                ),
+            ],
+          ),
+        );
+        return;
+      }
       final result = await _downloads.download(
         uri,
         fallbackName: title,
@@ -1044,23 +1071,22 @@ class _DetailsPageState extends State<DetailsPage> {
                         icon: const Icon(Icons.play_arrow),
                         label: const Text('مشاهدة'),
                       ),
-                      if (!kIsWeb)
-                        OutlinedButton.icon(
-                          key: const Key('title-download'),
-                          onPressed: _seasonBusy || _seasonError != null
-                              ? null
-                              : () => _downloadPrimary(details),
-                          icon: Icon(
-                            _activeDownloads.contains(_primaryDownloadKey)
-                                ? Icons.cancel_outlined
-                                : Icons.download_outlined,
-                          ),
-                          label: Text(
-                            _activeDownloads.contains(_primaryDownloadKey)
-                                ? _downloadLabel(_primaryDownloadKey)
-                                : 'تحميل',
-                          ),
+                      OutlinedButton.icon(
+                        key: const Key('title-download'),
+                        onPressed: _seasonBusy || _seasonError != null
+                            ? null
+                            : () => _downloadPrimary(details),
+                        icon: Icon(
+                          _activeDownloads.contains(_primaryDownloadKey)
+                              ? Icons.cancel_outlined
+                              : Icons.download_outlined,
                         ),
+                        label: Text(
+                          _activeDownloads.contains(_primaryDownloadKey)
+                              ? _downloadLabel(_primaryDownloadKey)
+                              : 'تحميل',
+                        ),
+                      ),
                       if (!widget.api.providerBrowser)
                         OutlinedButton.icon(
                           key: const Key('title-providers'),
@@ -1274,7 +1300,19 @@ class _DetailsPageState extends State<DetailsPage> {
                     _seasonError == null) ...[
                   NajdSectionHeading('الحلقات (${details.episodes.length})'),
                   TextButton.icon(
-                    onPressed: () => _downloadSeason(details),
+                    onPressed: () {
+                      if (kIsWeb) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'تنزيل الموسم كطابور مستمر متاح في التطبيق. من المتصفح يمكنك تنزيل كل حلقة على حدة.',
+                            ),
+                          ),
+                        );
+                      } else {
+                        _downloadSeason(details);
+                      }
+                    },
                     icon: Icon(
                       _seasonDownloading ? Icons.stop : Icons.download,
                     ),
@@ -1293,10 +1331,8 @@ class _DetailsPageState extends State<DetailsPage> {
                       final focusNode = _episodeFocus(episode);
                       return _EpisodeTile(
                         downloadAvailable:
-                            !kIsWeb &&
                             (widget.api.cachedPlayback(episode.ref) == null ||
-                                widget.api.downloadableSource(episode.ref) !=
-                                    null),
+                            widget.api.downloadableSource(episode.ref) != null),
                         episode: episode,
                         compact: compact,
                         poster: episode.poster.isNotEmpty

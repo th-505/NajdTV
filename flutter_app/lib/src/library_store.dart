@@ -448,7 +448,9 @@ class LocalLibraryStore extends ChangeNotifier {
       _favorites.remove(item.ref);
       _change('favorite', item.ref, const {}, deleted: true);
     } else {
-      final safe = CatalogItem.fromJson(item.toJson());
+      final safe = CatalogItem.fromJson(
+        item.copyWith(libraryState: 'favorite').toJson(),
+      );
       _favorites[item.ref] = safe;
       _change('favorite', item.ref, safe.toJson());
     }

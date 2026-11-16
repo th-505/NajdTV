@@ -905,3 +905,20 @@ class ResolutionOption {
         : ResolutionOption(label: label, height: height);
   }
 }
+
+/// Observed channel-list context; contains catalog metadata, never stream URLs.
+class LiveChannelSelection {
+  const LiveChannelSelection({
+    required this.item,
+    required this.group,
+    required this.channels,
+    this.query = '',
+    this.page = 1,
+    this.hasMore = false,
+  });
+  final CatalogItem item;
+  final String group, query;
+  final List<CatalogItem> channels;
+  final int page;
+  final bool hasMore;
+}

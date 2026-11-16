@@ -3,6 +3,24 @@ import 'package:mitv/src/browser_content_route.dart';
 import 'package:mitv/src/models.dart';
 
 void main() {
+  test('live channel deep links retain their content type without episode metadata', () {
+    const channel = CatalogItem(
+      id: 'one',
+      ref: 'live:iptv-org:sa:aaaaaaaaaaaaaaaaaaaaaaaa',
+      title: 'قناة',
+      poster: '',
+      type: 'live',
+    );
+    final uri = Uri(
+      path: '/player',
+      queryParameters: browserContentIdentity(channel, sourceRef: channel.ref),
+    );
+    final restored = BrowserContentRoute.parse(uri)!;
+    expect(restored.item.type, 'live');
+    expect(restored.sourceRef, channel.ref);
+    expect(restored.episodeNumber, isNull);
+  });
+
   test('work identity and exact episode survive a reload without media credentials', () {
     const item = CatalogItem(
       id: 'show',
