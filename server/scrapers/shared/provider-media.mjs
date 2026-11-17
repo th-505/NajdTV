@@ -3,16 +3,16 @@ import {createConcurrencyQueue} from './concurrency.mjs';
 import {directCandidate} from './direct-candidate.mjs';
 import {assertSafeScraperUrl} from './http.mjs';
 /** Orchestrate one provider's own resolver; never mix provider/search state. */
-export async function resolveProviderMedia(entry,source,{details={},network={},accept=async rows=>rows,maxResolverTargets=64,resolverConcurrency=2,resolverBudgetMs=40000,collectAll=true,resolveEmbed=null,now=Date.now}={}){
+export async function resolveProviderMedia(entry,source,{details={},network={},accept=async rows=>rows,maxResolverTargets=64,resolverConcurrency=2,resolverBudgetMs=40000,collectAll=true,resolveEmbed=null,onAccepted=null,now=Date.now}={}){
  const deadline=now()+Math.max(1000,Math.min(60000,resolverBudgetMs));
  const probes=createConcurrencyQueue({concurrency:Math.min(4,Math.max(1,resolverConcurrency)),maxQueued:256});let inspected=0,scheduled=0;
  const inventory=new Map();
  function observe(rows){for(const row of rows||[]){try{const url=assertSafeScraperUrl(row.url,{allowHttp:false});if(inventory.has(url.href)||inventory.size>=128)continue;const label=String(row.label||row.name||url.hostname);inventory.set(url.href,{id:createHash('sha256').update(url.href).digest('hex').slice(0,16),label:(label.includes('://')?url.hostname:label).replace(/[\x00-\x1f]/g,'').slice(0,80),state:'unverified'});}catch{}}}
  function mark(target,state){const row=inventory.get(target);if(row)row.state=state;}
- const module=entry.module,seen=new Set(),raw=[...(details.media_sources||[]),...(details.servers||[])];let lastError=null,providerScanComplete=true;const collected=[];
+ const module=entry.module,seen=new Set(),raw=[...(details.media_sources||[]),...(details.servers||[])];let lastError=null,providerScanComplete=true;const collected=[],liveAccepted=[];
  observe(raw);
  function keep(rows){collected.push(...rows);return rows;}
- function finish(observed=0,attempted=0){Object.defineProperty(collected,'_meta',{value:{resolver_targets:observed,resolver_attempted:attempted,server_scan_complete:providerScanComplete&&attempted===observed&&inspected===seen.size,observed_media_candidates:seen.size,inspected_media_candidates:inspected,server_inventory:[...inventory.values()],observed_servers:inventory.size,playable_servers:[...inventory.values()].filter(row=>row.state==='playable').length},enumerable:false});return collected;}
+ function finish(observed=0,attempted=0){Object.defineProperty(collected,'_meta',{value:{resolver_targets:observed,resolver_attempted:attempted,server_scan_complete:providerScanComplete&&attempted===observed&&inspected===seen.size,in_progress:false,observed_media_candidates:seen.size,inspected_media_candidates:inspected,server_inventory:[...inventory.values()],observed_servers:inventory.size,playable_servers:[...inventory.values()].filter(row=>row.state==='playable').length},enumerable:false});return collected;}
  async function attempt(rows){
   const candidates=(Array.isArray(rows)?rows:[]).filter(directCandidate).filter(row=>{const key=JSON.stringify([row.url,Object.entries(row.headers||{}).map(([k,v])=>[k.toLowerCase(),v]).sort(([a],[b])=>a.localeCompare(b))]);if(seen.has(key))return false;seen.add(key);return true});
   if(!candidates.length)return[];
@@ -20,7 +20,7 @@ export async function resolveProviderMedia(entry,source,{details={},network={},a
   const results=await Promise.all(batch.map(candidate=>probes.run(async()=>{
    if(now()>=deadline)return[];
    inspected++;
-   try{const result=await accept([candidate])||[];mark(candidate.url,result.length?'playable':'unavailable');return result;}catch(error){mark(candidate.url,'unavailable');lastError=error;return[]}
+   try{const result=await accept([candidate])||[];mark(candidate.url,result.length?'playable':'unavailable');if(result.length){liveAccepted.push(...result);onAccepted?.([...liveAccepted],{server_scan_complete:false,in_progress:true,server_inventory:[...inventory.values()].map(row=>({...row})),observed_servers:inventory.size});}return result;}catch(error){mark(candidate.url,'unavailable');lastError=error;return[]}
   })));
   return results.flat();
  }

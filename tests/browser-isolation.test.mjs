@@ -304,3 +304,22 @@ test('beta reuses guarded provider HTML and follows only source-owned season edi
  const details=await service.details(admitted.ref);
  assert.equal(fallback,0);assert.equal(details.title,'Root title');assert.equal(details.episodes.length,1);assert.equal(details.episodes[0].season_number,2);
 });
+
+test('beta publishes first verified media while other probes continue, then replaces the scan snapshot',async()=>{
+ let releaseSlow, enteredSlow;
+ const slow = new Promise(resolve=>{releaseSlow=resolve});
+ const started = new Promise(resolve=>{enteredSlow=resolve});
+ const {service}=fixture({fixtureServers:[{url:'https://cdn.example/fast.mp4'},{url:'https://cdn.example/slow.mp4'}],
+  probe:async candidate=>{if(candidate.url.endsWith('/slow.mp4')){enteredSlow();await slow;}return {playable:true,webPlayable:true,container_verified:true};}});
+ const admitted=await service.request(ref(seed));await service.settle();
+ await service.playback(admitted.ref,{season:1,episode:19});
+ try {
+  await started;await new Promise(resolve=>setImmediate(resolve));
+  const preview=await service.playback(admitted.ref,{season:1,episode:19});
+  assert.equal(preview.state,'ready');assert.equal(preview.servers.length,1);
+  assert.equal(preview.server_scan.in_progress,true);
+ }finally{releaseSlow();}
+ await service.settle();
+ const complete=await service.playback(admitted.ref,{season:1,episode:19});
+ assert.equal(complete.servers.length,2);assert.equal(complete.server_scan.in_progress,false);
+});

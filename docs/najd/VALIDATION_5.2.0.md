@@ -4,8 +4,8 @@ Final six-platform packaging remains blocked by outstanding acceptance tasks. No
 
 ## Completed checks
 
-- Full default Flutter suite: 449 passed, 7 environment-dependent skips.
-- Runtime Node suite: 350 passed, no failures.
+- Full default Flutter suite (2026-11-17): 471 passed, 7 environment-dependent skips.
+- Runtime Node suite: 352 passed, no failures before the additional browser-preview regression; targeted updated first-media/browser suite: 28 passed.
 - Offline audited provider fixtures passed.
 - Targeted account/library/cards suite: 29 passed; updated cleanup/source/identity regressions: 18 passed.
 - Local debug Web compilation succeeded. Real Chromium checks passed panel back/forward, section history, reload, work/episode restoration and invalid-episode rejection, with zero page errors.
@@ -24,7 +24,7 @@ Focused retry: AnimeZid catalog returned 181 rows in 5.7 seconds; Ahwak returned
 
 - Physical Google TV hover/render and remote-key availability; iOS/native playback/background-download certification.
 - Full requested source playback/quality/episode matrix, complete server background discovery and episode metadata enrichment.
-- Shared libraries/recipient invitations and device-local quick PIN with appropriate platform storage.
+- Recipient sharing and device-local PIN are implemented and tested in review; live database migration is applied. Real-device storage and notification delivery still require device verification.
 - Remaining native background/whole-season queue behavior after leaving or closing the app; in-player channel/season selection and download/quality quick tools are implemented and tested.
 - Short-drama source/category support, Asian catalog and classification audit, source-aware initial playback/retry errors.
 - Secure revocable quick-watch link design; no promise of free unlimited video relay or multi-year upstream URL availability.

@@ -63,3 +63,20 @@ test('five observed host servers remain visible in diagnostics when only two con
  assert.equal(rows._meta.server_inventory.filter(s=>s.state==='unavailable').length,3);
  assert(!JSON.stringify(rows._meta).includes('private='));assert.equal(rows._meta.server_scan_complete,true);
 });
+
+
+test('verified first media is published before slower probes complete',async()=>{
+ let finishSlow;const slow=new Promise(resolve=>{finishSlow=resolve});
+ let first;const preview=new Promise(resolve=>{first=resolve});
+ const scan=resolveProviderMedia({module:{}},'provider:episode',{
+  details:{media_sources:[{url:'https://cdn.example/fast.mp4'},{url:'https://cdn.example/slow.mp4'}]},
+  accept:async rows=>{if(rows[0].url.endsWith('/slow.mp4'))await slow;return rows},
+  onAccepted:(rows,progress)=>first({rows,progress}),
+ });
+ const snapshot=await preview;
+ assert.equal(snapshot.rows[0].url,'https://cdn.example/fast.mp4');
+ assert.equal(snapshot.progress.server_scan_complete,false);
+ let finished=false;scan.then(()=>{finished=true});await new Promise(resolve=>setImmediate(resolve));assert.equal(finished,false);
+ finishSlow();const complete=await scan;
+ assert.equal(complete.length,2);assert.equal(complete._meta.server_scan_complete,true);
+});

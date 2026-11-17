@@ -657,7 +657,11 @@ export function createBrowserWorkService({
               )
                 throw Error("BROWSER_EPISODE_IDENTITY_CONFLICT");
               if(d.requested_episode_metadata?.source_ref===row.source_ref){Object.assign(row,observedEpisodeMetadata(d.requested_episode_metadata,d.sourceUrl));persist(w);}
-              const chosen=await resolveProviderMedia(w.adapter,row.source_ref,{details:d,network,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
+              const chosen=await resolveProviderMedia(w.adapter,row.source_ref,{details:d,network,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),onAccepted:(ready,scan)=>{
+                // Publish verified media immediately while remaining hosts keep scanning.
+                media.set(key,{servers:ready,server_scan:scan,expires:Math.min(...ready.map(s=>Date.parse(s.expires_at)))});
+                while(media.size>128)media.delete(media.keys().next().value);
+              },accept:async candidates=>{
                const accepted=[];
               for (const candidate of candidates) {
                 const expiry = mediaExpiry(candidate, now());

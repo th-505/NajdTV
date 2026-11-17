@@ -94,6 +94,12 @@ def apply_android(root: Path):
         permission = r'<uses-permission\b[^>]*android:name=["\']android\.permission\.INTERNET["\']'
         if not re.search(permission, text):
             text = re.sub(r'(<manifest\b[^>]*>)', r'\1\n    <uses-permission android:name="android.permission.INTERNET"/>', text, count=1)
+        # Android's OS transfer worker needs foreground data-sync and user notifications.
+        for name in ("POST_NOTIFICATIONS", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_DATA_SYNC", "RUN_USER_INITIATED_JOBS", "ACCESS_NETWORK_STATE", "WAKE_LOCK"):
+            if 'android.permission.' + name + '"' not in text:
+                text = re.sub(r'(<manifest\b[^>]*>)', r'\1\n    <uses-permission android:name="android.permission.' + name + '"/>', text, count=1)
+        if "androidx.work.impl.foreground.SystemForegroundService" not in text:
+            text = text.replace("</application>", '<service android:name="androidx.work.impl.foreground.SystemForegroundService" android:foregroundServiceType="dataSync"/>' + "</application>")
         # Cleartext is limited to the device-local byte bridge; external media remains HTTPS.
         network = res / "xml/network_security_config.xml"
         network.parent.mkdir(parents=True, exist_ok=True)
@@ -111,7 +117,8 @@ def apply_android(root: Path):
                 if key + '=' in tag:
                     tag = re.sub(key + r'="[^"]*"', key + '="true"', tag)
                 else:
-                    tag = tag[:-1] + ' ' + key + '="true">'
+                    closing = '/>' if tag.rstrip().endswith('/>') else '>'
+                    tag = tag.rstrip()[:-len(closing)].rstrip() + ' ' + key + '="true"' + closing
             text = text.replace(activity.group(0), tag, 1)
         # Device unlock secrets must never migrate through Android cloud/device backup.
         backup = res / "xml/najd_backup_rules.xml"
@@ -178,6 +185,8 @@ def apply_ios(root: Path):
         data.setdefault("NSAppTransportSecurity", {})["NSAllowsLocalNetworking"] = True
         data["CFBundleDisplayName"] = "Najd TV"
         data["CFBundleName"] = "Najd TV"
+        data["NSPhotoLibraryAddUsageDescription"] = "حفظ فيديو تختاره في مكتبة الصور عند تصديره."
+        data["NSPhotoLibraryUsageDescription"] = "الوصول إلى فيديو تختاره من مكتبة الصور عند تصديره."
         data["UIFileSharingEnabled"] = True
         data["LSSupportsOpeningDocumentsInPlace"] = True
         data["UIBackgroundModes"] = sorted(set(data.get("UIBackgroundModes", [])) | {"audio"})

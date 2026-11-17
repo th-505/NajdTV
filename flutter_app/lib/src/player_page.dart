@@ -1,3 +1,4 @@
+import 'work_sharing.dart';
 import 'live_channels_panel.dart';
 import 'browser_download.dart';
 import 'remote_bindings.dart';
@@ -322,6 +323,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   double _videoScale = 1;
   bool _levelGestureActive = false;
   Timer? _levelFeedbackTimer;
+  Timer? _serverScanTimer;
+  int _serverScanGeneration = 0, _serverScanFailures = 0;
+  bool _serverScanActive = true;
   Timer? _controlsTimer;
   DateTime _lastBrightnessUpdate = DateTime.fromMillisecondsSinceEpoch(0);
   bool _gestureRight = false;
@@ -392,6 +396,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _serverScanActive = state == AppLifecycleState.resumed;
+    if (_serverScanActive) _followServerScan(_serverScanGeneration);
     if (state == AppLifecycleState.inactive &&
         !kIsWeb &&
         _pip.needsNativeHandoff &&
@@ -635,12 +641,67 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  void _followServerScan(int generation) {
+    _serverScanTimer?.cancel();
+    if (!mounted ||
+        !_serverScanActive ||
+        !_generation.isCurrent(generation) ||
+        _serverScan['in_progress'] != true ||
+        widget.sourceRef.isEmpty) {
+      return;
+    }
+    _serverScanTimer = Timer(const Duration(seconds: 3), () async {
+      if (!mounted || !_serverScanActive || !_generation.isCurrent(generation)) {
+        return;
+      }
+      try {
+        final details = await widget.api.resolvePlayback(widget.sourceRef);
+        if (!mounted || !_generation.isCurrent(generation)) return;
+        setState(() {
+          _serverScan = details.serverScan;
+          // Preserve the current decoder/index; new hosts become selectable only.
+          for (final source in widget.api.sourceRouter.rank(
+            details.mediaSources,
+          )) {
+            if (!_sources.any(
+              (existing) =>
+                  existing.mediaPath == source.mediaPath &&
+                  existing.providerId == source.providerId,
+            )) {
+              _sources.add(source);
+            }
+          }
+          _serverScanFailures = 0;
+        });
+      } catch (_) {
+        if (mounted &&
+            _generation.isCurrent(generation) &&
+            ++_serverScanFailures >= 3) {
+          setState(
+            () => _serverScan = {
+              ..._serverScan,
+              'in_progress': false,
+              'server_scan_complete': false,
+            },
+          );
+        }
+      } finally {
+        if (mounted && _generation.isCurrent(generation)) {
+          _followServerScan(generation);
+        }
+      }
+    });
+  }
+
   Future<void> _initialize({
     bool forceRefresh = false,
     bool keepSources = false,
     bool software = false,
   }) async {
+    _serverScanTimer?.cancel();
     final generation = _generation.next();
+    _serverScanGeneration = generation;
+    _serverScanFailures = 0;
     if (!_cloudPrepared) {
       _cloudPrepared = true;
       await CloudLibrarySync.refreshForPlayback(
@@ -670,6 +731,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         );
         if (!mounted || !_generation.isCurrent(generation)) return;
         _serverScan = resolved.serverScan;
+        _followServerScan(generation);
         mediaPath = resolved.mediaPath;
         mediaType = resolved.mediaType;
         playbackMode = resolved.playbackMode;
@@ -2163,6 +2225,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                 Icons.travel_explore,
               ),
             ('quality', 'جودة الفيديو', Icons.high_quality_outlined),
+            if (!widget.isLive && widget.localFileUri == null)
+              ('share-account', 'مشاركة مع حساب نجد', Icons.person_add_alt),
             if (!isTvTarget && !widget.isLive && widget.localFileUri == null)
               (
                 'handoff',
@@ -2212,6 +2276,18 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     );
     if (!mounted) return;
     switch (action) {
+      case 'share-account':
+        await _saveProgress(force: true);
+        final entry = _savedEntry;
+        if (mounted && entry != null) {
+          await showShareWork(
+            context,
+            WatchEntry.fromJson({
+              ...entry.toJson(),
+              'position_ms': controller.value.position.inMilliseconds,
+            }),
+          );
+        }
       case 'handoff':
         await _saveProgress(force: true);
         final saved = _savedEntry;
@@ -2257,6 +2333,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     _boostSerial++;
     _boosting = false;
     _generation.cancelOutstanding();
+    _serverScanTimer?.cancel();
     _controlsTimer?.cancel();
     _seekFeedbackTimer?.cancel();
     _levelFeedbackTimer?.cancel();

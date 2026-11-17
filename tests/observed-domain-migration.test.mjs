@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import fs f
 import * as najd from '../server/scrapers/registry.mjs';import * as beta from '../server/browser/registry.mjs';
 import {installProviderConfigs} from '../server/scrapers/shared/provider-config.mjs';
 import {installBrowserConfigs} from '../server/browser/traffic.mjs';
-const sources=[{id:'fosta',current:'ffosta-tv.baby',fixtureHost:'ffosta-tv.lat',legacy:'ffosta-tv.autos',parse:'parseFostaCatalog',path:'/watch.php?vid=abc123'},{id:'brstej',current:'brstej1.com',fixtureHost:'prstej.study',legacy:'su.brstej.com',parse:'parseBrstejCatalog',path:'/video.php?vid=abc123'}];
+const sources=[{id:'fosta',current:'ffosta-tv.baby',fixtureHost:'ffosta-tv.lat',legacy:'ffosta-tv.autos',parse:'parseFostaCatalog',path:'/watch.php?vid=abc123'},{id:'brstej',current:'brstej1.site',fixtureHost:'prstej.study',legacy:'su.brstej.com',parse:'parseBrstejCatalog',path:'/video.php?vid=abc123'}];
 const ref=(id,url)=>id+':'+Buffer.from(url).toString('base64url');
 for(const [scope,family]of [['najd',najd],['beta',beta]])for(const s of sources)test(scope+' '+s.id+' keeps new cards, next pages, old references and strict URL guards',()=>{
  const entry=family.getProvider(s.id),html=fs.readFileSync(new URL('../scripts/fixtures/providers/domain-migrations/'+s.id+'-search-card.html',import.meta.url),'utf8');

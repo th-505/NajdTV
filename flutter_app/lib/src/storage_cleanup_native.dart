@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import 'download_cleanup_coordinator.dart';
+import 'native_download_engine.dart';
 
 typedef CleanupDocumentsProvider = Future<Directory> Function();
 
@@ -17,6 +18,10 @@ class StorageCleanup {
   static Future<DownloadCleanupResult> clearDownloads({
     CleanupDocumentsProvider? documentsDirectoryProvider,
   }) => DownloadCleanupCoordinator.instance.cancelAndClean(() async {
+    // Include OS tasks recovered after a process restart, not only live Dart futures.
+    if (documentsDirectoryProvider == null) {
+      await NativeDownloadEngine.cancelAll();
+    }
     final documents =
         await (documentsDirectoryProvider ??
             getApplicationDocumentsDirectory)();

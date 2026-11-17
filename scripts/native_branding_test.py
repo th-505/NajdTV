@@ -52,3 +52,40 @@ with tempfile.TemporaryDirectory() as directory:
     assert 'audio' in info['UIBackgroundModes']
     assert 'AVPictureInPictureController' in (runner / 'AppDelegate.swift').read_text()
 print('Android and iOS packaging preserve compatibility identities and install OS PiP bridges')
+
+# OS download permissions, secure backups and native XML survive repeat generation.
+import xml.etree.ElementTree as ET
+import plistlib
+with tempfile.TemporaryDirectory() as directory:
+    root = Path(directory)
+    manifest = root / 'android/app/src/main/AndroidManifest.xml'
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text('<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="Najd TV"><activity android:name=".MainActivity" /></application></manifest>')
+    branding.apply_android(root)
+    branding.apply_android(root)
+    xml = ET.parse(manifest).getroot()
+    namespace = '{http://schemas.android.com/apk/res/android}'
+    permissions = [p.attrib[namespace+'name'] for p in xml.findall('uses-permission')]
+    assert len(permissions) == len(set(permissions))
+    assert 'android.permission.FOREGROUND_SERVICE_DATA_SYNC' in permissions
+    assert 'android.permission.POST_NOTIFICATIONS' in permissions
+    app = xml.find('application')
+    service = app.find('service')
+    assert service.attrib[namespace+'foregroundServiceType'] == 'dataSync'
+    assert app.attrib[namespace+'fullBackupContent'] == '@xml/najd_backup_rules'
+    ET.parse(manifest.parent / 'res/xml/najd_backup_rules.xml')
+    runner = root / 'ios/Runner'
+    runner.mkdir(parents=True)
+    (runner/'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier': 'preserve.installed.identifier'}))
+    (runner/'Runner.entitlements').write_bytes(plistlib.dumps({'aps-environment': 'development'}))
+    project = root / 'ios/Runner.xcodeproj/project.pbxproj'
+    project.parent.mkdir()
+    project.write_text('buildSettings = { INFOPLIST_FILE = Runner/Info.plist; };')
+    branding.apply_ios(root)
+    branding.apply_ios(root)
+    assert plistlib.loads((runner/'Info.plist').read_bytes())['CFBundleIdentifier'] == 'preserve.installed.identifier'
+    entitlements = plistlib.loads((runner/'Runner.entitlements').read_bytes())
+    assert entitlements['aps-environment'] == 'development'
+    assert entitlements['keychain-access-groups'] == []
+    assert project.read_text().count('CODE_SIGN_ENTITLEMENTS') == 1
+print('native background permissions, app-local Keychain and backup configuration passed')

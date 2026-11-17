@@ -29,8 +29,17 @@ test('Brstej source refs reject other hosts, unsafe URLs and unrelated pages',()
 });
 
 test('Brstej accepts its observed new primary and preserves legacy references without opening arbitrary hosts',()=>{
- assert.equal(BRSTEJ_CONFIG.baseUrl,'https://brstej1.com');
- for(const host of ['brstej1.com','brstej.garden','prstej.study','su.brstej.com','brstejj.pics','brstejj.beer']) assert.equal(new URL(decodeProviderRef('https://'+host+'/video.php?vid=abc123')).hostname,host);
+ assert.equal(BRSTEJ_CONFIG.baseUrl,'https://brstej1.site');
+ for(const host of ['brstej1.site','brstej1.com','brstej.garden','prstej.study','su.brstej.com','brstejj.pics','brstejj.beer']) assert.equal(new URL(decodeProviderRef('https://'+host+'/video.php?vid=abc123')).hostname,host);
  assert.throws(()=>decodeProviderRef('https://unrelated.example/video.php?vid=abc123'));
  assert.throws(()=>decodeProviderRef('https://127.0.0.1/video.php?vid=abc123'));
+});
+
+test('independent browser Brstej uses the same observed primary without sharing parser state',async()=>{
+ const beta=await import('../server/browser/providers/sites/brstej.mjs');
+ assert.equal(beta.BRSTEJ_CONFIG.baseUrl,'https://brstej1.site');
+ const rows=beta.parseBrstejCatalog(HOME_HTML,beta.BRSTEJ_CONFIG.baseUrl+'/home03');
+ assert.equal(rows.length,4);
+ assert.ok(rows.every(row=>new URL(beta.decodeProviderRef(row.ref)).hostname==='brstej1.site'));
+ assert.throws(()=>beta.decodeProviderRef('https://unrelated.example/video.php?vid=abc123'));
 });

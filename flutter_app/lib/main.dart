@@ -1,3 +1,4 @@
+import 'src/work_sharing.dart';
 import 'src/quick_unlock_ui.dart';
 import 'src/remote_bindings.dart';
 import 'src/live_channels_panel.dart';
@@ -129,35 +130,40 @@ class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        return PlaybackInbox(
-          onOpen: (entry) {
-            final api = MitvApi();
-            final scoped = entry.catalogItem.discoveryScope == 'beta'
-                ? api.browserSession(origin: entry.catalogItem)
-                : api;
-            Navigator.of(context).popUntil((route) => route.isFirst);
-            Navigator.of(context)
-                .push(
-                  MaterialPageRoute(
-                    builder: (_) => PlayerPage(
-                      api: scoped,
-                      store: snapshot.data!,
-                      item: entry.catalogItem,
-                      title: entry.title,
-                      sourceRef: historyPlaybackReference(entry),
-                      episodeId: entry.episodeId,
-                      episodeNumber: entry.episodeNumber,
-                      initialPosition: Duration(milliseconds: entry.positionMs),
-                      watchEntry: entry,
-                    ),
+        void openSharedEntry(WatchEntry entry) {
+          final api = MitvApi();
+          final scoped = entry.catalogItem.discoveryScope == 'beta'
+              ? api.browserSession(origin: entry.catalogItem)
+              : api;
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          Navigator.of(context)
+              .push(
+                MaterialPageRoute(
+                  builder: (_) => PlayerPage(
+                    api: scoped,
+                    store: snapshot.data!,
+                    item: entry.catalogItem,
+                    title: entry.title,
+                    sourceRef: historyPlaybackReference(entry),
+                    episodeId: entry.episodeId,
+                    episodeNumber: entry.episodeNumber,
+                    initialPosition: Duration(milliseconds: entry.positionMs),
+                    watchEntry: entry,
                   ),
-                )
-                .whenComplete(() {
-                  if (!identical(scoped, api)) scoped.close();
-                  api.close();
-                });
-          },
-          child: Shell(store: snapshot.data!, pointer: _pointer),
+                ),
+              )
+              .whenComplete(() {
+                if (!identical(scoped, api)) scoped.close();
+                api.close();
+              });
+        }
+
+        return WorkShareInbox(
+          onOpen: openSharedEntry,
+          child: PlaybackInbox(
+            onOpen: openSharedEntry,
+            child: Shell(store: snapshot.data!, pointer: _pointer),
+          ),
         );
       },
     ),
@@ -3062,7 +3068,24 @@ class _LibraryPageState extends State<LibraryPage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final value in NajdLibraryMode.values)
+              for (final value in NajdLibraryMode.values) ...[
+                if (value == NajdLibraryMode.history)
+                  ActionChip(
+                    avatar: const Icon(Icons.people_outline),
+                    label: const Text('القائمة المشتركة'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => SharedLibraryPage(
+                          onOpen: (entry) => openDetails(
+                            context,
+                            widget.api,
+                            widget.store,
+                            entry.catalogItem,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ChoiceChip(
                   selected: mode == value,
                   label: Text(switch (value) {
@@ -3072,6 +3095,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   }),
                   onSelected: (_) => setState(() => mode = value),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 20),

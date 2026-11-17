@@ -337,7 +337,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/brstej.mjs",
       "metadata_line": 13,
-      "source_sha256": "2605fed3b7f886dc07ef876e4baedb37957ba0b11616ea645577959f6eee4cfb",
+      "source_sha256": "aeed3cc54ac1c514bca338b6c6faf1680a8bf7634f77d110b2ce0f8b9f7dd5a2",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -1041,7 +1041,7 @@
       "id": "brstej",
       "scope": "beta",
       "path": "server/browser/providers/sites/brstej.mjs",
-      "source_sha256": "ef8af2d1368359cd33aa5c5bc71a2afb75fc3d726d5663f5e379c5ab7aae11ad",
+      "source_sha256": "0d9e236daba207fd752fbde0f79d5d9db4117ea58b2147c069f488effe0b9b70",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"

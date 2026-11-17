@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'alooy_policy.dart';
 import 'download_cleanup_coordinator.dart';
 import 'download_directory_migration.dart';
+import 'native_download_engine.dart';
 
 class DownloadResult {
   const DownloadResult({required this.path, required this.bytes});
@@ -68,8 +69,13 @@ class DownloadService {
     DownloadReconnectDelay? reconnectDelay,
   }) : _client = client ?? http.Client(),
        _directoryProvider = directoryProvider ?? _defaultDirectory,
-       _reconnectDelayOverride = reconnectDelay;
+       _reconnectDelayOverride = reconnectDelay,
+       _native =
+           client == null &&
+           directoryProvider == null &&
+           NativeDownloadEngine.supported;
 
+  final bool _native;
   final http.Client _client;
   final DownloadDirectoryProvider _directoryProvider;
   final DownloadReconnectDelay? _reconnectDelayOverride;
@@ -206,6 +212,19 @@ class DownloadService {
 
     final directory = await _downloadDirectory(create: true);
     _throwIfCancelled(cancellationToken);
+    if (_native) {
+      final file = await NativeDownloadEngine.download(
+        uri,
+        headers: headers,
+        title: fallbackName,
+        cancelled: cancellationToken.whenCancelled,
+        onProgress: (received, total) => onProgress?.call(
+          DownloadProgress(receivedBytes: received, totalBytes: total),
+        ),
+      );
+      _throwIfCancelled(cancellationToken);
+      return adoptNativeFile(file, directory);
+    }
     final partialName = _resumeFileName(resumeKey ?? fallbackName);
     final tempFile = File(
       '${directory.path}${Platform.pathSeparator}$partialName',
@@ -613,9 +632,68 @@ class DownloadService {
     return null;
   }
 
+  /// Native completion is a transfer result, not proof of a valid MP4.
+  /// Resolve only this download directory and never follow substituted links.
+  static final _nativeFinalizers = <String, Future<DownloadResult>>{};
+  static Future<DownloadResult> adoptNativeFile(
+    File partial,
+    Directory directory,
+  ) {
+    final key = '${directory.absolute.path}|${partial.absolute.path}';
+    return _nativeFinalizers[key] ??= _adoptNativeFile(partial, directory)
+        .whenComplete(() {
+          _nativeFinalizers.remove(key);
+        });
+  }
+
+  static Future<DownloadResult> _adoptNativeFile(
+    File partial,
+    Directory directory,
+  ) async {
+    await _assertDownloadDirectory(directory);
+    final name = _baseName(partial.path);
+    if (!RegExp(r'^najd-[a-zA-Z0-9-]+\.mp4\.part$').hasMatch(name) ||
+        partial.absolute.parent.path != directory.absolute.path) {
+      throw const DownloadException('INVALID_NATIVE_DOWNLOAD_TARGET');
+    }
+    await _assertDownloadFile(partial, 'INVALID_NATIVE_DOWNLOAD_TARGET');
+    if (!await partial.exists() || !await _isMp4File(partial)) {
+      throw const DownloadException('INVALID_MEDIA_FILE');
+    }
+    final finalFile = File(partial.path.substring(0, partial.path.length - 5));
+    await _assertDownloadFile(finalFile, 'INVALID_DOWNLOAD_TARGET');
+    if (await finalFile.exists()) {
+      throw const DownloadException('NATIVE_DOWNLOAD_TARGET_EXISTS');
+    }
+    final size = await partial.length();
+    await partial.rename(finalFile.path);
+    if (await finalFile.length() != size || !await _isMp4File(finalFile)) {
+      throw const DownloadException('FINAL_FILE_VERIFICATION_FAILED');
+    }
+    return DownloadResult(path: finalFile.path, bytes: size);
+  }
+
   Future<List<DownloadedFileInfo>> listDownloads() async {
     final directory = await _downloadDirectory(create: false);
     if (!await directory.exists()) return const [];
+    if (_native) {
+      for (final file in await NativeDownloadEngine.completedFiles()) {
+        if (await file.exists()) {
+          try {
+            await adoptNativeFile(file, directory);
+          } on DownloadException {
+            // One rejected HTML/truncated download must not hide valid saved files.
+            NajdDownloadActivity.instance.put(
+              NajdDownloadJob(
+                id: file.path,
+                title: 'تنزيل لم يجتز فحص الملف',
+                failed: true,
+              ),
+            );
+          }
+        }
+      }
+    }
     final items = <DownloadedFileInfo>[];
     await for (final entity in directory.list(followLinks: false)) {
       if (entity is! File || entity.path.endsWith('.part')) continue;
