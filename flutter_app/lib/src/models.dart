@@ -170,6 +170,8 @@ class EpisodeItem {
     required this.ref,
     required this.watchAvailable,
     this.season,
+    this.poster = '',
+    this.durationSeconds,
     this.hasEpisodeNumber = true,
   });
 
@@ -179,6 +181,16 @@ class EpisodeItem {
   final String ref;
   final bool watchAvailable;
   final int? season;
+  final String poster;
+  final int? durationSeconds;
+  String get durationLabel {
+    final seconds = durationSeconds;
+    if (seconds == null || seconds <= 0) return '';
+    final minutes = seconds ~/ 60;
+    final rest = (seconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$rest';
+  }
+
   final bool hasEpisodeNumber;
 
   factory EpisodeItem.fromJson(Map<String, dynamic> json) {
@@ -195,6 +207,8 @@ class EpisodeItem {
       watchAvailable: json['watch_available'] != false,
       hasEpisodeNumber: parsedNumber != null && parsedNumber > 0,
       season: _positiveIdentityNumber(json['season_number'] ?? json['season']),
+      poster: '${json['poster'] ?? json['thumbnail'] ?? ''}',
+      durationSeconds: _positiveIdentityNumber(json['duration_seconds']),
     );
   }
 }
@@ -386,8 +400,10 @@ class TitleDetails {
     this.contentType = '',
     this.sourceWorkRef = '',
     this.episodeNextOffset,
+    this.serverScan = const {},
   });
 
+  final Map<String, dynamic> serverScan;
   final String title;
   final String poster;
   final List<EpisodeItem> episodes;
@@ -427,6 +443,7 @@ class TitleDetails {
   final Map<String, String> sourceRefs;
 
   TitleDetails copyWith({
+    Map<String, dynamic>? serverScan,
     String? title,
     String? poster,
     List<EpisodeItem>? episodes,
@@ -466,6 +483,7 @@ class TitleDetails {
     List<SubtitleDescriptor>? attachedSubtitles,
     Map<String, String>? sourceRefs,
   }) => TitleDetails(
+    serverScan: serverScan ?? this.serverScan,
     title: title ?? this.title,
     poster: poster ?? this.poster,
     sourceIndexAuthoritative:
@@ -527,6 +545,9 @@ class TitleDetails {
               .toList(growable: false)
         : const <EpisodeItem>[];
     return TitleDetails(
+      serverScan: json['server_scan'] is Map
+          ? Map<String, dynamic>.from(json['server_scan'])
+          : const {},
       sourceIndexAuthoritative: json['source_index_authoritative'] == true,
       sourceEdition: '${json['source_edition'] ?? 'unknown'}',
       sourceProvider: '${json['provider'] ?? ''}',

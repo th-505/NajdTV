@@ -1,3 +1,4 @@
+import 'src/live_channels_panel.dart';
 import 'src/catalog_collection_defs.dart';
 import 'src/catalog_shelf.dart';
 import 'src/scroll_to_top.dart';
@@ -194,6 +195,21 @@ void openDetails(
   LocalLibraryStore store,
   CatalogItem item,
 ) {
+  if (item.type == 'live' && item.ref.startsWith('live:iptv-org:')) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PlayerPage(
+          api: api,
+          store: store,
+          item: item,
+          title: item.title,
+          sourceRef: item.ref,
+          isLive: true,
+        ),
+      ),
+    );
+    return;
+  }
   final scopedApi = item.discoveryScope == 'beta' && !api.providerBrowser
       ? api.browserSession(origin: item)
       : api;
@@ -1085,29 +1101,27 @@ class _HomePageState extends State<HomePage> {
     builder: (context, _) => FutureBuilder<List<CatalogItem>>(
       future: _latest,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const NajdSkeleton();
-        }
-        if (snapshot.hasError) {
-          return NajdEmptyState(
-            kind: NajdEmptyKind.offline,
-            onRetry: _retry,
-            onExplore: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => Scaffold(
-                  appBar: AppBar(title: const Text('التحميلات')),
-                  body: LibraryPage(
-                    api: widget.api,
-                    store: widget.store,
-                    mode: NajdLibraryMode.downloads,
+        final items = snapshot.data ?? const <CatalogItem>[];
+        final children = <Widget>[
+          if (snapshot.hasError)
+            NajdEmptyState(
+              kind: NajdEmptyKind.offline,
+              onRetry: _retry,
+              onExplore: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => Scaffold(
+                    appBar: AppBar(title: const Text('التحميلات')),
+                    body: LibraryPage(
+                      api: widget.api,
+                      store: widget.store,
+                      mode: NajdLibraryMode.downloads,
+                    ),
                   ),
                 ),
               ),
             ),
-          );
-        }
-        final items = snapshot.data ?? const <CatalogItem>[];
-        final children = <Widget>[
+          if (snapshot.connectionState != ConnectionState.done)
+            const SizedBox(height: 200, child: NajdSkeleton()),
           if (items.isNotEmpty)
             FutureBuilder<List<CatalogItem>>(
               future: _featured,
@@ -1248,7 +1262,9 @@ class _HomePageState extends State<HomePage> {
             _shelf('مسلسلات تستحق المشاهدة', _series, 2),
             _shelf('عالم الأنمي', _anime, 3),
           ],
-          if (items.isEmpty)
+          if (items.isEmpty &&
+              !snapshot.hasError &&
+              snapshot.connectionState == ConnectionState.done)
             NajdEmptyState(
               kind: NajdEmptyKind.search,
               onExplore: () => widget.onNavigate?.call(5),
@@ -1256,6 +1272,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 20),
           for (final definition in najdCatalogCollections.where(
             (r) =>
+                snapshot.connectionState == ConnectionState.done &&
                 r['group'] == 'home' &&
                 ![
                   'catalog:collection:home-top',
@@ -1306,76 +1323,86 @@ class LivePage extends StatelessWidget {
   final LocalLibraryStore store;
   final List<ConfiguredTvChannel> channels;
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Expanded(
-        child: MatchesPage(api: api, store: store),
-      ),
-      Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          'القنوات المباشرة',
-          style: Theme.of(context).textTheme.titleLarge,
+  Widget build(BuildContext context) => DefaultTabController(
+    length: channels.isEmpty ? 2 : 3,
+    child: Column(
+      children: [
+        TabBar(
+          tabs: [
+            Tab(text: 'المباريات', height: isTvTarget ? 64 : 48),
+            Tab(text: 'القنوات المباشرة', height: isTvTarget ? 64 : 48),
+            if (channels.isNotEmpty)
+              Tab(text: 'قنوات مخصصة', height: isTvTarget ? 64 : 48),
+          ],
         ),
-      ),
-      ListTile(
-        leading: const Icon(Icons.sensors),
-        title: const Text('مصادر البث المباشر'),
-        subtitle: const Text('القنوات والمصادر الحية في قائمة مستقلة'),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) =>
-                ProviderBrowserPage(api: api, store: store, liveOnly: true),
-          ),
-        ),
-      ),
-      if (channels.isEmpty)
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 24),
-          child: Text('لا توجد قنوات مباشرة مهيأة حاليًا'),
-        ),
-      if (channels.isNotEmpty)
         Expanded(
-          child: ListView(
+          child: TabBarView(
             children: [
-              for (final package in channels.map((c) => c.package).toSet()) ...[
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Text(package),
-                ),
-                for (final channel in channels.where(
-                  (c) => c.package == package,
-                ))
-                  FocusHighlight(
-                    child: ListTile(
-                      title: Text(channel.title),
-                      leading: const Icon(Icons.live_tv),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PlayerPage(
-                            api: api,
-                            store: store,
-                            item: CatalogItem(
-                              id: channel.sourceRef,
-                              title: channel.title,
-                              poster: '',
-                              type: 'live',
-                              ref: channel.sourceRef,
-                            ),
-                            title: channel.title,
-                            sourceRef: channel.sourceRef,
-                            isLive: true,
-                          ),
+              MatchesPage(api: api, store: store),
+              Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.sensors),
+                    title: const Text('مصادر البث المباشر'),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProviderBrowserPage(
+                          api: api,
+                          store: store,
+                          liveOnly: true,
                         ),
                       ),
                     ),
                   ),
-              ],
+                  Expanded(
+                    child: LiveChannelsPanel(api: api, store: store),
+                  ),
+                ],
+              ),
+              if (channels.isNotEmpty)
+                ListView(
+                  children: [
+                    for (final package
+                        in channels.map((c) => c.package).toSet()) ...[
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(package),
+                      ),
+                      for (final channel in channels.where(
+                        (c) => c.package == package,
+                      ))
+                        FocusHighlight(
+                          child: ListTile(
+                            title: Text(channel.title),
+                            leading: const Icon(Icons.live_tv),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => PlayerPage(
+                                  api: api,
+                                  store: store,
+                                  item: CatalogItem(
+                                    id: channel.sourceRef,
+                                    title: channel.title,
+                                    poster: '',
+                                    type: 'live',
+                                    ref: channel.sourceRef,
+                                  ),
+                                  title: channel.title,
+                                  sourceRef: channel.sourceRef,
+                                  isLive: true,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
             ],
           ),
         ),
-    ],
+      ],
+    ),
   );
 }
 
@@ -1482,7 +1509,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       _section('الحساب والمكتبة', Icons.person_outline, [
         _open(
-          'الحساب والربط',
+          'تسجيل الدخول وإدارة الحساب',
           Icons.link,
           (_) => NajdAccountPage(store: widget.store),
         ),

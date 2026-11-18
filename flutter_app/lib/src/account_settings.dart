@@ -1,3 +1,4 @@
+import 'email_auth.dart';
 import 'library_store.dart';
 import 'library_backup_control.dart';
 import 'najd_panels.dart';
@@ -26,6 +27,7 @@ class _NajdAccountPageState extends State<NajdAccountPage> {
   final name = TextEditingController();
   String avatar = '', message = '', installationId = '';
   bool busy = true;
+  NajdEmailAuth? authentication;
   @override
   void initState() {
     super.initState();
@@ -39,6 +41,24 @@ class _NajdAccountPageState extends State<NajdAccountPage> {
   }
 
   Future<void> load() async {
+    try {
+      authentication = NajdEmailAuth(
+        await CloudLibrarySync.authenticationClient(),
+        widget.store,
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          busy = false;
+          message = 'تعذّر الاتصال بخدمة الحساب؛ حاول مجددًا.';
+        });
+      }
+      return;
+    }
+    if (!authentication!.signedIn) {
+      if (mounted) setState(() => busy = false);
+      return;
+    }
     installationId = await CloudLibrarySync.installationOwnerId() ?? '';
     if (!mounted) return;
     setState(() {});
@@ -126,51 +146,109 @@ class _NajdAccountPageState extends State<NajdAccountPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('حساب نجد')),
-    body: ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        if (busy) const LinearProgressIndicator(),
-        if (avatar.isNotEmpty)
-          Center(
-            child: ClipOval(
-              child: Image.memory(
-                base64Decode(avatar.split(',').last),
-                width: 88,
-                height: 88,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const Icon(Icons.person, size: 88),
-              ),
-            ),
+    body: authentication?.signedIn != true
+        ? ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              if (busy) const LinearProgressIndicator(),
+              if (authentication != null)
+                NajdEmailAuthPanel(
+                  auth: authentication!,
+                  onSignedIn: () {
+                    setState(() => busy = true);
+                    unawaited(load());
+                  },
+                ),
+              if (authentication == null && !busy) ...[
+                Text(message),
+                TextButton(onPressed: load, child: const Text('أعد المحاولة')),
+              ],
+              if (widget.store != null)
+                NajdSurface(child: LibraryBackupControl(store: widget.store!)),
+            ],
           )
-        else
-          const Icon(Icons.account_circle, size: 88),
-        TextButton.icon(
-          onPressed: busy ? null : chooseAvatar,
-          icon: const Icon(Icons.image),
-          label: const Text('تغيير الصورة'),
-        ),
-        TextField(
-          controller: name,
-          maxLength: 64,
-          decoration: const InputDecoration(labelText: 'الاسم'),
-        ),
-        FilledButton(
-          onPressed: busy ? null : () => save(),
-          child: const Text('حفظ الحساب'),
-        ),
-        if (message.isNotEmpty)
-          Padding(padding: const EdgeInsets.all(12), child: Text(message)),
-        if (installationId.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: SelectableText('معرّف هذه النسخة: $installationId'),
+        : ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              if (busy) const LinearProgressIndicator(),
+              if (avatar.isNotEmpty)
+                Center(
+                  child: ClipOval(
+                    child: Image.memory(
+                      base64Decode(avatar.split(',').last),
+                      width: 88,
+                      height: 88,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          const Icon(Icons.person, size: 88),
+                    ),
+                  ),
+                )
+              else
+                const Icon(Icons.account_circle, size: 88),
+              ListTile(
+                leading: const Icon(Icons.verified_user_outlined),
+                title: Text(
+                  authentication!.client.auth.currentUser?.email ?? '',
+                ),
+                subtitle: const Text('حساب مسجّل ببريد مؤكّد'),
+              ),
+              TextButton.icon(
+                onPressed: busy ? null : chooseAvatar,
+                icon: const Icon(Icons.image),
+                label: const Text('تغيير الصورة'),
+              ),
+              TextField(
+                controller: name,
+                maxLength: 64,
+                decoration: const InputDecoration(labelText: 'الاسم'),
+              ),
+              FilledButton(
+                onPressed: busy ? null : () => save(),
+                child: const Text('حفظ الحساب'),
+              ),
+              if (message.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(message),
+                ),
+              if (installationId.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: SelectableText('معرّف هذه النسخة: $installationId'),
+                ),
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.logout),
+                label: const Text('تسجيل الخروج من هذا الجهاز'),
+                onPressed: busy
+                    ? null
+                    : () async {
+                        setState(() => busy = true);
+                        try {
+                          await authentication!.signOut();
+                        } catch (_) {
+                          if (mounted) {
+                            setState(
+                              () =>
+                                  message = 'تعذّر تسجيل الخروج؛ حاول مجددًا.',
+                            );
+                          }
+                        }
+                        if (mounted) {
+                          setState(() {
+                            busy = false;
+                            avatar = '';
+                            installationId = '';
+                          });
+                        }
+                      },
+              ),
+              const NajdSurface(child: NajdLinkPanel()),
+              if (widget.store != null)
+                NajdSurface(child: LibraryBackupControl(store: widget.store!)),
+            ],
           ),
-        const SizedBox(height: 20),
-        const NajdSurface(child: NajdLinkPanel()),
-        if (widget.store != null)
-          NajdSurface(child: LibraryBackupControl(store: widget.store!)),
-      ],
-    ),
   );
 }
 

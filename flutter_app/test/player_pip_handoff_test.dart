@@ -25,6 +25,7 @@ class FixturePip extends NajdPipBridge {
   final updates = StreamController<NajdPipEvent>.broadcast();
   Duration? enteredAt;
   bool closed = false;
+  int enters = 0;
   @override
   bool get needsNativeHandoff => true;
   @override
@@ -47,6 +48,7 @@ class FixturePip extends NajdPipBridge {
     required double width,
     required double height,
   }) async {
+    enters++;
     enteredAt = position;
     return true;
   }
@@ -137,6 +139,57 @@ void main() {
       expect(restored.history.single.positionMs, 203000);
       restored.dispose();
       store.dispose();
+      api.close();
+      await pip.updates.close();
+    },
+  );
+  testWidgets(
+    'leaving the native app automatically enters PiP once at the exact clock',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final store = await LocalLibraryStore.create(),
+          api = FixtureApi(),
+          pip = FixturePip();
+      late FakeEngine engine;
+      const item = CatalogItem(
+        id: 'auto-pip',
+        ref: 'legacy:auto-pip',
+        title: 'اختبار',
+        poster: '',
+        type: 'movie',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlayerPage(
+            api: api,
+            store: store,
+            item: item,
+            title: item.title,
+            mediaPath: 'https://media.example/test.mp4',
+            mediaType: 'mp4',
+            playbackMode: 'edge_direct',
+            pipBridge: pip,
+            playerFactory: (u, t, h, s) => engine = FakeEngine(
+              u,
+              mediaType: t,
+              headers: h,
+              software: s,
+              fail: false,
+            ),
+          ),
+        ),
+      );
+      await settle(tester);
+      await engine.seekTo(const Duration(seconds: 137));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await settle(tester);
+      expect(pip.enteredAt, const Duration(seconds: 137));
+      expect(pip.enters, 1);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      await settle(tester);
+      expect(pip.enters, 1);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpWidget(const SizedBox());
       api.close();
       await pip.updates.close();
     },

@@ -1234,7 +1234,9 @@ class _DetailsPageState extends State<DetailsPage> {
                                     null),
                         episode: episode,
                         compact: compact,
-                        poster: details.poster,
+                        poster: episode.poster.isNotEmpty
+                            ? episode.poster
+                            : details.poster,
                         focusNode: focusNode,
                         downloadFocusNode: isTvTarget
                             ? _episodeDownloadFocus(episode)
@@ -1308,6 +1310,9 @@ class _EpisodeTile extends StatelessWidget {
         ? (episode.hasEpisodeNumber ? 'الحلقة ${episode.number}' : 'حلقة')
         : episode.title;
     final enabled = episode.watchAvailable && episode.ref.isNotEmpty;
+    final timedLabel = episode.durationLabel.isEmpty
+        ? label
+        : '$label · ${episode.durationLabel}';
 
     if (compact) {
       return Card(
@@ -1371,7 +1376,7 @@ class _EpisodeTile extends StatelessWidget {
                                   : '▶',
                             ),
                           ),
-                    title: Text(label),
+                    title: Text(timedLabel),
                     subtitle: Text(
                       downloading
                           ? downloadLabel
@@ -1419,7 +1424,7 @@ class _EpisodeTile extends StatelessWidget {
                   episode.hasEpisodeNumber ? '${episode.number}' : '▶',
                 ),
               ),
-        title: Text(label),
+        title: Text(timedLabel),
         subtitle: Text(
           downloading
               ? '$downloadLabel • اضغط زر الإلغاء لإيقافه'
