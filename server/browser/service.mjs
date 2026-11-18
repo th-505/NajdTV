@@ -106,6 +106,7 @@ export function createBrowserWorkService({
             details: work.details,
             episodes: [...work.episodes.values()],
             seen: [...work.seen],
+            page_budget: work.pageBudget,
             frontier: work.frontier,
             failed: [...work.failed],
             updated: work.updated,
@@ -182,6 +183,7 @@ export function createBrowserWorkService({
       rootConfirmed: true,
       episodes,
       seen: new Set(stale ? [] : saved.seen),
+      pageBudget: !stale && Number.isSafeInteger(saved.page_budget) && saved.page_budget >= maxPages ? saved.page_budget : maxPages,
       failed: new Set(saved.failed),
       frontier: stale ? [root] : saved.frontier || [],
       running: false,
@@ -196,7 +198,7 @@ export function createBrowserWorkService({
     return work;
   }
   function schedule(work) {
-    if (work.running || !work.frontier.length || work.seen.size >= maxPages)
+    if (work.running || !work.frontier.length || work.seen.size >= work.pageBudget)
       return;
     work.running = true;
     const task = globalQueue.run(() =>
@@ -206,7 +208,7 @@ export function createBrowserWorkService({
           while (
             work.frontier.length &&
             steps++ < 4 &&
-            work.seen.size < maxPages
+            work.seen.size < work.pageBudget
           ) {
             work.domains = work.adapter.meta.domains.map(
               (d) => new URL(d).hostname,
@@ -413,7 +415,7 @@ export function createBrowserWorkService({
         pending.delete(work.ref);
         work.running = false;
         persist(work);
-        if (work.frontier.length && work.seen.size < maxPages) schedule(work);
+        if (work.frontier.length && work.seen.size < work.pageBudget) schedule(work);
       });
   }
   function request(ref, { reason = "card_open" } = {}) {
@@ -447,6 +449,7 @@ export function createBrowserWorkService({
         details: {},
         episodes: new Map(),
         seen: new Set(),
+        pageBudget: maxPages,
         failed: new Set(),
         frontier: [url],
         running: false,
@@ -463,10 +466,16 @@ export function createBrowserWorkService({
         for (const [a, k] of aliases) if (k === first[0]) aliases.delete(a);
       }
     }
+    if (reason === 'continue' && !work.running && work.frontier.length && work.seen.size >= work.pageBudget) {
+      const nextBudget = work.pageBudget + maxPages;
+      if (!Number.isSafeInteger(nextBudget)) throw Error('BROWSER_PAGE_BUDGET_EXHAUSTED');
+      work.pageBudget = nextBudget;
+    }
     if (["source_refresh", "retry"].includes(reason) && !work.running) {
       work.frontier = [work.root, ...work.failed];
       work.episodes.clear();
       work.seen.clear();
+      work.pageBudget = maxPages;
       work.failed.clear();
       work.searchStarted = false;
       work.searchFailed = false;
@@ -498,7 +507,8 @@ export function createBrowserWorkService({
       index_updated_at: w.updated,
       discovery_updated_at: w.updated,
       source_editions: [
-        { ref: w.ref, provider: w.provider, title: w.title, available },
+        { ref: w.ref, provider: w.provider, title: w.title, available,
+          index_preview_ready: available && (w.rootConfirmed === true || w.details.type === 'movie') },
       ],
       progress: {
         visited_pages: w.seen.size,
@@ -508,7 +518,8 @@ export function createBrowserWorkService({
         partial: w.running || w.frontier.length > 0 || w.failed.size > 0,
         cloud_saved: w.cloudSaved === true,
         cloud_error: w.cloudError === true,
-        page_limit_reached: w.seen.size >= maxPages,
+        page_limit_reached: w.frontier.length > 0 && w.seen.size >= w.pageBudget,
+        continuation_available: w.frontier.length > 0 && w.seen.size >= w.pageBudget,
       },
     };
   }
@@ -546,6 +557,7 @@ export function createBrowserWorkService({
       provider: w.provider,
       identity_scope: "source",
       source_index_authoritative: true,
+      source_index_state: status(ref).index_state,
       canonical_identity_verified: false,
       type: w.details.type === "movie" ? "movie" : "series",
       source_poster: w.details.poster || "",
@@ -577,7 +589,7 @@ export function createBrowserWorkService({
   }
   async function playback(
     ref,
-    { season = 0, episode = 0, platform = "native", refresh = false } = {},
+    { season = 0, episode = 0, platform = "native", refresh = false, progressive = false } = {},
   ) {
     const w = get(ref);
     if (!w.title) return { state: "running", poll_after_ms: 1000 };
@@ -593,7 +605,8 @@ export function createBrowserWorkService({
     // Browser evidence and failures must not be inherited from a native job.
     const key = w.ref + ":" + season + ":" + episode + ":" + platform,
       cached = media.get(key);
-    if (!refresh && cached?.expires > now() + 30000) {
+    if (!refresh && cached?.expires > now() + 30000 &&
+        (progressive || cached.server_scan?.in_progress !== true)) {
       const servers = cached.servers.filter(
         (s) => platform !== "web" || s.web_playable,
       );
@@ -636,8 +649,19 @@ export function createBrowserWorkService({
         w.adapter.mediaQueue.run(() =>
           runInBrowserLane(async () => {
             const servers = [];
-            let serverScan=null;
+            let serverScan=null, lastRowError=null;
+            const scans=[];
+            const uniqueServers=values=>[...new Map(values.map(row=>[JSON.stringify([row.url,Object.entries(row.headers||{}).map(([key,value])=>[key.toLowerCase(),value]).sort(([a],[b])=>a.localeCompare(b))]),row])).values()];
+            function combinedScan(next=null) {
+              const parts=[...scans,...(next?[next]:[])];
+              const inventory=[...new Map(parts.flatMap(scan=>scan.server_inventory||[]).map(row=>[row.id,row])).values()];
+              return {server_scan_complete:!lastRowError&&parts.length===rows.length&&parts.every(scan=>scan.server_scan_complete===true),
+                in_progress:next!==null,
+                ...Object.fromEntries(['resolver_targets','resolver_attempted','observed_media_candidates','inspected_media_candidates'].map(name=>[name,parts.reduce((sum,scan)=>sum+(Number(scan[name])||0),0)])),
+                server_inventory:inventory,observed_servers:inventory.length,playable_servers:inventory.filter(row=>row.state==='playable').length};
+            }
             for (const row of rows) {
+              try {
               const d = await w.adapter.module.scrapeDetails(
                 row.source_ref,
                 network,
@@ -659,7 +683,8 @@ export function createBrowserWorkService({
               if(d.requested_episode_metadata?.source_ref===row.source_ref){Object.assign(row,observedEpisodeMetadata(d.requested_episode_metadata,d.sourceUrl));persist(w);}
               const chosen=await resolveProviderMedia(w.adapter,row.source_ref,{details:d,network,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),onAccepted:(ready,scan)=>{
                 // Publish verified media immediately while remaining hosts keep scanning.
-                media.set(key,{servers:ready,server_scan:scan,expires:Math.min(...ready.map(s=>Date.parse(s.expires_at)))});
+                const combined=uniqueServers([...servers,...ready]);
+                media.set(key,{servers:combined,server_scan:{...combinedScan(scan),server_scan_complete:false,in_progress:true},expires:Math.min(...combined.map(s=>Date.parse(s.expires_at)))});
                 while(media.size>128)media.delete(media.keys().next().value);
               },accept:async candidates=>{
                const accepted=[];
@@ -701,9 +726,13 @@ export function createBrowserWorkService({
               }
                return accepted;
               }});
-              if(chosen._meta)serverScan=chosen._meta;
-              servers.push(...chosen);if(chosen.length)break;
+              if(chosen._meta)scans.push(chosen._meta);
+              const combined=uniqueServers([...servers,...chosen]);
+              servers.splice(0,servers.length,...combined);
+              } catch(error) { lastRowError=error; }
             }
+            if (!servers.length && lastRowError) throw lastRowError;
+            serverScan=combinedScan();
             if (servers.length) {
               media.set(key, {
                 servers,server_scan:serverScan,

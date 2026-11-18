@@ -315,11 +315,45 @@ test('beta publishes first verified media while other probes continue, then repl
  await service.playback(admitted.ref,{season:1,episode:19});
  try {
   await started;await new Promise(resolve=>setImmediate(resolve));
-  const preview=await service.playback(admitted.ref,{season:1,episode:19});
+  assert.equal((await service.playback(admitted.ref,{season:1,episode:19})).state,'running','legacy clients wait for the complete snapshot');
+  const preview=await service.playback(admitted.ref,{season:1,episode:19,progressive:true});
   assert.equal(preview.state,'ready');assert.equal(preview.servers.length,1);
   assert.equal(preview.server_scan.in_progress,true);
  }finally{releaseSlow();}
  await service.settle();
  const complete=await service.playback(admitted.ref,{season:1,episode:19});
  assert.equal(complete.servers.length,2);assert.equal(complete.server_scan.in_progress,false);
+});
+
+test('explicit continuation advances the page budget without re-reading or losing earlier episodes',async()=>{
+ const {service,fetched}=fixture({maxPages:2});
+ const admitted=await service.request(ref(seed));await service.settle();
+ const before=await service.details(admitted.ref);
+ assert.equal((await service.status(admitted.ref)).progress.continuation_available,true);
+ await service.request(admitted.ref,{reason:'continue'});await service.settle();
+ const after=await service.details(admitted.ref);
+ assert.deepEqual(after.episodes.map(row=>row.episode_number),[1,2,12,19]);
+ for(const row of before.episodes)assert(after.episodes.some(other=>other.ref===row.ref));
+ assert.equal(new Set(fetched).size,fetched.length,'a continuation never resets visited pages');
+ assert.equal((await service.status(admitted.ref)).progress.continuation_available,false);
+});
+
+
+test('all actual alternatives for the selected episode are resolved; a failed sibling cannot erase playable servers',async()=>{
+ const a=base+'/watch/work/episode-19-a/',b=base+'/watch/work/episode-19-b/',bad=base+'/watch/work/episode-19-bad/';
+ const html='<h1>خالتي قماشة</h1><div class="episodes-list">'+[a,b,bad].map(url=>`<a href="${url}">خالتي قماشة الحلقة 19</a>`).join('')+'</div>';
+ const module={
+  scrapeDetails:async(url,options={})=>{
+   url=url.startsWith('mycima:')?Buffer.from(url.slice(7),'base64url').toString():url;
+   if(!options.fixtureHtml&&url.includes('19-bad'))throw Error('OBSERVED_SIBLING_UNAVAILABLE');
+   return{title:options.fixtureHtml?cheerio.load(options.fixtureHtml)('h1').text():'خالتي قماشة الحلقة 19',type:'series',sourceUrl:url,episodes:[]};
+  },
+  scrapeServers:async source=>[{url:`https://cdn.example/${Buffer.from(source.slice(7),'base64url').toString().includes('19-b/')?'b':'a'}.mp4`}],
+ };
+ const {service}=fixture({lookup:()=>({meta:{id:'mycima',domains:[base]},module}),fetchPage:async url=>({url,html:url===parent?html:'<h1>خالتي قماشة الحلقة 19</h1>'})});
+ const admitted=await service.request(ref(parent));await service.settle();
+ assert.equal((await service.playback(admitted.ref,{season:1,episode:19})).state,'running');await service.settle();
+ const result=await service.playback(admitted.ref,{season:1,episode:19});
+ assert.equal(result.state,'ready');assert.deepEqual(result.servers.map(row=>new URL(row.url).pathname).sort(),['/a.mp4','/b.mp4']);
+ assert.equal(result.server_scan.server_scan_complete,false,'failed alternative remains explicitly incomplete');
 });

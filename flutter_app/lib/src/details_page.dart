@@ -1,3 +1,4 @@
+import 'season_download_queue.dart';
 import 'browser_download.dart';
 import 'poster_preview.dart';
 import 'person_works_grid.dart';
@@ -70,6 +71,9 @@ class _DetailsPageState extends State<DetailsPage> {
   int _seasonGeneration = 0;
   Future<void> _changeSeason(TitleDetails original, int value) async {
     final generation = ++_seasonGeneration;
+    _episodeContinuationTimer?.cancel();
+    _episodeCursorScope = '';
+    _episodeContinuationError = false;
     setState(() {
       selectedSeason = value;
       _seasonBusy = true;
@@ -138,6 +142,7 @@ class _DetailsPageState extends State<DetailsPage> {
 
   @override
   void dispose() {
+    _episodeContinuationTimer?.cancel();
     if (_browserRoute != null) BrowserNavigation().leaveContent(_browserRoute!);
     _directPlayFocus.dispose();
     for (final node in _episodeFocusNodes.values) {
@@ -470,6 +475,8 @@ class _DetailsPageState extends State<DetailsPage> {
       if (!mounted) return;
       setState(() {
         future = Future.value(TitleDetails.fromJson(data));
+        _episodeCursorScope = '';
+        _episodeContinuationError = false;
         _sourceRefreshMessage = 'وصل تحديث الفهرس من المصدر المحدد.';
       });
     } catch (error) {
@@ -487,11 +494,38 @@ class _DetailsPageState extends State<DetailsPage> {
     }
   }
 
-  bool _loadingEpisodePage = false;
+  bool _loadingEpisodePage = false, _episodeContinuationError = false;
+  Timer? _episodeContinuationTimer;
+  String _episodeCursorScope = '';
+  int _episodeConsumed = 0;
   final _requestedEpisodePages = <String>{};
   void _continueEpisodeIndex(TitleDetails details) {
+    final scope = '${details.sourceWorkRef}:$selectedSeason';
+    if (_episodeCursorScope != scope) {
+      _episodeCursorScope = scope;
+      _episodeConsumed = details.episodeNextOffset ?? details.episodes.length;
+      _requestedEpisodePages.clear();
+      _episodeContinuationError = false;
+    }
+    if (_loadingEpisodePage || _seasonBusy || _episodeContinuationError) return;
     final offset = details.episodeNextOffset;
-    if (offset == null || _loadingEpisodePage || _seasonBusy) return;
+    if (offset == null) {
+      if (details.sourceIndexPartial &&
+          details.sourceIndexState == 'indexing' &&
+          details.sourceWorkRef.isNotEmpty &&
+          _episodeContinuationTimer == null) {
+        final season = selectedSeason, generation = _seasonGeneration;
+        _episodeContinuationTimer = Timer(const Duration(seconds: 2), () {
+          _episodeContinuationTimer = null;
+          if (mounted &&
+              season == selectedSeason &&
+              generation == _seasonGeneration) {
+            unawaited(_moreEpisodes());
+          }
+        });
+      }
+      return;
+    }
     final season = selectedSeason, generation = _seasonGeneration;
     final key = '${details.sourceWorkRef}:$season:$offset';
     if (!_requestedEpisodePages.add(key)) return;
@@ -506,12 +540,17 @@ class _DetailsPageState extends State<DetailsPage> {
 
   Future<void> _moreEpisodes() async {
     if (_loadingEpisodePage) return;
+    _episodeContinuationTimer?.cancel();
+    _episodeContinuationTimer = null;
+    _episodeContinuationError = false;
     setState(() => _loadingEpisodePage = true);
     try {
       final generation = _seasonGeneration, season = selectedSeason;
       final current = _seasonDetails ?? await future;
-      if (current.episodeNextOffset == null) return;
-      final offset = current.episodeNextOffset!;
+      if (current.episodeNextOffset == null && !current.sourceIndexPartial) {
+        return;
+      }
+      final offset = current.episodeNextOffset ?? _episodeConsumed;
       final next = await widget.api.moreSourceEpisodes(
         current.sourceWorkRef.isNotEmpty
             ? current.sourceWorkRef
@@ -527,11 +566,15 @@ class _DetailsPageState extends State<DetailsPage> {
       if (next.episodeNextOffset != null && next.episodeNextOffset! <= offset) {
         throw const FormatException('EPISODE_CURSOR_DID_NOT_ADVANCE');
       }
+      _episodeConsumed =
+          next.episodeNextOffset ?? offset + next.episodes.length;
       final byRef = {
         for (final ep in [...current.episodes, ...next.episodes]) ep.ref: ep,
       };
       final merged = current.copyWith(
         episodes: byRef.values.toList(),
+        sourceIndexPartial: next.sourceIndexPartial,
+        sourceIndexState: next.sourceIndexState,
         episodeNextOffset: next.episodeNextOffset,
         clearEpisodePagination: next.episodeNextOffset == null,
       );
@@ -543,6 +586,7 @@ class _DetailsPageState extends State<DetailsPage> {
         }
       });
     } catch (_) {
+      _episodeContinuationError = true;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -726,8 +770,15 @@ class _DetailsPageState extends State<DetailsPage> {
 
   bool _seasonDownloading = false;
   Future<void> _downloadSeason(TitleDetails details) async {
-    if (_seasonDownloading) {
-      setState(() => _seasonDownloading = false);
+    if (_seasonDownloading) return;
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'يمكن تسليم ملف الحلقة إلى المتصفح. طابور الموسم المستمر متاح داخل التطبيق.',
+          ),
+        ),
+      );
       return;
     }
     final episodes = details.episodes
@@ -738,7 +789,7 @@ class _DetailsPageState extends State<DetailsPage> {
       builder: (context) => AlertDialog(
         title: const Text('تنزيل الموسم'),
         content: Text(
-          'تنزيل ${episodes.length} حلقة متاحة بالتتابع؟ يعتمد التنزيل على وجود مصدر MP4 فعلي. يمكنك إيقاف الطابور.',
+          'سيُستكمل فهرس هذا الموسم ثم تُنزل حلقاته المتاحة بالتتابع. المفهرس حاليًا: ${episodes.length} حلقة. يحتاج كل تنزيل إلى مصدر MP4 فعلي؛ أدر الطابور من التنزيلات.',
         ),
         actions: [
           TextButton(
@@ -754,13 +805,50 @@ class _DetailsPageState extends State<DetailsPage> {
     );
     if (confirmed != true || !mounted) return;
     setState(() => _seasonDownloading = true);
-    for (final episode in episodes) {
-      if (!mounted || !_seasonDownloading) break;
-      await _download(
-        key: 'episode:${episode.id}:${episode.number}',
-        title: '${details.title} — الحلقة ${episode.number}',
-        sourceRef: episode.ref,
+    try {
+      final work = details.sourceWorkRef.isNotEmpty
+          ? details.sourceWorkRef
+          : widget.item.ref;
+      if (work.startsWith('tmdb:')) {
+        throw const DownloadException('SOURCE_INDEX_REQUIRED');
+      }
+      final owner = widget.store.ownerScope;
+      final item = _playItem(details).copyWith(season: selectedSeason);
+      await SeasonDownloadQueue.instance.add(owner, [
+        SeasonDownloadJob(
+          id: SeasonDownloadJob.key(owner, work, season: selectedSeason),
+          ref: work,
+          title: '${details.title} — فهرسة الموسم $selectedSeason',
+          item: item,
+          indexSeason: selectedSeason,
+          indexOffset: 0,
+        ),
+      ], restartCompleted: true);
+      unawaited(
+        resumeSeasonDownloads(
+          widget.store,
+          originApi: widget.api,
+        ).catchError((Object _) {}),
       );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'أُضيف الموسم إلى الطابور. يستمر بعد مغادرة الصفحة، ويمكن إدارته من التنزيلات.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تعذر تجهيز طابور الموسم. اختر مصدرًا ذا فهرس حلقات فعلي ثم أعد المحاولة.',
+            ),
+          ),
+        );
+      }
     }
     if (mounted) setState(() => _seasonDownloading = false);
   }

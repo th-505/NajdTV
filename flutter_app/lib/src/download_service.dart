@@ -217,13 +217,33 @@ class DownloadService {
         uri,
         headers: headers,
         title: fallbackName,
+        resumeKey: resumeKey ?? fallbackName,
         cancelled: cancellationToken.whenCancelled,
         onProgress: (received, total) => onProgress?.call(
           DownloadProgress(receivedBytes: received, totalBytes: total),
         ),
       );
       _throwIfCancelled(cancellationToken);
-      return adoptNativeFile(file, directory);
+      if (!file.path.endsWith('.part')) {
+        if (file.absolute.parent.path != directory.absolute.path ||
+            await _verifyStoredFile(file) == null ||
+            !await _isMp4File(file)) {
+          throw const DownloadException('INVALID_NATIVE_DOWNLOAD_TARGET');
+        }
+        return DownloadResult(path: file.path, bytes: await file.length());
+      }
+      try {
+        return await adoptNativeFile(file, directory);
+      } on DownloadException {
+        await NativeDownloadEngine.forgetFinal(resumeKey ?? fallbackName);
+        if (file.absolute.parent.path == directory.absolute.path &&
+            file.path.endsWith('.part') &&
+            await FileSystemEntity.type(file.path, followLinks: false) ==
+                FileSystemEntityType.file) {
+          await file.delete();
+        }
+        rethrow;
+      }
     }
     final partialName = _resumeFileName(resumeKey ?? fallbackName);
     final tempFile = File(

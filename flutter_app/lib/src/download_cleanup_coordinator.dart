@@ -41,8 +41,9 @@ class DownloadCleanupCoordinator {
   }
 
   Future<DownloadCleanupResult> cancelAndClean(
-    Future<DownloadCleanupResult> Function() deleteFiles,
-  ) {
+    Future<DownloadCleanupResult> Function() deleteFiles, {
+    Future<void> Function()? cancelPending,
+  }) {
     final existing = _cleanupFuture;
     if (existing != null) return existing;
     final completion = Completer<DownloadCleanupResult>();
@@ -54,6 +55,9 @@ class DownloadCleanupCoordinator {
         for (final job in jobs) {
           job._cancel();
         }
+        // Close the registration gate before cancelling persistent season jobs.
+        // Their workers can finish existing transfers but cannot start new ones.
+        await cancelPending?.call();
         await Future.wait(jobs.map((job) => job._finished.future));
         completion.complete(await deleteFiles());
       } catch (error, stack) {

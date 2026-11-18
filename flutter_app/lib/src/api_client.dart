@@ -70,6 +70,23 @@ class MitvApi implements MediaRepository {
               (_providerReference(origin.ref) ? origin.ref : ''),
     ownsClient: false,
   );
+
+  /// A queue owns its HTTP client independently of the page that created it.
+  MitvApi detachedSession({required CatalogItem origin}) => MitvApi(
+    baseUri: _baseUri,
+    edgeUri: _edgeUri,
+    providerBrowser: providerBrowser || origin.discoveryScope == 'beta',
+    browserOrigin: browserOrigin.isNotEmpty
+        ? browserOrigin
+        : origin.sourceRefs.values.where(_providerReference).firstOrNull ??
+              (_providerReference(origin.ref) ? origin.ref : ''),
+    useEdge: providerBrowser || origin.discoveryScope == 'beta'
+        ? false
+        : _useEdge,
+    sourcePlaybackTimeout: sourcePlaybackTimeout,
+    sourceIndexTimeout: sourceIndexTimeout,
+    sourcePollInterval: sourcePollInterval,
+  );
   final Duration sourcePlaybackTimeout;
   final Duration sourceIndexTimeout;
   final Duration sourcePollInterval;
@@ -221,7 +238,11 @@ class MitvApi implements MediaRepository {
       final editions = (status['source_editions'] as List? ?? const [])
           .whereType<Map>();
       if ((!providerBrowser ||
-              const ['ready', 'partial'].contains(status['index_state'])) &&
+              const ['ready', 'partial'].contains(status['index_state']) ||
+              editions.any(
+                (row) =>
+                    row['ref'] == ref && row['index_preview_ready'] == true,
+              )) &&
           editions.any(
             (row) => row['ref'] == ref && row['available'] == true,
           )) {
@@ -396,6 +417,13 @@ class MitvApi implements MediaRepository {
         'offset': '$offset',
       }, const Duration(seconds: 15)),
     );
+    if (providerBrowser &&
+        data['browser_progress'] is Map &&
+        data['browser_progress']['page_limit_reached'] == true &&
+        data['browser_progress']['continuation_available'] == true) {
+      await requestHarvest(ref, reason: 'continue');
+      data['source_index_state'] = 'indexing';
+    }
     return {
       ...data,
       'ref': data['ref'] ?? ref,
@@ -462,6 +490,7 @@ class MitvApi implements MediaRepository {
             'platform': const bool.fromEnvironment('dart.library.js_interop')
                 ? 'web'
                 : 'native',
+            if (providerBrowser) 'progressive': '1',
             if (refresh && firstRequest) 'refresh': '1',
           },
           remaining < const Duration(seconds: 15)
@@ -642,10 +671,9 @@ class MitvApi implements MediaRepository {
   }
 
   PlaybackSource? downloadableSource(String ref) {
-    if (const bool.fromEnvironment('dart.library.js_interop')) return null;
     final sources =
         cachedPlayback(ref)?.mediaSources ?? const <PlaybackSource>[];
-    for (final source in sources) {
+    for (final source in sourceRouter.rank(sources)) {
       if (source.mediaType == 'mp4' &&
           source.expiresAt?.isAfter(
                 DateTime.now().add(const Duration(seconds: 30)),

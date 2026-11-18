@@ -55,6 +55,30 @@ class MediaItem {
   final String source;
   final String discoveryScope;
   final String libraryState;
+  bool get isAnime =>
+      type == 'anime' ||
+      genres.any(
+        (value) =>
+            {'أنمي', 'انمي', 'anime'}.contains(value.toLowerCase()) ||
+            value.startsWith('catalog:anime:') ||
+            value.startsWith('catalog:collection:anime-'),
+      );
+  bool get isTurkish =>
+      type == 'turkish' ||
+      genres.any(
+        (value) =>
+            {'تركي', 'turkish'}.contains(value.toLowerCase()) ||
+            value.startsWith('catalog:turkish:') ||
+            value.startsWith('catalog:collection:turkish-'),
+      );
+  bool matchesLibraryKind(String kind) => switch (kind) {
+    'all' => true,
+    'anime' => isAnime,
+    'turkish' => isTurkish,
+    'series' => type == 'series' && !isAnime,
+    'movie' => type == 'movie' && !isAnime,
+    _ => type == kind,
+  };
   final List<String> genres;
   List<String> get displayGenres => genres
       .where(
@@ -404,6 +428,7 @@ class TitleDetails {
     this.availableSeasons = const [],
     this.sourceIndexAuthoritative = false,
     this.sourceIndexPartial = false,
+    this.sourceIndexState = '',
     this.sourceEdition = 'unknown',
     this.sourceProvider = '',
     this.contentType = '',
@@ -419,6 +444,7 @@ class TitleDetails {
   final List<int> availableSeasons;
   final bool sourceIndexAuthoritative;
   final bool sourceIndexPartial;
+  final String sourceIndexState;
   final String sourceEdition;
   final String sourceProvider;
   final String sourceWorkRef;
@@ -459,6 +485,7 @@ class TitleDetails {
     List<int>? availableSeasons,
     bool? sourceIndexAuthoritative,
     bool? sourceIndexPartial,
+    String? sourceIndexState,
     String? sourceEdition,
     String? sourceProvider,
     String? contentType,
@@ -498,6 +525,7 @@ class TitleDetails {
     sourceIndexAuthoritative:
         sourceIndexAuthoritative ?? this.sourceIndexAuthoritative,
     sourceIndexPartial: sourceIndexPartial ?? this.sourceIndexPartial,
+    sourceIndexState: sourceIndexState ?? this.sourceIndexState,
     sourceEdition: sourceEdition ?? this.sourceEdition,
     sourceProvider: sourceProvider ?? this.sourceProvider,
     contentType: contentType ?? this.contentType,
@@ -561,6 +589,7 @@ class TitleDetails {
       sourceEdition: '${json['source_edition'] ?? 'unknown'}',
       sourceProvider: '${json['provider'] ?? ''}',
       contentType: '${json['type'] ?? ''}',
+      sourceIndexState: '${json['source_index_state'] ?? ''}',
       sourceIndexPartial:
           json['browser_progress'] is Map &&
           json['browser_progress']['partial'] == true,

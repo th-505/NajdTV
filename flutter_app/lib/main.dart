@@ -1,3 +1,5 @@
+import 'src/season_download_queue.dart';
+import 'src/season_download_queue_ui.dart';
 import 'src/work_sharing.dart';
 import 'src/quick_unlock_ui.dart';
 import 'src/remote_bindings.dart';
@@ -63,6 +65,9 @@ class NajdApp extends StatefulWidget {
 
 class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
   late final Future<LocalLibraryStore> storeFuture = LocalLibraryStore.create();
+  String _queueOwner = '';
+  LocalLibraryStore? _queueStore;
+  VoidCallback? _queueOwnerListener;
   final _pointer = VirtualPointerController();
   final _browserObserver = BrowserRouteObserver();
   final _scrollObserver = ScrollToTopNavigatorObserver();
@@ -87,15 +92,42 @@ class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
     _cloudFuture = storeFuture
         .then(CloudLibrarySync.startDefault)
         .catchError((Object _, StackTrace _) => null);
-    unawaited(_cloudFuture);
+    unawaited(
+      _cloudFuture
+          .then((_) async {
+            final store = await storeFuture;
+            if (!mounted) return;
+            void followOwner() {
+              if (_queueOwner == store.ownerScope) return;
+              _queueOwner = store.ownerScope;
+              unawaited(resumeSeasonDownloads(store).catchError((Object _) {}));
+            }
+
+            _queueStore = store;
+            _queueOwnerListener = followOwner;
+            store.addListener(followOwner);
+            followOwner();
+          })
+          .catchError((Object _) {}),
+    );
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    if (_queueOwnerListener != null) {
+      _queueStore?.removeListener(_queueOwnerListener!);
+    }
     _pointer.dispose();
     unawaited(CloudLibrarySync.closeDefault());
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _queueStore != null) {
+      unawaited(resumeSeasonDownloads(_queueStore!).catchError((Object _) {}));
+    }
   }
 
   // Web section URLs are handled by BrowserNavigation. Do not let the
@@ -3014,8 +3046,7 @@ class _LibraryPageState extends State<LibraryPage> {
           .sortedFavorites()
           .where(
             (e) =>
-                (filter == 'all' || e.type == filter) &&
-                e.libraryState == _libraryState,
+                e.matchesLibraryKind(filter) && e.libraryState == _libraryState,
           )
           .toList();
       final history = widget.store.history
@@ -3346,7 +3377,14 @@ class _LibraryPageState extends State<LibraryPage> {
                 ),
               ),
           ],
-          if (mode == NajdLibraryMode.downloads) const DownloadLibrarySection(),
+          if (mode == NajdLibraryMode.downloads) ...[
+            SeasonQueueSummary(
+              key: ValueKey(widget.store.ownerScope),
+              store: widget.store,
+              api: widget.api,
+            ),
+            const DownloadLibrarySection(),
+          ],
         ],
       );
     },

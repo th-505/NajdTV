@@ -791,7 +791,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           if(action==='request')data=await browserWorks.request(ref,{reason:url.searchParams.get('reason')||'card_open'});
           if(action==='status')data=await browserWorks.status(ref);
           if(action==='work')data=await browserWorks.details(ref,{season:Number(url.searchParams.get('season')||1),offset:Number(url.searchParams.get('offset')||0)});
-          if(action==='playback')data=await browserWorks.playback(ref,{season:Number(url.searchParams.get('season')||0),episode:Number(url.searchParams.get('episode')||0),platform:url.searchParams.get('platform')==='web'?'web':'native',refresh:url.searchParams.get('refresh')==='1',origin:url.searchParams.get('origin')||''});
+          if(action==='playback')data=await browserWorks.playback(ref,{season:Number(url.searchParams.get('season')||0),episode:Number(url.searchParams.get('episode')||0),platform:url.searchParams.get('platform')==='web'?'web':'native',refresh:url.searchParams.get('refresh')==='1',progressive:url.searchParams.get('progressive')==='1',origin:url.searchParams.get('origin')||''});
           return sendJson(req,res,200,{status:'success',data});
         }catch(error){const code=/^[A-Z][A-Z0-9_]{2,79}$/.test(error.code||error.message)?error.code||error.message:'BROWSER_SOURCE_UNAVAILABLE';return sendJson(req,res,503,{message:code});}
       }

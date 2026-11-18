@@ -1,3 +1,4 @@
+import {isAdultCatalogItem,isJapaneseAnime,catalogLabels} from './catalog-classification.mjs';
 import {collectionRequest} from './catalog-collections.mjs';
 export const BROWSE_SECTIONS = Object.freeze({
  movies:[['catalog:movie:all','الكل'],['catalog:movie:en','أجنبي'],['catalog:movie:ar','عربي'],['catalog:movie:hi','هندي'],['catalog:movie:ko','آسيوي'],['catalog:movie:tr','تركي']],
@@ -12,20 +13,24 @@ export function browseRequest(ref,page=1){
  if(!known)throw Error('INVALID_CATALOG_SECTION');
  const [,group,value]=ref.split(':');
  const type=group==='movie'||group==='tv'?group:value;
- const language=group==='anime'?'ja':group==='turkish'?'tr':value==='all'?null:value;
+ const language=group==='anime'?'ja':group==='turkish'?'tr':['all','en'].includes(value)?null:value;
  return {path:`/discover/${type}`,type,params:{page:String(number),sort_by:'popularity.desc',
    ...(language?{with_original_language:language}:{}),...(group==='anime'?{with_genres:'16'}:{})}};
 }
 export async function browseCatalog(runtime,ref,page){
  const request=browseRequest(ref,page);const body=await runtime.catalog(request.path,request.params);
- const data=(body.results || []).map(item=>{
+ const ordinarySeries=ref.startsWith('catalog:tv:')||ref.startsWith('catalog:collection:series-');
+ const foreign=ref==='catalog:tv:en'||ref==='catalog:movie:en';
+ const data=(body.results || []).filter(item=>!isAdultCatalogItem(item)&&
+  !(ordinarySeries&&isJapaneseAnime(item))&&
+  (!foreign||(item.original_language&&item.original_language!=='ar'))).map(item=>{
   const id=Number(item.id);if(!Number.isSafeInteger(id)||id<=0)return null;
   const title=item.title||item.name;if(!title)return null;
   return {id:`tmdb:${request.type}:${id}`,ref:`tmdb:${request.type}:${id}`,tmdbId:String(id),title,
     originalTitle:item.original_title||item.original_name||title,type:request.type==='tv'?'series':'movie',mediaType:request.type,
     year:String(item.release_date||item.first_air_date||'').slice(0,4)||null,rating:item.vote_count>0?item.vote_average:null,
     poster:item.poster_path?`https://image.tmdb.org/t/p/w500${item.poster_path}`:'',
-    overview:item.overview||'',source:'tmdb',genre_ids:item.genre_ids||[],original_language:item.original_language||'',category:ref};
+    overview:item.overview||'',source:'tmdb',...(catalogLabels(item).length?{genres:catalogLabels(item)}:{}),genre_ids:item.genre_ids||[],original_language:item.original_language||'',category:ref};
  }).filter(Boolean);
  return {status:'success',source:'tmdb',data,has_more:Number(body.page||page)<Number(body.total_pages||1),page:Number(body.page||page)};
 }

@@ -1,3 +1,4 @@
+import {isAdultCatalogItem,catalogLabels} from './catalog-classification.mjs';
 import { searchTraceEvent } from './diagnostics/search-trace.mjs';
 const TMDB_ORIGIN = "https://api.themoviedb.org";
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -59,6 +60,7 @@ function posterUrl(path, size = "w342") {
 }
 
 function normalizeResult(item = {}) {
+  if (isAdultCatalogItem(item)) return null;
   const mediaType = text(item.media_type);
   if (mediaType !== "movie" && mediaType !== "tv") return null;
   const id = Number(item.id);
@@ -76,6 +78,7 @@ function normalizeResult(item = {}) {
     rating: ratingFrom(item.vote_average),
     ...(item.popularity != null && Number.isFinite(Number(item.popularity)) ? {popularity: Math.max(0, Number(item.popularity))} : {}),
     source: "tmdb",
+    ...(catalogLabels(item).length ? {genres:catalogLabels(item)} : {}),
     ref: `tmdb:${mediaType}:${id}`,
   };
 }
@@ -89,6 +92,7 @@ function parseRef(value) {
 }
 
 function normalizeDetails(body = {}, mediaType, id) {
+  if (isAdultCatalogItem(body)) throw Error('TMDB_ADULT_CONTENT_EXCLUDED');
   const series = mediaType === "tv";
   const title = text(series ? body.name : body.title);
   if (!title) throw new Error("TMDB_INVALID_DETAILS");
@@ -125,7 +129,7 @@ function normalizeDetails(body = {}, mediaType, id) {
       number_of_seasons: series ? Number(body.number_of_seasons) || seasons.length : null,
       number_of_episodes: series ? Number(body.number_of_episodes) || null : null,
       seasons,
-      genres: Array.isArray(body.genres) ? body.genres.map((genre) => text(genre?.name)).filter(Boolean) : [],
+      genres: [...new Set([...(Array.isArray(body.genres) ? body.genres.map((genre) => text(genre?.name)).filter(Boolean) : []), ...catalogLabels(body)])],
       cast: Array.isArray(body.credits?.cast) ? body.credits.cast.slice(0, 12).map((person) => ({
         id: Number(person?.id) || null,
         name: text(person?.name),
@@ -372,7 +376,10 @@ export function createTmdbRuntime({
     const valid = validateTmdbCatalogRequest(path, params);
     const key = `catalog:${valid.path}:${JSON.stringify(valid.params)}`;
     // Callers may reshape catalog objects, so never expose mutable cache objects.
-    return structuredClone(await cachedRequest(key, () => request(`/3${valid.path}`, valid.params)));
+    const body = structuredClone(await cachedRequest(key, () => request(`/3${valid.path}`, valid.params)));
+    if (isAdultCatalogItem(body)) throw Error('TMDB_ADULT_CONTENT_EXCLUDED');
+    if (Array.isArray(body.results)) body.results = body.results.filter(item => !isAdultCatalogItem(item));
+    return body;
   }
 
   return Object.freeze({ status, search, details, season, trending, catalog, personWorks });
