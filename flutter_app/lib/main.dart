@@ -991,7 +991,11 @@ class HomePage extends StatefulWidget {
     required this.api,
     required this.store,
     this.onNavigate,
+    this.refreshInterval = const Duration(minutes: 10),
+    this.now,
   });
+  final Duration refreshInterval;
+  final DateTime Function()? now;
   final ValueChanged<int>? onNavigate;
   final MitvApi api;
   final LocalLibraryStore store;
@@ -999,7 +1003,65 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+  Timer? _refreshTimer;
+  late DateTime _lastRefresh;
+  bool _visible = false;
+  bool _foreground = true;
+  DateTime get _now => widget.now?.call() ?? DateTime.now();
+  @override
+  void initState() {
+    super.initState();
+    _lastRefresh = _now;
+    _foreground =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _visible = TickerMode.valuesOf(context).enabled;
+    _scheduleRefresh();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _scheduleRefresh();
+  }
+
+  void _scheduleRefresh() {
+    _refreshTimer?.cancel();
+    if (!_visible || !_foreground || !mounted) return;
+    final remaining = widget.refreshInterval - _now.difference(_lastRefresh);
+    _refreshTimer = Timer(remaining.isNegative ? Duration.zero : remaining, () {
+      if (!mounted || !_visible || !_foreground) return;
+      _lastRefresh = _now;
+      setState(() {
+        _featured = _freshShelf('catalog:collection:home-daily', _featured);
+        _latest = _freshShelf('catalog:movie:all', _latest);
+        _series = _freshShelf('catalog:tv:all', _series);
+        _anime = _freshShelf('catalog:anime:tv', _anime);
+        _topMovies = _freshShelf('catalog:collection:movie-top', _topMovies);
+        _topSeries = _freshShelf('catalog:collection:series-top', _topSeries);
+      });
+      _scheduleRefresh();
+    });
+  }
+
+  Future<List<CatalogItem>> _freshShelf(
+    String ref,
+    Future<List<CatalogItem>> old,
+  ) => widget.api.category(ref).catchError((Object _) => old);
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   final Map<String, String> _homeSignatures = {};
   late Future<List<CatalogItem>> _featured = widget.api.category(
     'catalog:collection:home-daily',
@@ -1171,7 +1233,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-          if (snapshot.connectionState != ConnectionState.done)
+          if (snapshot.connectionState != ConnectionState.done && items.isEmpty)
             const SizedBox(height: 200, child: NajdSkeleton()),
           if (items.isNotEmpty)
             FutureBuilder<List<CatalogItem>>(

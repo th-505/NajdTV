@@ -1,5 +1,7 @@
 # Current release work: 5.2.0
 
+Latest steering (2026-11-18): prioritize completing client/package changes, distinguish them from later server-only delivery, and do not claim installed applications gain new UI from a backend update. See [delivery matrix](DELIVERY_5.2.0.md).
+
 Latest user decision: email/password login; signup with display name/email/password. Email confirmation remains supported, not a mandatory newly implemented OTP-only design. Local quick unlock must not become username + short-code remote authentication. Six target builds are authorized after completion, with no partial release. The older intake below is retained as history; the final status section identifies what is actually implemented.
 
 # Pending account/settings work — approval required before any build
@@ -155,3 +157,10 @@ Implemented on the ordinary review branch; final 5.2.0 packages remain gated.
 - Offline Node unified suite: 358 passed; runtime check and continuation scripts passed, including 172 provider fixture assertions with zero network attempts. Flutter analysis is clean. Full Flutter rerun: 484 passed, 7 environment-dependent skips. Fresh debug Web compilation and Chromium MP4, HLS, live switching, MP4 browser handoff, PiP and navigation checks passed with zero page exceptions; see VALIDATION_5.2.0.md.
 
 Short-drama research used guarded public HTTPS requests, not an enabled provider claim: Dragon Shorts' public work page directs playback to its app and contains no browser video; Dramacix was unavailable; Drama Wbas exposes real episode routes and a player whose source is obtained separately. Do not add a playable-source badge from marketing text or episode counts. Private captures stay outside Git.
+
+
+## Foreground home freshness, 2026-11-18
+
+Home shelves now refresh after ten minutes while visible and foregrounded, or when returning to a stale retained tab. Hidden tabs and background lifecycle states stop the timer. Failed automatic refresh keeps the previous successful cards, and refreshing existing cards does not insert the initial skeleton above them. Upstream popular/trending selections remain observed metadata, not fabricated random changes. This requires a client/Web frontend update, not just a backend deployment.
+
+The new widget regression advances the clock, leaves/re-enters the tab, pauses/resumes the app and simulates an offline refresh; four targeted home/carousel tests passed. Full client suite and fresh Web checks are recorded in VALIDATION_5.2.0.md. A disk-full test attempt is invalid evidence; only the clean rerun counts.

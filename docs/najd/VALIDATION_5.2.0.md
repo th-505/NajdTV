@@ -49,3 +49,11 @@ Previous six-target review run 43921505393 had macOS cancelled and final verifie
 - Actual source episode alternatives are all attempted in the browser service. Verified files are de-duplicated, prior playable media remains visible while later siblings scan, and a failed alternative is reported incomplete without erasing the playable ones.
 - Physical Android/iOS task recovery and continuing subsequent season jobs after process termination remain unverified; no desktop or browser app-closed continuation guarantee is made. Remaining short-drama/Asian coverage, durable media-host scan continuation, full episode duration enrichment, secure quick-watch relay and full source quality/decoder matrix remain outstanding.
 - No six-platform final release, version bump, production merge or Render rebuild was performed for this checkpoint. Source package version remains 5.0.1 until acceptance and coordinated version update.
+
+
+## Client-delivery / home freshness checkpoint, 2026-11-18
+
+- Flutter analysis: no issues. Full clean rerun: 485 passed, 7 environment-dependent skips. One widget regression verifies stale visible-tab refresh, no hidden/background requests, foreground return and retaining previous cards on refresh failure. Targeted home/carousel suite: 4 passed.
+- A disk-full attempt was stopped and is not counted as a code failure or acceptance pass. Removed only generated compilation intermediates and the re-downloadable npx CLI cache; retained user data, database containers, credentials, private fonts and compiled Web preview.
+- A fresh debug Web compilation succeeded after the home change. Real Chromium navigation/reload/invalid-episode checks passed with zero exceptions and zero unnecessary home fetches. Decoded local MP4, browser download handoff and standard PiP entry/exit also passed with zero page exceptions. Earlier unchanged HLS/live checks remain recorded above.
+- Runtime Node source code is unchanged since its 358-pass unified run and successful runtime/continuation checks. See DELIVERY_5.2.0.md for the explicit split between new-client, server-only and combined changes. No final packaging/publication or production deployment is implied by these local debug checks.
