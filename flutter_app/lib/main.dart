@@ -1,3 +1,4 @@
+import 'src/deferred_client_features.dart';
 import 'src/season_download_queue.dart';
 import 'src/season_download_queue_ui.dart';
 import 'src/work_sharing.dart';
@@ -668,35 +669,63 @@ class _ShellState extends State<Shell> {
                   itemCount: NajdUi.pageIds.length + 1,
                   itemBuilder: (context, i) {
                     if (i >= NajdUi.pageIds.length) {
-                      return ListTile(
-                        key: const Key('nav-provider-beta'),
-                        focusNode: _navFocus[i],
-                        minTileHeight: isTvTarget ? 64 : 48,
-                        leading: const Icon(Icons.science_outlined),
-                        title: const Text('تصفح المزود — تجريبي'),
-                        subtitle: const Text('ميزة تحت التجربة'),
-                        onTap: () {
-                          if (drawer) _closeNavigation();
-                          if (!NajdPreferences.instance.providerBeta) {
-                            _selectPage(8);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'فعّل تصفح المزود التجريبي من الإعدادات',
+                      return Column(
+                        children: [
+                          ServerFeatureTile(
+                            api: api,
+                            feature: 'short_drama_v1',
+                            title: 'الدراما القصيرة',
+                            icon: Icons.video_collection_outlined,
+                            onTap: () {
+                              if (drawer) _closeNavigation();
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => Scaffold(
+                                    appBar: AppBar(
+                                      title: const Text('الدراما القصيرة'),
+                                    ),
+                                    body: CatalogPage(
+                                      api: api,
+                                      store: widget.store,
+                                      title: 'الدراما القصيرة',
+                                      categoryId: 'catalog:short-drama:all',
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            );
-                            return;
-                          }
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ProviderBrowserPage(
-                                api: api,
-                                store: widget.store,
-                              ),
-                            ),
-                          );
-                        },
+                              );
+                            },
+                          ),
+                          ListTile(
+                            key: const Key('nav-provider-beta'),
+                            focusNode: _navFocus[i],
+                            minTileHeight: isTvTarget ? 64 : 48,
+                            leading: const Icon(Icons.science_outlined),
+                            title: const Text('تصفح المزود — تجريبي'),
+                            subtitle: const Text('ميزة تحت التجربة'),
+                            onTap: () {
+                              if (drawer) _closeNavigation();
+                              if (!NajdPreferences.instance.providerBeta) {
+                                _selectPage(8);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'فعّل تصفح المزود التجريبي من الإعدادات',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ProviderBrowserPage(
+                                    api: api,
+                                    store: widget.store,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       );
                     }
                     return FocusTraversalOrder(

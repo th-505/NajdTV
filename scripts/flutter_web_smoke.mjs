@@ -5,6 +5,7 @@ import path from "node:path";
 import os from "node:os";
 import { chromium } from "playwright-core";
 const dir = path.resolve("flutter_app/build/web");
+const appBase = fs.readFileSync(path.join(dir,"index.html"),"utf8").match(/<base href="([^"]+)"/)[1];
 const format = process.argv[2] === "hls" ? "hls" : "mp4";
 const liveMode = process.env.NAJD_TEST_LIVE === '1';
 const liveRows = ['a','b'].map((id,index) => ({id:id.repeat(24),ref:`live:iptv-org:sa:${id.repeat(24)}`,title:`قناة الاختبار ${index+1}`,poster:'',type:'live'}));
@@ -21,7 +22,7 @@ const mime = {
 const server = http.createServer((req, res) => {
   const file = path.join(
     dir,
-    new URL(req.url, "http://local").pathname.replace(/^\/internal\//, ""),
+    new URL(req.url, "http://local").pathname.replace(new RegExp("^"+appBase.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")), ""),
   );
   if (
     !file.startsWith(dir + "/") ||
@@ -166,8 +167,8 @@ await page.route("https://media.fixture.example/**", async (route) => {
 });
 try {
   await page.goto(
-    liveMode ? `http://127.0.0.1:${server.address().port}/internal/index.html#/player?ref=${encodeURIComponent(liveRows[0].ref)}&source=${encodeURIComponent(liveRows[0].ref)}&type=live`
-      : `http://127.0.0.1:${server.address().port}/internal/index.html?ref=alooy:fixture`,
+    liveMode ? `http://127.0.0.1:${server.address().port}${appBase}index.html#/player?ref=${encodeURIComponent(liveRows[0].ref)}&source=${encodeURIComponent(liveRows[0].ref)}&type=live`
+      : `http://127.0.0.1:${server.address().port}${appBase}index.html?ref=alooy:fixture`,
   );
   await page.locator("flutter-view").waitFor({ timeout: 60000 });
   const placeholder = page.locator("flt-semantics-placeholder");

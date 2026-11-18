@@ -8,6 +8,11 @@ on:
         required: false
         default: ''
         type: string
+      base_href:
+        description: Validated application base path
+        required: false
+        default: /internal/
+        type: string
       api_base:
         description: Public metadata API URL, identical to the native builds
         required: true
@@ -23,6 +28,7 @@ permissions:
 env:
   MITV_API_BASE: ${{ inputs.api_base }}
   MITV_SOURCE_COMMIT: ${{ github.sha }}
+  MITV_WEB_BASE: ${{ inputs.base_href }}
 
 jobs:
   build:
@@ -54,7 +60,7 @@ jobs:
           flutter analyze
           flutter test --dart-define=MITV_TARGET=web
           dart run tool/alooy_bridge_smoke.dart
-          flutter build web --release --no-web-resources-cdn --base-href=/internal/ --dart-define=MITV_TARGET=web --dart-define="MITV_API_BASE=$MITV_API_BASE"
+          flutter build web --release --no-web-resources-cdn --base-href="$MITV_WEB_BASE" --dart-define=MITV_TARGET=web --dart-define="MITV_API_BASE=$MITV_API_BASE"
       - name: Verify original Web font files and weights in compiled output
         run: python3 scripts/verify_thmanyah_build.py flutter_app/build/web/assets woff2
       - uses: actions/setup-node@v4

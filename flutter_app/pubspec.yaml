@@ -1,7 +1,7 @@
 name: mitv
 publish_to: none
 description: Najd TV shared cross-platform media client.
-version: 5.0.1+501
+version: 5.2.0+520
 
 environment:
   sdk: ">=3.13.7 <4.0.0"

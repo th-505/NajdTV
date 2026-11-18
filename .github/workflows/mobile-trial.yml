@@ -56,6 +56,7 @@ jobs:
       - run: python -m pip install -r scripts/requirements-branding.txt
       - run: npm ci
       - run: node scripts/runtime_version_contract_test.mjs
+      - run: python3 scripts/verify_release_api_test.py
       - run: npm run check
       - run: npm run test:continuation
       - run: node --test tests/*.test.mjs
@@ -404,6 +405,7 @@ jobs:
     with:
       api_base: ${{ inputs.api_base || 'https://najdtv.onrender.com' }}
       font_bundle_url: ${{ inputs.font_bundle_url || '' }}
+      base_href: /NajdTV/
     secrets: inherit
 
   verify-release:
@@ -438,48 +440,42 @@ jobs:
           path: device-verification.json
           retention-days: 14
           if-no-files-found: error
-      - name: Require the matching production API before publication
+      - name: Verify the compatible existing API without forcing a server release
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
+        run: python3 scripts/verify_release_api.py "$MITV_API_BASE"
+      - name: Prepare the verified public Web application
         if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
         run: |
-          python3 - <<'PYGATE'
-          import json, os, pathlib, re, urllib.request
-          expected = re.search(r'^version: (\d+\.\d+\.\d+)\+', pathlib.Path('flutter_app/pubspec.yaml').read_text(), re.M).group(1)
-          with urllib.request.urlopen(os.environ['MITV_API_BASE'].rstrip('/') + '/health', timeout=90) as response:
-              health = json.load(response)
-          assert health.get('version') == expected, 'Deploy and verify the matching single-server API before publishing clients'
-          PYGATE
-      - name: Deploy verified Web bundle only behind server authentication
+          python3 - <<'PYWEB'
+          import pathlib, zipfile
+          archive=pathlib.Path('device-artifacts/Najd-TV-Flutter-Web/Najd-TV-Web.zip')
+          destination=pathlib.Path('/tmp/najd-public-web')
+          with zipfile.ZipFile(archive) as package:
+              for name in package.namelist():
+                  path=pathlib.PurePosixPath(name)
+                  assert not path.is_absolute() and '..' not in path.parts
+                  assert not ('thmanyah' in name.lower() and path.suffix.lower() in ('.otf','.ttf','.woff'))
+              package.extractall(destination)
+          PYWEB
+          python3 scripts/verify_public_web.py /tmp/najd-public-web
+          python3 scripts/verify_thmanyah_build.py /tmp/najd-public-web/assets woff2
+      - name: Publish verified public files without deploying the deferred server changes
         if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git fetch origin main
-          git merge-base --is-ancestor "$MITV_SOURCE_COMMIT" origin/main
-          git diff --exit-code "$MITV_SOURCE_COMMIT" origin/main -- flutter_app shared assets/brand
-          python3 - <<'PYWEB'
-          import pathlib, zipfile, shutil
-          archive=pathlib.Path('device-artifacts/Najd-TV-Flutter-Web/Najd-TV-Web.zip')
-          destination=pathlib.Path('/tmp/najd-internal-web')
-          with zipfile.ZipFile(archive) as package:
-              for name in package.namelist():
-                  path=pathlib.PurePosixPath(name)
-                  assert not path.is_absolute() and '..' not in path.parts
-                  assert not ('thmanyah' in name.lower() and path.suffix.lower() in ('.otf','.ttf','.woff')), 'Native font source cannot enter Web output'
-              package.extractall(destination)
-          PYWEB
-          python3 scripts/verify_thmanyah_build.py /tmp/najd-internal-web/assets woff2
           git checkout -B main origin/main
-          rm -rf internal_web
-          mkdir internal_web
-          cp -R /tmp/najd-internal-web/. internal_web/
-          git add internal_web
+          python3 scripts/publish_legacy_pages.py /tmp/najd-public-web
           if ! git diff --cached --quiet; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git commit -m 'Deploy verified Najd internal Web bundle [skip ci]'
+            git commit -m 'Publish verified Najd 5.2.0 client [skip ci] [skip render]'
             git push origin main
           fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
+          git checkout --detach "$MITV_SOURCE_COMMIT"
       - name: Publish all verified packages together
         if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
         env:
@@ -497,10 +493,10 @@ jobs:
           PY
           VERSION="$(cat /tmp/mitv-release-version)"
           shopt -s nullglob
-          ASSETS=(device-artifacts/*/*.apk device-artifacts/*/*.ipa device-artifacts/*/*.exe device-artifacts/*/*.zip device-artifacts/*/*.dmg device-artifacts/*/*.sha256 device-artifacts/*/macOS-report.json device-verification.json)
+          ASSETS=(device-artifacts/*/*.apk device-artifacts/*/*.ipa device-artifacts/*/*.exe device-artifacts/*/*.dmg device-artifacts/*/*.sha256 device-artifacts/*/macOS-report.json device-verification.json)
           PUBLIC_ASSETS=()
           for ASSET in "${ASSETS[@]}"; do
-            case "$ASSET" in *Najd-TV-Flutter-Web/*) continue ;; esac
+            case "$ASSET" in *Najd-TV-Flutter-Web/*|*.zip.sha256) continue ;; esac
             PUBLIC_ASSETS+=("$ASSET")
           done
-          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$MITV_SOURCE_COMMIT" --prerelease --title "NajdTV v$VERSION" --notes-file /tmp/release-notes.md "${PUBLIC_ASSETS[@]}"
+          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$MITV_SOURCE_COMMIT" --title "NajdTV v$VERSION" --notes-file /tmp/release-notes.md "${PUBLIC_ASSETS[@]}"

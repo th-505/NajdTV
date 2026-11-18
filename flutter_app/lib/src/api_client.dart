@@ -884,6 +884,90 @@ class MitvApi implements MediaRepository {
   }
 
   /// Server capabilities are authoritative; unsupported sources are not offered.
+  Future<Set<String>>? _featuresPending;
+  Set<String> _features = {};
+  DateTime? _featuresAt;
+
+  /// Optional additive contract: old servers hide unsupported client actions.
+  Future<Set<String>> clientFeatures() {
+    if (_featuresAt?.isAfter(
+          DateTime.now().subtract(const Duration(minutes: 2)),
+        ) ==
+        true) {
+      return Future.value(_features);
+    }
+    return _featuresPending ??=
+        () async {
+          try {
+            final body = await _getJson(
+              '/api/v1/client-features',
+              null,
+              const Duration(seconds: 3),
+            );
+            final values = body['features'];
+            _features = values is List
+                ? values
+                      .whereType<String>()
+                      .where({'quick_watch_v1', 'short_drama_v1'}.contains)
+                      .toSet()
+                : <String>{};
+          } catch (_) {
+            _features = {};
+          }
+          _featuresAt = DateTime.now();
+          return _features;
+        }().whenComplete(() {
+          _featuresPending = null;
+        });
+  }
+
+  Future<Uri> createQuickWatchLink(
+    String ref, {
+    required String bearer,
+    int? season,
+    int? episode,
+  }) async {
+    if (ref.isEmpty ||
+        ref.length > 4096 ||
+        bearer.isEmpty ||
+        bearer.contains(RegExp(r'[\r\n]')) ||
+        (season != null && (season < 0 || season > 100)) ||
+        (episode != null && (episode < 0 || episode > 100000))) {
+      throw const ApiException('INVALID_QUICK_WATCH_REQUEST');
+    }
+    final response = await _client
+        .post(
+          _baseUri.replace(path: '/api/v1/watch-links'),
+          headers: {
+            'content-type': 'application/json',
+            'authorization': 'Bearer $bearer',
+          },
+          body: jsonEncode({
+            'ref': ref,
+            'season': ?season,
+            'episode': ?episode,
+          }),
+        )
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode != 201 || response.bodyBytes.length > 8192) {
+      throw const ApiException('QUICK_WATCH_UNAVAILABLE');
+    }
+    final body = jsonDecode(response.body);
+    final value = body is Map ? body['url'] : null;
+    final uri = value is String ? Uri.tryParse(value) : null;
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.origin != _baseUri.origin ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        uri.hasFragment ||
+        !RegExp(r'^/watch/[A-Za-z0-9_-]{24,128}/[^/]{1,240}\.(m3u8|mp4)$')
+            .hasMatch(uri.path)) {
+      throw const ApiException('INVALID_QUICK_WATCH_RESPONSE');
+    }
+    return uri;
+  }
+
   Future<List<Map<String, dynamic>>> browserSources() async {
     final json = await _getJson('/api/v1/browser/sources');
     return _list(json['data']);

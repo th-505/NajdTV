@@ -1,3 +1,4 @@
+import 'deferred_client_features.dart';
 import 'work_sharing.dart';
 import 'live_channels_panel.dart';
 import 'browser_download.dart';
@@ -651,7 +652,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       return;
     }
     _serverScanTimer = Timer(const Duration(seconds: 3), () async {
-      if (!mounted || !_serverScanActive || !_generation.isCurrent(generation)) {
+      if (!mounted ||
+          !_serverScanActive ||
+          !_generation.isCurrent(generation)) {
         return;
       }
       try {
@@ -2213,6 +2216,27 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                 ),
             ],
           ),
+          if (!widget.isLive && widget.localFileUri == null)
+            ServerFeatureTile(
+              api: widget.api,
+              feature: 'quick_watch_v1',
+              title: 'إنشاء رابط مشاهدة سريعة',
+              icon: Icons.link,
+              onTap: () {
+                Navigator.pop(panelContext);
+                unawaited(
+                  showQuickWatchLink(
+                    context,
+                    widget.api,
+                    widget.sourceRef.isEmpty
+                        ? widget.item.ref
+                        : widget.sourceRef,
+                    season: widget.item.season,
+                    episode: widget.episodeNumber,
+                  ),
+                );
+              },
+            ),
           for (final option in [
             if (_pipAvailable)
               ('pip', 'صورة داخل صورة', Icons.picture_in_picture_alt),
