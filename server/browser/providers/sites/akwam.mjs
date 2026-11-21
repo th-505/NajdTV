@@ -488,7 +488,7 @@ export async function resolveAkwamBridgeToDirectMp4(bridgeLinkUrl, refererUrl = 
           $2('video source, source[src*=".mp4"], source[src*=".m3u8"]').each((_, el) => {
             const src = $2(el).attr('src') || '';
             const size = $2(el).attr('size') || '';
-            if (src && src.startsWith('http')) {
+            if (src && isValidDirectMediaUrl(src)) {
               const streamType = src.includes('.m3u8') ? 'm3u8' : 'mp4';
               streams.push({
                 url: src,
@@ -808,10 +808,11 @@ export async function scrapeServers(urlOrRef, options = {}) {
 
       // Check if page already has direct media tags
       const $page = cheerio.load(res.html);
+      const pageUrl = res.url || cleanUrl;
       $page('video source, source[src*=".mp4"], source[src*=".m3u8"]').each((_, el) => {
-        const src = $page(el).attr('src') || '';
+        const src = resolveSafeUrl($page(el).attr('src') || '', pageUrl, {allowHttp:false});
         const size = $page(el).attr('size') || '1080';
-        if (src && src.startsWith('http')) {
+        if (src && isValidDirectMediaUrl(src)) {
           const streamType = src.includes('.m3u8') ? 'm3u8' : 'mp4';
           rawServers.push({
             name: `أكوام مباشر (${size}p)`,
@@ -820,15 +821,15 @@ export async function scrapeServers(urlOrRef, options = {}) {
             type: streamType,
             streamType,
             quality: `${size}p`,
-            headers: { Referer: cleanUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
+            headers: { Referer: pageUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
           });
         }
       });
 
       // Check for direct download buttons on the current page
       $page('a.download-link[href*=".mp4"], a.link[href*=".mp4"], .btn-loader a[href*=".mp4"]').each((_, el) => {
-        const href = $page(el).attr('href') || '';
-        if (href && href.startsWith('http')) {
+        const href = resolveSafeUrl($page(el).attr('href') || '', pageUrl, {allowHttp:false});
+        if (href && isValidDirectMediaUrl(href)) {
           const qMatch = ($page(el).text() + ' ' + href).match(/(1080p|720p|480p|4k|360p)/i);
           const qLabel = qMatch ? qMatch[1].toUpperCase() : '1080p';
           rawServers.push({
@@ -838,13 +839,13 @@ export async function scrapeServers(urlOrRef, options = {}) {
             type: 'mp4',
             streamType: 'mp4',
             quality: qLabel,
-            headers: { Referer: cleanUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
+            headers: { Referer: pageUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
           });
         }
       });
 
       // Extract watch and download bridge links
-      const bridgeLinks = extractBridgeLinks(res.html, AKWAM_CONFIG.baseUrl);
+      const bridgeLinks = extractBridgeLinks(res.html, pageUrl);
 
       // Direct links may belong to a dead CDN. Collect the other observed
       // qualities as well; a first result must never hide later source links.

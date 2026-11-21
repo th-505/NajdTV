@@ -59,7 +59,16 @@ export function createSourceApi({store,worker,now=Date.now,resolvePlayback=null}
   const work=await store.getWork(key);if(!work)return{state:'unavailable',reason:'SOURCE_INDEX_PENDING'};
   if(work.type==='movie'){season=0;episode=0;}
   if(![season,episode].every(Number.isSafeInteger)||season<0||season>100||episode<0||episode>100000)throw Error('HARVEST_BAD_EPISODE');
-  const rows=await store.episodes(key,{season,episode,limit:100,indexedSince:work.metadata.index_started_at});if(!rows?.length)return{state:'unavailable',reason:'SOURCE_EPISODE_NOT_FOUND'};
+  let rows=await store.episodes(key,{season,episode,limit:100,indexedSince:work.metadata.index_started_at});
+  // A film needs a confirmed work reference, not a synthetic episode row.
+  const original = work.metadata?.source_ref;
+  if (!rows?.length && work.type === 'movie' && resolvePlayback &&
+      typeof original === 'string' && original.startsWith('akwam:')) {
+   let confirmed = false;
+   try { confirmed = workReference(original) === key; } catch {}
+   if (confirmed) rows = [{provider:'akwam',source_ref:original}];
+  }
+  if(!rows?.length)return{state:'unavailable',reason:'SOURCE_EPISODE_NOT_FOUND'};
   if(resolvePlayback){
    const extract=async()=>{
    const servers=[], inventories=[];

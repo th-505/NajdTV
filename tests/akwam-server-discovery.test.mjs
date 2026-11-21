@@ -29,3 +29,13 @@ for(const [name,provider]of [['main',main],['beta',beta]]){
   assert(resolved.servers.some(s=>s.url==='https://cdn.example/quality-7.mp4'));
  });
 }
+
+for (const [name, provider] of [['main', main], ['beta', beta]]) {
+ test(name + ' resolves relative video sources against the work page', async () => {
+  const servers = await provider.scrapeServers(root, {
+   fixtures:{[root]:'<video><source src="/media/film.mp4" size="720"></video>'},
+  });
+  const media = servers.find(row => row.url === 'https://akwam.ss/media/film.mp4');
+  assert.equal(media?.headers?.Referer, root);
+ });
+}

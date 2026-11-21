@@ -181,3 +181,19 @@ test('source continuation reuses guarded provider HTML and retains the root titl
  assert.equal(store.works.get(ref).title,'Root title');assert.equal(store.works.get(ref).year,2019);
  assert.equal([...store.episodeRows.values()][0].season,2);
 });
+
+test('an Akwaam film starts from its confirmed work without an episode row', async () => {
+ const store = memoryStore();
+ const original = 'akwam:' + Buffer.from('https://akwam.ss/movie/42/film').toString('base64url');
+ const ref = workReference(original);
+ await store.putWork({ref,type:'movie',metadata:{source_ref:original}});
+ const calls = [];
+ const api = createSourceApi({store, worker:{}, resolvePlayback:async input => {
+  calls.push(input);
+  return [{url:'https://media.example/film.mp4'}];
+ }});
+ assert.equal((await api.sourcePlayback(ref,{season:1,episode:9})).state,'ready');
+ assert.deepEqual(calls.map(({row,season,episode}) => [row.source_ref,season,episode]),[[original,0,0]]);
+ await store.putWork({ref,type:'series',metadata:{source_ref:original}});
+ assert.equal((await api.sourcePlayback(ref,{season:1,episode:9})).reason,'SOURCE_EPISODE_NOT_FOUND');
+});

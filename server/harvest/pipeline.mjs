@@ -125,7 +125,7 @@ export function createHarvestPipeline({store,metadata,entries,now=Date.now,probe
    if(input.payload.platform==='web' && technical.webPlayable!==true){
     probeFailures.push({reason:'PINNED_DIRECT_WEB_UNAVAILABLE'});continue;
    }
-   const publicHeaders={};for(const[k,v]of Object.entries(candidate.headers||{}))if(['referer','origin','user-agent','cookie'].includes(k.toLowerCase())&&typeof v==='string'&&!/[\r\n]/.test(v))publicHeaders[k]=v;
+   const publicHeaders={};for(const[k,v]of Object.entries(input.payload.platform==='web'?{}:candidate.headers||{}))if(['referer','origin','user-agent','cookie'].includes(k.toLowerCase())&&typeof v==='string'&&v.length<=8192&&!/[\r\n]/.test(v))publicHeaders[k]=v;
    accepted.push({...candidate,...(technical.adaptive?{adaptive:true,quality:'AUTO-HLS',quality_levels:technical.quality_levels}:{}),provider:entry.meta.id,kind:'direct',headers:publicHeaders,expires_at:new Date(expires).toISOString(),identity_verified:true,observed_identity:{...(input.payload.observed_identity||{}),season:input.payload.observed_episode?.season||0,episode:input.payload.observed_episode?.episode||0},source_identity:input.payload.observed_episode||null,canonical_identity_verified:work.metadata.identity_scope!=='source',source_edition:work.metadata.source_edition||'unknown',edition:work.metadata.edition||entry.meta.id+':'+shortHash(source),source_ref:source,verification_basis:(work.metadata.identity_scope==='source'?'source-own-index-and-':'canonical-work-source-metadata-and-')+(technical.container_verified?'container-bytes':'probe'),web_playable:technical.webPlayable===true,season:input.season_number,episode:input.episode_number});
   }
    return accepted;};
