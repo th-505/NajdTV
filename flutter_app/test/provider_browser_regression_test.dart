@@ -67,7 +67,7 @@ void main() {
     expect(CatalogItem.fromJson({'rating': '8.5'}).rating, 8.5);
   });
   testWidgets(
-    'browser chooses explicitly and restores its own provider without changing global search preference',
+    'browser shows the first catalogue and restores its own provider without changing global search preference',
     (tester) async {
       SharedPreferences.setMockInitialValues({'search.source.v1': 'tmdb'});
       final store = await LocalLibraryStore.create();
@@ -113,13 +113,12 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(providers, isEmpty);
-      expect(find.text('اختر المزود لتصفح أقسامه وأعماله'), findsOneWidget);
-      await tester.tap(find.text('اختر المزود'));
+      expect(providers, ['mycima']);
+      await tester.tap(find.text('ماي سيما'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('أهواك'));
       await tester.pumpAndSettle();
-      expect(providers, ['ahwak']);
+      expect(providers, ['mycima', 'ahwak']);
       expect(find.text('عمل أهواك'), findsOneWidget);
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('search.source.v1'), 'tmdb');
@@ -137,7 +136,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(providers, ['ahwak', 'ahwak']);
+      expect(providers, ['mycima', 'ahwak', 'ahwak']);
       expect(find.text('عمل أهواك'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       api.close();

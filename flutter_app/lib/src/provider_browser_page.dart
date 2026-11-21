@@ -92,6 +92,7 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
         } else if (!sources.any((s) => s['id'] == _provider)) {
           _provider = null;
         }
+        _provider ??= sources.firstOrNull?['id'] as String?;
         if (!_categories.any((c) => c['id'] == _category)) _category = '';
       });
       if (_provider == null) {
@@ -213,7 +214,7 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                     _category = '';
                   });
                   await _rememberProvider();
-                  await _load();
+                  if (mounted) await _load();
                 },
               ),
               TextField(
@@ -309,7 +310,7 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                     item: _items[index],
                     onTap: () {
                       final item = _items[index];
-                      if (item.type == 'live') {
+                      if (item.type == 'live' || item.type == 'movie') {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -319,7 +320,7 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                               item: item,
                               title: item.title,
                               sourceRef: item.ref,
-                              isLive: true,
+                              isLive: item.type == 'live',
                             ),
                           ),
                         );
