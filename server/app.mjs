@@ -1,3 +1,4 @@
+import {createQuickWatch, authenticateQuickWatch} from './quick-watch.mjs';
 import {readSourceRevision} from './source-revision.mjs';
 const SOURCE_REVISION=readSourceRevision();
 import {sourceResponse,providerErrorCode} from '../shared/provider-contract.js';
@@ -90,7 +91,7 @@ function applyCors(req, res) {
   }
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Range");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Range,Authorization");
   res.setHeader("Access-Control-Expose-Headers", "Content-Type,Content-Length,Content-Range,Accept-Ranges,Content-Disposition,X-Trace-Id");
 }
 
@@ -608,6 +609,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
   const maintenanceIdentity=createGithubIdentityVerifier();
   const internalWeb=createInternalWeb();
   const playbackSessions=createPlaybackSessions();
+  const quickWatch = createQuickWatch();
   async function releaseDiscovery(state,input){
     if(!state.result?.servers?.length||typeof harvest.sessionMedia!=='function')return state;
     const extract=()=>harvest.sessionMedia(input.ref,{season:Number(input.season)||0,
@@ -626,7 +628,8 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
     const started = Date.now();
     const client = getClientAddress(req);
     if (["/api/cinema/media", "/api/alooy/media"].includes(url.pathname)) return retiredMedia(req, res);
-    const rate = apiRateLimit(`${client}:${url.pathname}`);
+    const ratePath = url.pathname.startsWith('/watch/') ? '/watch/' : url.pathname;
+    const rate = apiRateLimit(`${client}:${ratePath}`);
     if (!rate.ok) {
       res.setHeader("Retry-After", String(rate.retryAfterSec));
       res.setHeader("X-RateLimit-Remaining", "0");
@@ -634,6 +637,33 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
     }
     res.setHeader("X-RateLimit-Remaining", String(rate.remaining));
     try {
+      if (url.pathname === '/api/v1/client-features' && req.method === 'GET') {
+        return sendJson(req, res, 200, {status: 'success', features: quickWatch.ready ? ['quick_watch_v1'] : []});
+      }
+      if (url.pathname === '/api/v1/watch-links' && req.method === 'POST' && quickWatch.ready) {
+        if (!await authenticateQuickWatch(req.headers.authorization)) {
+          return sendJson(req, res, 401, {status: 'error', message: 'AUTH_REQUIRED'});
+        }
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (Buffer.byteLength(body) > 8192) return sendJson(req, res, 413, {status: 'error', message: 'REQUEST_TOO_LARGE'});
+        }
+        let input;
+        try { input = JSON.parse(body); } catch {
+          return sendJson(req, res, 400, {status: 'error', message: 'INVALID_QUICK_WATCH_REQUEST'});
+        }
+        const link = quickWatch.issue(input);
+        return link ? sendJson(req, res, 201, {url: link})
+          : sendJson(req, res, 404, {status: 'error', message: 'QUICK_WATCH_MEDIA_UNAVAILABLE'});
+      }
+      const watch = /^\/watch\/([^/]+)\/([^/]+)$/.exec(url.pathname);
+      if (watch && ['GET', 'HEAD'].includes(req.method)) {
+        const location = quickWatch.resolve(watch[1], watch[2]);
+        if (!location) return sendJson(req, res, 404, {status: 'error', message: 'QUICK_WATCH_NOT_FOUND'});
+        res.writeHead(302, {Location: location, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer'});
+        return res.end();
+      }
       if(url.pathname==='/api/v1/system/check'){
         try{const id=url.searchParams.get('id');if((id&&req.method!=='GET')||(!id&&req.method!=='POST'))return sendJson(req,res,405,{message:'METHOD_NOT_ALLOWED'});return sendJson(req,res,200,{status:'success',data:id?serviceChecks.status(id):serviceChecks.start(url.searchParams.get('scope')||'all')});}
         catch(error){return sendJson(req,res,429,{message:/^[A-Z_]+$/.test(error.message)?error.message:'CHECK_UNAVAILABLE'});}
