@@ -93,3 +93,26 @@ test('fresh playback retains public observed episode metadata but never persists
  await new Promise(r=>setImmediate(r));assert.equal(media.length,1);assert.equal(writes.length,1);
  assert.deepEqual(writes[0][3],{poster:'https://images.example/1.jpg',duration_seconds:2780});assert(!JSON.stringify(writes).includes('viewer=private'));
 });
+
+test('session drops an expiring quality without discarding its longer-lived alternative', async () => {
+ let clock = Date.now(), calls = 0;
+ const request = createPlaybackSessions({now:()=>clock});
+ const session = 'd'.repeat(32), identity = ['akwam-film', 0, 0, 'web'];
+ const extract = async () => {
+  calls++;
+  return [
+   {url:'https://cdn.example/720.mp4',expires_at:new Date(clock+32000).toISOString()},
+   {url:'https://cdn.example/480.mp4',expires_at:new Date(clock+70000).toISOString()},
+  ];
+ };
+ assert.equal(request(session, identity, extract).state, 'running');
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(request(session, identity, extract).servers.length, 2);
+ clock += 2001;
+ assert.deepEqual(request(session, identity, extract).servers.map(source=>source.url), ['https://cdn.example/480.mp4']);
+ assert.equal(calls, 1);
+ clock += 38000;
+ assert.equal(request(session, identity, extract).state, 'running');
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls, 2);
+});
