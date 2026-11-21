@@ -1,0 +1,28 @@
+name: Restore verified 5.2.0 macOS checksum
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  restore-checksum:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Recover checksum only from the verified six-target report
+        run: |
+          set -euo pipefail
+          gh release download v5.2.0 --repo "$GITHUB_REPOSITORY" --pattern device-verification.json --dir "$RUNNER_TEMP/verification"
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          report=json.loads((root/'verification/device-verification.json').read_text())
+          assert report['version']=='5.2.0' and len(report['targets'])==6
+          assert report['source_commit']=='715b6273ccdef0e5e358232dad33f45fd298b693'
+          name='Najd-TV-macOS-Unsigned.dmg'
+          row=next(item for item in report['artifacts'] if item['file']==name)
+          assert row['verified'] is True and re.fullmatch('[0-9a-f]{64}',row['sha256'])
+          (root/(name+'.sha256')).write_text(row['sha256']+'  '+name+'\n')
+          PY
+          gh release upload v5.2.0 "$RUNNER_TEMP/Najd-TV-macOS-Unsigned.dmg.sha256" --repo "$GITHUB_REPOSITORY" --clobber
