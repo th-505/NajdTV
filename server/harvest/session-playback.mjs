@@ -19,12 +19,21 @@ export function createSessionPlayback({store, entries, now=Date.now, probe}={}) 
     };
     const pipeline=createHarvestPipeline({store:isolatedStore,entries,now,probe});
     const evidence=row.media?.find(m=>m.source_identity)?.source_identity;
-    await pipeline.episode({content_ref:work.ref,provider:row.provider,
+    const extraction = await pipeline.episode({content_ref:work.ref,provider:row.provider,
       season_number:season,episode_number:episode,payload:{
         source_ref:row.source_ref,force_refresh:true,platform,
         observed_identity:{title:work.metadata.title,year:work.metadata.year||null},
         observed_episode:evidence||{season,episode,source_season:season,source_episode:episode,numbering_basis:'source-season'},
       }});
+    const failures = extraction?.progress?.probe_failures || [];
+    if (!media.length && failures.length) {
+      if (failures.every(failure => failure.reason === 'UPSTREAM_UNAVAILABLE' || failure.status >= 500)) {
+        throw Error('UPSTREAM_UNAVAILABLE');
+      }
+      if (failures.every(failure => failure.reason === 'PINNED_DIRECT_WEB_UNAVAILABLE')) {
+        throw Error('PINNED_DIRECT_WEB_UNAVAILABLE');
+      }
+    }
     const session=randomUUID();
     const result=media.filter(m=>Date.parse(m.expires_at)>now()+30000)
       .map(m=>({...m,playback_session:session,playback_scope:'request'}));
