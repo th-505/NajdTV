@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLiveCatalog, parseLivePlaylist, LIVE_GROUPS } from '../server/live-catalog.mjs';
-const feed = '#EXTM3U\n#EXTINF:-1 tvg-id="Saudi.1" tvg-logo="https://images.example.com/logo.png",السعودية\nhttps://cdn.example.com/live/index.m3u8\n';
-test('exactly the eight requested lists, deduplicated streams and no private/insecure URLs', () => {
-  assert.deepEqual(LIVE_GROUPS.map(g => g.id), ['ae', 'sa', 'eg', 'sports', 'movies', 'news', 'kids', 'entertainment']);
+const feed = '#EXTM3U\n#EXTINF:-1 tvg-id="AlEkhbariya.sa" tvg-logo="https://images.example.com/logo.png",السعودية\nhttps://cdn.example.com/live/index.m3u8\n';
+test('Gulf and requested programme groups, deduplicated streams and no private/insecure URLs', () => {
+  assert.deepEqual(LIVE_GROUPS.map(g => g.id), ['ae', 'sa', 'kw', 'qa', 'bh', 'om', 'movies', 'series', 'news', 'kids', 'religious']);
   const parsed = parseLivePlaylist(feed + feed.replace('#EXTM3U\n', '') +
     '#EXTINF:-1,private\nhttps://127.0.0.1/live.m3u8\n#EXTINF:-1,insecure\nhttp://cdn.example.com/live.m3u8\n#EXTINF:-1,credentials\nhttps://u:p@cdn.example.com/a.m3u8\n#EXTINF:-1,script\njavascript:alert(1)\n');
   assert.equal(parsed.channels.length, 1);
@@ -39,7 +39,7 @@ test('TTL refresh serves stale channels and unavailable feeds cool down without 
   assert.equal(calls, 3);
 });
 test('pagination and search retain stable references without leaking stream URLs', async () => {
-  const text = '#EXTM3U\n' + Array.from({ length: 125 }, (_, i) => `#EXTINF:-1 tvg-id="${i}",Channel ${i}\nhttps://cdn.example.com/${i}.m3u8`).join('\n');
+  const text = '#EXTM3U\n' + Array.from({ length: 125 }, (_, i) => `#EXTINF:-1 tvg-id="AlEkhbariya.sa@${i}",Channel ${i}\nhttps://cdn.example.com/${i}.m3u8`).join('\n');
   const catalog = createLiveCatalog({ fetchPlaylist: async () => text });
   const first = await catalog.catalog(), last = await catalog.catalog({ page: 3 });
   assert.equal(first.data.length, 60); assert.equal(last.data.length, 5);
@@ -58,4 +58,14 @@ test('explicit playback retry refreshes public feed metadata once, without a sou
  assert.notEqual(first.data.media_path,retries[0].data.media_path);
  assert(retries.every(row=>row.data.media_path===retries[0].data.media_path));
  await catalog.playback(ref,true);assert.equal(calls,2);
+});
+
+test('Gulf feeds exclude unrelated, unreviewed and mismatched channel identities', async () => {
+  const extra = ['BTLTV.nl', 'SharjahSports.ae', 'Unknown.sa', 'AlQuranAlKareemTV.sa']
+    .map(id => `#EXTINF:-1 tvg-id="${id}",${id}\nhttps://cdn.example.com/${id}.m3u8\n`).join('');
+  const catalog = createLiveCatalog({fetchPlaylist: async () => feed + extra});
+  assert.deepEqual((await catalog.catalog({group:'news'})).data.map(row=>row.title), ['السعودية']);
+  assert.deepEqual((await catalog.catalog({group:'religious'})).data.map(row=>row.title), ['AlQuranAlKareemTV.sa']);
+  assert.equal((await catalog.catalog({group:'sa'})).data.length, 2);
+  assert.equal((await catalog.catalog({group:'ae'})).data.length, 0);
 });

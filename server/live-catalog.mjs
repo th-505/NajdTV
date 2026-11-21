@@ -1,13 +1,33 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { assertSafeScraperUrl, fetchSafeResponse } from './scrapers/shared/http.mjs';
 
-// Fixed public feeds, served by the existing Node process. Never relay video.
+// Reviewed television identities. Feed titles and country membership alone
+// cannot establish ownership, programme category or religious affiliation.
+const CHANNELS = {
+  movies: ['Aflam.sa', 'MoviesAction.sa', 'MoviesThriller.sa', 'RotanaCinemaKSA.sa', 'RotanaClassic.sa', 'OSNMoviesAction.ae'],
+  series: ['BabAlHara.sa', 'Maraya.sa', 'RotanaDrama.sa'],
+  news: ['AlArabiyaEnglish.sa', 'AlEkhbariya.sa', 'AlHadath.sa', 'AsharqNews.sa', 'AlMashhad.ae', 'KTVNews.kw', 'OmanTVMubashir.om'],
+  kids: ['AtfalMawahebTV.sa', 'MajidKidsTV.ae'],
+  religious: ['AlQuranAlKareemTV.sa', 'AlSunnahAlNabawiyahTV.sa', 'QatarTVTheHolyQuran.qa'],
+};
+const categoryByChannel = new Map(Object.entries(CHANNELS).flatMap(([category, ids]) =>
+  ids.map(id => [id.toLowerCase(), category])));
+const countries = [['ae', 'الإمارات'], ['sa', 'السعودية'], ['kw', 'الكويت'],
+  ['qa', 'قطر'], ['bh', 'البحرين'], ['om', 'عُمان']];
 export const LIVE_GROUPS = Object.freeze([
-  ['ae', 'الإمارات', 'countries/ae'], ['sa', 'السعودية', 'countries/sa'],
-  ['eg', 'مصر', 'countries/eg'], ['sports', 'الرياضة', 'categories/sports'],
-  ['movies', 'الأفلام', 'categories/movies'], ['news', 'الأخبار', 'categories/news'],
-  ['kids', 'الأطفال', 'categories/kids'], ['entertainment', 'الترفيه', 'categories/entertainment'],
+  ...countries.map(([id, title]) => [id, title, 'countries/' + id]),
+  ['movies', 'الأفلام', 'categories/movies'], ['series', 'المسلسلات', 'categories/series'],
+  ['news', 'الأخبار', 'categories/news'], ['kids', 'الأطفال', 'categories/kids'],
+  ['religious', 'القنوات الإسلامية السنية', 'categories/religious'],
 ].map(([id, title, path]) => Object.freeze({ id, title, url: `https://iptv-org.github.io/iptv/${path}.m3u` })));
+
+function gulfChannels(text, group) {
+  return parseLivePlaylist(text, identity => {
+    const id = identity.split('@', 1)[0].toLowerCase();
+    const category = categoryByChannel.get(id);
+    return Boolean(category && (group === category || id.endsWith('.' + group)));
+  });
+}
 const TTL = 12 * 3600000, STALE = 24 * 3600000, RETRY = 60000;
 function publicUrl(raw) {
   if (typeof raw !== 'string' || raw.length > 4096 || /[\x00-\x20\\]/.test(raw)) return null;
@@ -20,7 +40,7 @@ function mediaType(url) {
     path.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' : /\.(?:ts|m2ts)$/.test(path) ? 'video/mp2t' :
     path.endsWith('.webm') ? 'video/webm' : path.endsWith('.mkv') ? 'video/x-matroska' : null;
 }
-export function parseLivePlaylist(text) {
+export function parseLivePlaylist(text, accepts = () => true) {
   if (!/^\uFEFF?#EXTM3U(?:\s|$)/.test(text)) throw Error('LIVE_INVALID_PLAYLIST');
   const channels = new Map(); let pending = null, skipped = 0;
   for (const line of text.split(/\r?\n/)) {
@@ -34,7 +54,7 @@ export function parseLivePlaylist(text) {
     } else if (value && !value.startsWith('#')) {
       const row = pending; pending = null;
       const url = publicUrl(value), type = url && mediaType(url);
-      if (!row?.title || !type) { skipped++; continue; }
+      if (!row?.title || !type || !accepts(row.identity)) { skipped++; continue; }
       const id = createHash('sha256').update(row.identity || url).digest('hex').slice(0, 24);
       const channel = channels.get(id) || { id, ref: `live:iptv-org:${id}`, title: row.title, poster: row.poster, type: 'live', streams: [] };
       if (channel.streams.length < 5 && !channel.streams.some(s => s.url === url)) channel.streams.push({ url, media_type: type });
@@ -64,7 +84,7 @@ export function createLiveCatalog({ fetchPlaylist = async url => {
       throw Error('LIVE_UPSTREAM_UNAVAILABLE');
     }
     if (!pending.has(id)) {
-      const work = Promise.resolve().then(() => fetchPlaylist(group.url)).then(parseLivePlaylist)
+      const work = Promise.resolve().then(() => fetchPlaylist(group.url)).then(text => gulfChannels(text, id))
         .then(result => { const entry = { ...result, at: now() }; cache.set(id, entry); retryAt.delete(id); return { ...entry, stale: false }; })
         .catch(() => { retryAt.set(id, now() + RETRY); if (age < STALE) return { ...old, stale: true }; throw Error('LIVE_UPSTREAM_UNAVAILABLE'); })
         .finally(() => pending.delete(id));

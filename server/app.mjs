@@ -532,7 +532,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
       const data=await akoamMetadata(assertSourceUrl(decodeURIComponent(ref.slice(7))).href);
       return {...data,episodes:wrapEpisodes(data.episodes || [])};
     })});
-  const pinnedPlayback=createPinnedPlayback({loadDetails:async({provider,ref,phase,platform,type})=>{
+  const pinnedPlayback=createPinnedPlayback({loadDetails:async({provider,ref,phase,platform,type,season,episode})=>{
     const runtime=provider==='3isk'?iskRuntime:provider==='alooy'?alooyRuntime:provider==='laroza'?larozaRuntime:null;
     if(runtime){
       if(phase==='metadata' && type==='series' && typeof runtime.metadata==='function')return runtime.metadata(ref);
@@ -542,6 +542,17 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
     const scraper=entry?.module;
     if(!scraper?.scrapeDetails)throw Error('PINNED_SOURCE_NOT_SUPPORTED');
     const details = await scraper.scrapeDetails(ref,{strict:true,timeoutMs:6000,maxRetries:0});
+    if (provider === 'akwam' && phase === 'metadata' && type === 'series' &&
+        typeof scraper.scrapeEpisodes === 'function') {
+      const episodes = Array.isArray(details.episodes) ? details.episodes : [];
+      const matches = row => row && row.watch_available !== false &&
+        Number(row.season_number ?? row.season ?? details.season_number ?? details.season) === season &&
+        Number(row.episode_number ?? row.episodeNumber ?? row.number ?? row.episode ?? row.num) === episode;
+      if (!episodes.some(matches)) {
+        const indexed = await scraper.scrapeEpisodes(ref, {strict:true,timeoutMs:6000,maxRetries:0});
+        if (Array.isArray(indexed)) return {...details, episodes:[...episodes, ...indexed.filter(matches)]};
+      }
+    }
     if (typeof scraper.resolveStream==='function' && entry.meta.capabilities?.resolve===true && (phase !== 'metadata' || details.type === 'movie')) {
       const resolved = await scraper.resolveStream(ref,{strict:true,timeoutMs:6000,maxRetries:0});
       const sources=[...(resolved.servers||[]),...(resolved.media_sources||[]),...(resolved.sources||[])];

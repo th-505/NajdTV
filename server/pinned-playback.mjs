@@ -133,7 +133,7 @@ export function createPinnedPlayback({ loadDetails, probe = probePinnedPlaybackM
     const base = { provider, series_ref: seriesRef, episode_ref: null, season, episode, platform, servers: [] };
     const unavailable = reason => ({ ...base, status: 'unavailable', playback_unavailable: true, playback_reason: reason });
     let details;
-    try { details = unwrap(await loadDetails({ provider, ref: seriesRef, phase: 'metadata', platform, type })); }
+    try { details = unwrap(await loadDetails({ provider, ref: seriesRef, phase: 'metadata', platform, type, season, episode })); }
     catch { return unavailable('PINNED_SOURCE_UNAVAILABLE'); }
     assertOwnership(details, provider);
     let mediaRef = seriesRef;
