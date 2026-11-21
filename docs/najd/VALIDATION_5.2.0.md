@@ -57,3 +57,8 @@ Previous six-target review run 43921505393 had macOS cancelled and final verifie
 - A disk-full attempt was stopped and is not counted as a code failure or acceptance pass. Removed only generated compilation intermediates and the re-downloadable npx CLI cache; retained user data, database containers, credentials, private fonts and compiled Web preview.
 - A fresh debug Web compilation succeeded after the home change. Real Chromium navigation/reload/invalid-episode checks passed with zero exceptions and zero unnecessary home fetches. Decoded local MP4, browser download handoff and standard PiP entry/exit also passed with zero page exceptions. Earlier unchanged HLS/live checks remain recorded above.
 - Runtime Node source code is unchanged since its 358-pass unified run and successful runtime/continuation checks. See DELIVERY_5.2.0.md for the explicit split between new-client, server-only and combined changes. No final packaging/publication or production deployment is implied by these local debug checks.
+
+
+## Published release evidence — 2026-11-21
+
+Run 44280734955 attempt 3 succeeded and published v5.2.0 from 715b6273ccdef0e5e358232dad33f45fd298b693. The six-target report verifies both Android ABIs, unsigned iPhone IPA, Windows installer/runtime, universal macOS DMG and Web from the same version/build/source and API origin. The report and checksums are release assets. Five native download URLs returned HTTP 200 anonymously; the public Web source manifest reports 5.2.0+520 / 715b627. No physical-device certificate or completion of deferred server features is claimed. Publisher boundary regressions: 3 passed after accepting the exact public callback files while retaining private-path/symlink rejection.

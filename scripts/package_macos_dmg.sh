@@ -26,7 +26,7 @@ codesign --verify --deep --strict "$APP_PATH"
 
 DMG="$OUTPUT_DIR/Najd-TV-macOS-Unsigned.dmg"
 hdiutil create -volname "Najd TV" -srcfolder "$APP_PATH" -ov -format UDZO "$DMG" >/dev/null
-shasum -a 256 "$DMG" > "$DMG.sha256"
+(cd "$OUTPUT_DIR" && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256")
 python3 - "$APP_PATH" "$DMG" "$ARCHS" "$OUTPUT_DIR/macOS-report.json" <<'PY'
 import hashlib
 import json

@@ -437,6 +437,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Najd-TV-device-verification
+          overwrite: true
           path: device-verification.json
           retention-days: 14
           if-no-files-found: error
