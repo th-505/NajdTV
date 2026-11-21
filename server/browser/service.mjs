@@ -608,13 +608,13 @@ export function createBrowserWorkService({
     if (!refresh && cached?.expires > now() + 30000 &&
         (progressive || cached.server_scan?.in_progress !== true)) {
       const servers = cached.servers.filter(
-        (s) => platform !== "web" || s.web_playable,
+        (s) => Date.parse(s.expires_at) > now() + 30000 && (platform !== "web" || s.web_playable),
       );
-      return {
-        state: servers.length ? "ready" : "unavailable",
+      if (servers.length) return {
+        state: "ready",
         servers,
         server_scan:cached.server_scan||null,
-        reason: servers.length ? null : "PINNED_DIRECT_WEB_UNAVAILABLE",
+        reason: null,
         cache_hit: true,
       };
     }
@@ -684,7 +684,7 @@ export function createBrowserWorkService({
               const chosen=await resolveProviderMedia(w.adapter,row.source_ref,{details:d,network,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),onAccepted:(ready,scan)=>{
                 // Publish verified media immediately while remaining hosts keep scanning.
                 const combined=uniqueServers([...servers,...ready]);
-                media.set(key,{servers:combined,server_scan:{...combinedScan(scan),server_scan_complete:false,in_progress:true},expires:Math.min(...combined.map(s=>Date.parse(s.expires_at)))});
+                media.set(key,{servers:combined,server_scan:{...combinedScan(scan),server_scan_complete:false,in_progress:true},expires:Math.max(...combined.map(s=>Date.parse(s.expires_at)))});
                 while(media.size>128)media.delete(media.keys().next().value);
               },accept:async candidates=>{
                const accepted=[];
@@ -694,7 +694,7 @@ export function createBrowserWorkService({
                 const checked = await probe(candidate, { platform });
                 if (!checked.playable || checked.container_verified!==true || (platform==='web'&&checked.webPlayable!==true)) continue;
                 const headers = {};
-                for (const [k, v] of Object.entries(candidate.headers || {}))
+                for (const [k, v] of Object.entries(platform === "web" ? {} : candidate.headers || {}))
                   if (
                     ["referer", "origin", "user-agent", "cookie"].includes(
                       k.toLowerCase(),
@@ -736,7 +736,7 @@ export function createBrowserWorkService({
             if (servers.length) {
               media.set(key, {
                 servers,server_scan:serverScan,
-                expires: Math.min(
+                expires: Math.max(
                   ...servers.map((s) => Date.parse(s.expires_at)),
                 ),
               });

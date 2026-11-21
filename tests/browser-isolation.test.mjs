@@ -357,3 +357,23 @@ test('all actual alternatives for the selected episode are resolved; a failed si
  assert.equal(result.state,'ready');assert.deepEqual(result.servers.map(row=>new URL(row.url).pathname).sort(),['/a.mp4','/b.mp4']);
  assert.equal(result.server_scan.server_scan_complete,false,'failed alternative remains explicitly incomplete');
 });
+
+test('beta drops expiring qualities while retaining verified browser alternatives', async () => {
+ let clock = Date.now();
+ const {service} = fixture({now:()=>clock, fixtureServers:[
+  {url:'https://cdn.example/short.mp4',expires_at:new Date(clock+32000).toISOString(),headers:{Referer:'https://source.example/'}},
+  {url:'https://cdn.example/long.mp4',expires_at:new Date(clock+70000).toISOString()},
+ ]});
+ const admitted = await service.request(ref(seed));
+ await service.settle();
+ const selection = {season:1,episode:19,platform:'web'};
+ await service.playback(admitted.ref,selection);
+ await service.settle();
+ const first = await service.playback(admitted.ref,selection);
+ assert.equal(first.servers.length,2);
+ assert.deepEqual(first.servers[0].headers,{});
+ clock += 2001;
+ const current = await service.playback(admitted.ref,selection);
+ assert.equal(current.cache_hit,true);
+ assert.deepEqual(current.servers.map(row=>row.url),['https://cdn.example/long.mp4']);
+});
