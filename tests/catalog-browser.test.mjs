@@ -31,3 +31,20 @@ test('foreign means non-Arabic, not just English; Japanese anime stays out of or
  assert.deepEqual(anime.data[0].genres,['أنمي']);
  assert.equal(anime.data[0].type,'series','classification never changes canonical movie/TV identity');
 });
+
+test('the existing Asian category includes multiple original languages and keeps deduplicated pagination', async () => {
+ const calls = [];
+ const runtime = {catalog: async (_path, params) => {
+  calls.push(params.with_original_language);
+  return {page: 2, total_pages: params.with_original_language === 'th' ? 3 : 2,
+   results: [
+    {id: 1, title: 'Korean film', original_language: 'ko', popularity: 3},
+    ...(params.with_original_language === 'th' ? [{id: 2, title: 'Thai film', original_language: 'th', popularity: 1}] : []),
+    {id: 3, title: 'Unrelated', original_language: 'en'},
+   ]};
+ }};
+ const result = await browseCatalog(runtime, 'catalog:movie:ko', 2);
+ assert(calls.includes('zh'));
+ assert.deepEqual(result.data.map(item => item.tmdbId), ['1', '2']);
+ assert.equal(result.has_more, true);
+});

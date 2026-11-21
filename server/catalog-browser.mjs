@@ -18,7 +18,33 @@ export function browseRequest(ref,page=1){
    ...(language?{with_original_language:language}:{}),...(group==='anime'?{with_genres:'16'}:{})}};
 }
 export async function browseCatalog(runtime,ref,page){
- const request=browseRequest(ref,page);const body=await runtime.catalog(request.path,request.params);
+ const request=browseRequest(ref,page);
+ const asian = ref === 'catalog:tv:ko' || ref === 'catalog:movie:ko';
+ let body;
+ if (asian) {
+  // Keep the installed-client category ID; its historical suffix is not a language restriction.
+  const languages = ['ko', 'ja', 'zh', 'cn', 'th'];
+  const pages = [];
+  for (let offset = 0; offset < languages.length; offset += 4) {
+   pages.push(...await Promise.all(languages.slice(offset, offset + 4).map(language =>
+    runtime.catalog(request.path, {...request.params, with_original_language: language}))));
+  }
+  const rows = pages.flatMap(result => result.results || [])
+   .filter(item => languages.includes(item.original_language))
+   .sort((a, b) => (Number(b.popularity) || 0) - (Number(a.popularity) || 0));
+  const seen = new Set();
+  body = {
+   results: rows.filter(item => {
+    if (seen.has(String(item.id))) return false;
+    seen.add(String(item.id));
+    return true;
+   }),
+   page: Number(request.params.page),
+   total_pages: Math.min(500, Math.max(...pages.map(result => Number(result.total_pages) || 1))),
+  };
+ } else {
+  body = await runtime.catalog(request.path,request.params);
+ }
  const ordinarySeries=ref.startsWith('catalog:tv:')||ref.startsWith('catalog:collection:series-');
  const foreign=ref==='catalog:tv:en'||ref==='catalog:movie:en';
  const data=(body.results || []).filter(item=>!isAdultCatalogItem(item)&&
