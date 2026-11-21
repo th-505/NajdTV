@@ -1,6 +1,6 @@
 {
-  "name": "نجد — Najd TV",
-  "short_name": "نجد",
+  "name": "Najd TV",
+  "short_name": "Najd TV",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#08080e",
