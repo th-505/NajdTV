@@ -69,3 +69,19 @@ test('Gulf feeds exclude unrelated, unreviewed and mismatched channel identities
   assert.equal((await catalog.catalog({group:'sa'})).data.length, 2);
   assert.equal((await catalog.catalog({group:'ae'})).data.length, 0);
 });
+
+test('programme groups reuse country feeds and report partial outages', async () => {
+  const requests = [];
+  const catalog = createLiveCatalog({fetchPlaylist: async url => {
+    requests.push(url);
+    if (!url.endsWith('/sa.m3u')) throw Error('upstream offline');
+    return feed;
+  }});
+  await catalog.catalog({group:'sa'});
+  const news = await catalog.catalog({group:'news'});
+  assert.equal(news.stale, true);
+  assert.equal(news.data.length, 1);
+  assert.equal(requests.filter(url => url.endsWith('/sa.m3u')).length, 1);
+  assert(requests.every(url => url.includes('/countries/')));
+  assert.equal((await catalog.playback(news.data[0].ref)).data.title, 'السعودية');
+});

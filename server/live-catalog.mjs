@@ -56,7 +56,7 @@ export function parseLivePlaylist(text, accepts = () => true) {
       const url = publicUrl(value), type = url && mediaType(url);
       if (!row?.title || !type || !accepts(row.identity)) { skipped++; continue; }
       const id = createHash('sha256').update(row.identity || url).digest('hex').slice(0, 24);
-      const channel = channels.get(id) || { id, ref: `live:iptv-org:${id}`, title: row.title, poster: row.poster, type: 'live', streams: [] };
+      const channel = channels.get(id) || { id, ref: `live:iptv-org:${id}`, title: row.title, poster: row.poster, type: 'live', identity: row.identity, streams: [] };
       if (channel.streams.length < 5 && !channel.streams.some(s => s.url === url)) channel.streams.push({ url, media_type: type });
       channels.set(id, channel);
       if (channels.size > 20000) throw Error('LIVE_PLAYLIST_TOO_LARGE');
@@ -72,6 +72,22 @@ export function createLiveCatalog({ fetchPlaylist = async url => {
 }, now = Date.now } = {}) {
   const cache = new Map(), pending = new Map(), retryAt = new Map(), forcedAt = new Map();
   async function load(id, force = false) {
+    if (Object.hasOwn(CHANNELS, id)) {
+      const allowed = new Set(CHANNELS[id].map(value => value.toLowerCase()));
+      const relevant = countries.filter(([code]) =>
+        CHANNELS[id].some(identity => identity.endsWith('.' + code)));
+      const results = await Promise.allSettled(relevant.map(([code]) => load(code, force)));
+      const available = results.filter(result => result.status === 'fulfilled').map(result => result.value);
+      if (!available.length) throw Error('LIVE_UPSTREAM_UNAVAILABLE');
+      const channels = available.flatMap(result => result.channels)
+        .filter(row => allowed.has(row.identity.split('@', 1)[0].toLowerCase()));
+      return {
+        channels,
+        skipped: available.reduce((total, result) => total + result.skipped, 0),
+        stale: available.length !== relevant.length || available.some(result => result.stale),
+        at: Math.min(...available.map(result => result.at)),
+      };
+    }
     const group = LIVE_GROUPS.find(row => row.id === id);
     if (!group) throw Error('LIVE_UNKNOWN_GROUP');
     if (force && pending.has(id)) return pending.get(id);
@@ -100,7 +116,7 @@ export function createLiveCatalog({ fetchPlaylist = async url => {
       if (!Number.isSafeInteger(page) || page < 1 || page > 400 || typeof q !== 'string' || q.length > 120) throw Error('LIVE_BAD_QUERY');
       const result = await load(group), term = q.trim().normalize('NFKC').toLocaleLowerCase();
       const rows = result.channels.filter(row => !term || row.title.normalize('NFKC').toLocaleLowerCase().includes(term));
-      return { status: 'success', data: rows.slice((page - 1) * 60, page * 60).map(({ streams, ...row }) => ({ ...row, ref: `live:iptv-org:${group}:${row.id}` })),
+      return { status: 'success', data: rows.slice((page - 1) * 60, page * 60).map(({ streams, identity, ...row }) => ({ ...row, ref: `live:iptv-org:${group}:${row.id}` })),
         pagination: { page, has_more: page * 60 < rows.length, total: rows.length },
         stale: result.stale, skipped: result.skipped, updated_at: new Date(result.at).toISOString() };
     },
