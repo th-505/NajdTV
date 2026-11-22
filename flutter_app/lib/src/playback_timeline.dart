@@ -1,3 +1,5 @@
+import 'app_theme.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -121,6 +123,7 @@ class _PlaybackTimelineState extends State<PlaybackTimeline> {
           children: [
             Slider(
               key: const Key('player-seek-slider'),
+              activeColor: NajdThemeExtension.of(context).accentGlow,
               value: position,
               max: max > 0 ? max : 1,
               onChangeStart: max > 0

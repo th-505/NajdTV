@@ -1,5 +1,5 @@
-import 'browser_navigation_stub.dart'
-    if (dart.library.js_interop) 'browser_navigation_web.dart';
+export 'splash_screen.dart';
+import 'app_theme.dart';
 import 'viewport_profile.dart';
 import 'app_target.dart';
 
@@ -153,22 +153,29 @@ class NajdThemes {
     );
   }
 
-  static const lavender = Color(0xFF6B46C1);
-  static ThemeData forBrightness(Brightness brightness) {
+  static const lavender = NajdColors.darkPrimary;
+  static ThemeData forBrightness(Brightness brightness, {bool? isTv}) {
     final dark = brightness == Brightness.dark;
-    final background = dark ? const Color(0xFF121118) : const Color(0xFFFAF8FF);
-    final surface = dark ? const Color(0xFF1D1A25) : Colors.white;
-    final text = dark ? const Color(0xFFF5F0FF) : const Color(0xFF211B30);
-    final secondary = dark ? const Color(0xFFBCB3CB) : const Color(0xFF6C647B);
-    const primary = Color(0xFF6B46C1);
-    const onPrimary = Colors.white;
+    final background = dark
+        ? NajdColors.darkBackground
+        : NajdColors.lightBackground;
+    final surface = dark ? NajdColors.darkSurface : Colors.white;
+    final text = dark
+        ? NajdColors.darkTextPrimary
+        : NajdColors.lightTextPrimary;
+    final secondary = dark
+        ? NajdColors.darkTextSecondary
+        : NajdColors.lightTextSecondary;
+    final primary = dark ? NajdColors.darkPrimary : NajdColors.lightPrimary;
+    final onPrimary = NajdContrast.onColor(primary);
+    final glow = dark ? NajdColors.darkAccentGlow : NajdColors.lightAccentGlow;
     final scheme =
         ColorScheme.fromSeed(
           seedColor: lavender,
           brightness: brightness,
         ).copyWith(
-          primary: dark ? const Color(0xFFBCA6ED) : primary,
-          onPrimary: dark ? const Color(0xFF211B30) : onPrimary,
+          primary: primary,
+          onPrimary: onPrimary,
           secondary: primary,
           surface: surface,
           onSurface: text,
@@ -176,6 +183,23 @@ class NajdThemes {
           outline: dark ? const Color(0xFF3D3658) : const Color(0xFFDAD7EC),
         );
     return ThemeData(
+      extensions: [
+        NajdThemeExtension(
+          surfaceGlass: dark
+              ? NajdColors.darkSurfaceGlass
+              : NajdColors.lightSurfaceGlass,
+          surfaceElevated: dark
+              ? NajdColors.darkSurfaceElevated
+              : NajdColors.lightSurfaceElevated,
+          accentGlow: glow,
+          borderSubtle: dark ? NajdColors.darkBorder : NajdColors.lightBorder,
+          serifFontFamily: NajdAppearance.instance.bundledSerifReady
+              ? 'ThmanyahSerifDisplay'
+              : 'NajdArabicFallback',
+          sansFontFamily: NajdAppearance.instance.activeFontFamily,
+          isTv: isTv ?? isTvTarget,
+        ),
+      ],
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
@@ -223,7 +247,8 @@ class NajdThemes {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: Size(48, isTvTarget ? 64 : 48),
+          minimumSize: Size(48, (isTv ?? isTvTarget) ? 64 : 48),
+          foregroundColor: dark ? glow : primary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -231,7 +256,8 @@ class NajdThemes {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          minimumSize: Size(48, isTvTarget ? 64 : 48),
+          minimumSize: Size(48, (isTv ?? isTvTarget) ? 64 : 48),
+          foregroundColor: dark ? glow : primary,
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -267,11 +293,12 @@ class NajdThemes {
         fillColor: surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: glow),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(48, 52),
+          foregroundColor: onPrimary,
+          minimumSize: Size(48, (isTv ?? isTvTarget) ? 64 : 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -322,182 +349,11 @@ class NajdThemeControl extends StatelessWidget {
   );
 }
 
-class NajdIntro extends StatefulWidget {
-  const NajdIntro({
-    super.key,
-    required this.child,
-    this.duration = const Duration(seconds: 10),
-  });
-  final Widget child;
-  final Duration duration;
-  @override
-  State<NajdIntro> createState() => _NajdIntroState();
-}
-
-class _NajdIntroState extends State<NajdIntro> {
-  Timer? _timer;
-  Timer? _continueTimer;
-  bool _canContinue = false;
-  late bool _visible;
-  @override
-  void initState() {
-    super.initState();
-    _visible =
-        !BrowserNavigation().skipIntro &&
-        !Uri.base.queryParameters.containsKey('ref') &&
-        !Uri.base.fragment.contains('najd_link=');
-    if (_visible) {
-      BrowserNavigation().markIntroSeen();
-      _timer = Timer(widget.duration, _dismiss);
-      _continueTimer = Timer(const Duration(seconds: 3), () {
-        if (mounted && _visible) setState(() => _canContinue = true);
-      });
-    }
-  }
-
-  void _dismiss() {
-    _continueTimer?.cancel();
-    _timer?.cancel();
-    if (mounted) setState(() => _visible = false);
-  }
-
-  @override
-  void dispose() {
-    _continueTimer?.cancel();
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      Offstage(
-        offstage: _visible,
-        child: ExcludeFocus(
-          excluding: _visible,
-          child: TickerMode(enabled: !_visible, child: widget.child),
-        ),
-      ),
-      if (_visible)
-        Material(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          child: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, bounds) {
-                final horizontal =
-                    bounds.maxWidth >= 600 &&
-                    bounds.maxWidth > bounds.maxHeight;
-                final compact = bounds.maxHeight < 600;
-                final markSize = compact
-                    ? 88.0
-                    : bounds.maxWidth < 500
-                    ? 124.0
-                    : 148.0;
-                final brand = Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      'assets/najd/mark.png',
-                      width: markSize,
-                      height: markSize,
-                    ),
-                    Text(
-                      'نجد',
-                      style: TextStyle(
-                        fontSize: compact ? 32 : 44,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      'Najd TV',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                );
-                final poetry = Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'أن كان رمحك بأول الخيل ملحوم\nفـ أنا برمحي حـامي نجد كلـه\n\nمن شافنا بالحلم يقعد من النوم\nومن شـافنا بالعـلم بطـنـه يهلـه',
-                      key: const Key('najd-intro-poetry'),
-                      textAlign: TextAlign.center,
-                      textDirection: TextDirection.rtl,
-                      style: TextStyle(
-                        fontSize: horizontal
-                            ? (bounds.maxHeight < 400
-                                  ? 20
-                                  : compact
-                                  ? 22
-                                  : 26)
-                            : 19,
-                        height: 1.65,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('محمد بن قرملة'),
-                  ],
-                );
-                return Padding(
-                  padding: EdgeInsets.all(isTvTarget ? 24 : 20),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, space) => SingleChildScrollView(
-                            key: const Key('najd-intro-content'),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                minHeight: space.maxHeight,
-                              ),
-                              child: horizontal
-                                  ? Row(
-                                      textDirection: TextDirection.rtl,
-                                      children: [
-                                        Expanded(flex: 3, child: brand),
-                                        const SizedBox(width: 24),
-                                        Expanded(flex: 7, child: poetry),
-                                      ],
-                                    )
-                                  : Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        brand,
-                                        const SizedBox(height: 24),
-                                        poetry,
-                                      ],
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: isTvTarget ? 64 : 52,
-                        child: _canContinue
-                            ? FilledButton.icon(
-                                key: const Key('najd-intro-continue'),
-                                autofocus: true,
-                                onPressed: _dismiss,
-                                icon: const Icon(Icons.arrow_forward),
-                                label: const Text('متابعة'),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-    ],
-  );
+abstract final class NajdTheme {
+  static ThemeData light({required bool isTv}) =>
+      NajdThemes.forBrightness(Brightness.light, isTv: isTv);
+  static ThemeData dark({required bool isTv}) =>
+      NajdThemes.forBrightness(Brightness.dark, isTv: isTv);
 }
 
 class NajdTvViewport extends StatefulWidget {

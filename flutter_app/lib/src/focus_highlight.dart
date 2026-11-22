@@ -1,3 +1,5 @@
+import 'app_theme.dart';
+
 import 'package:flutter/material.dart';
 
 /// Adds a visible border without inserting a second traversal stop.
@@ -27,28 +29,40 @@ class _FocusHighlightState extends State<FocusHighlight> {
         });
       }
     },
-    child: AnimatedContainer(
-      key: const Key('focus-highlight-border'),
-      duration: const Duration(milliseconds: 120),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          width: 3,
-          color: _focused
-              ? Theme.of(context).colorScheme.primary
-              : Colors.transparent,
-        ),
-        boxShadow: _focused
-            ? [
-                BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withAlpha(140),
-                  blurRadius: 10,
-                  spreadRadius: 1,
+    child: AnimatedScale(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 120),
+      scale: _focused && NajdThemeExtension.of(context).isTv ? 1.05 : 1,
+      child: AnimatedContainer(
+        key: const Key('focus-highlight-border'),
+        duration: const Duration(milliseconds: 120),
+        decoration: _focused && NajdThemeExtension.of(context).isTv
+            ? NajdThemeExtension.of(context).tvFocusDecoration(
+                isFocused: true,
+                borderRadius: BorderRadius.circular(18),
+              )
+            : BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  width: 3,
+                  color: _focused
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
                 ),
-              ]
-            : null,
+                boxShadow: _focused
+                    ? [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary
+                              .withAlpha(140),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
+              ),
+        child: widget.child,
       ),
-      child: widget.child,
     ),
   );
 }

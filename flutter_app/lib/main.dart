@@ -1,3 +1,4 @@
+import 'src/app_theme.dart';
 import 'src/deferred_client_features.dart';
 import 'src/season_download_queue.dart';
 import 'src/season_download_queue_ui.dart';
@@ -209,8 +210,8 @@ class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
       builder: (context, _) => MaterialApp(
         debugShowCheckedModeBanner: false,
         title: NajdUi.brand,
-        theme: NajdThemes.light,
-        darkTheme: NajdThemes.dark,
+        theme: NajdTheme.light(isTv: isTvTarget),
+        darkTheme: NajdTheme.dark(isTv: isTvTarget),
         themeMode: NajdAppearance.instance.mode,
         builder: (context, child) => ScrollToTopOverlay(
           child: DeviceUnlockGate(
@@ -637,172 +638,177 @@ class _ShellState extends State<Shell> {
 
   Widget _navigation({required bool drawer}) => Material(
     key: const Key('tatv-right-sidebar'),
-    color: Theme.of(context).colorScheme.surface,
-    child: SafeArea(
-      child: SizedBox(
-        width: 232,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Expanded(child: _BrandTitle()),
-                  if (drawer)
-                    IconButton(
-                      tooltip: 'إغلاق القائمة',
-                      onPressed: _closeNavigation,
-                      icon: const Icon(Icons.close),
-                    ),
-                ],
+    color: isTvTarget
+        ? Colors.transparent
+        : Theme.of(context).colorScheme.surface,
+    child: _NavigationSurface(
+      child: SafeArea(
+        child: SizedBox(
+          width: 232,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Expanded(child: _BrandTitle()),
+                    if (drawer)
+                      IconButton(
+                        tooltip: 'إغلاق القائمة',
+                        onPressed: _closeNavigation,
+                        icon: const Icon(Icons.close),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: FocusTraversalGroup(
-                policy: OrderedTraversalPolicy(),
-                child: ListView.builder(
-                  scrollCacheExtent: const ScrollCacheExtent.pixels(2000),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  itemCount: NajdUi.pageIds.length + 1,
-                  itemBuilder: (context, i) {
-                    if (i >= NajdUi.pageIds.length) {
-                      return Column(
-                        children: [
-                          ServerFeatureTile(
-                            api: api,
-                            feature: 'short_drama_v1',
-                            title: 'الدراما القصيرة',
-                            icon: Icons.video_collection_outlined,
-                            onTap: () {
-                              if (drawer) _closeNavigation();
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => Scaffold(
-                                    appBar: AppBar(
-                                      title: const Text('الدراما القصيرة'),
-                                    ),
-                                    body: CatalogPage(
-                                      api: api,
-                                      store: widget.store,
-                                      title: 'الدراما القصيرة',
-                                      categoryId: 'catalog:short-drama:all',
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          ListTile(
-                            key: const Key('nav-provider-beta'),
-                            focusNode: _navFocus[i],
-                            minTileHeight: isTvTarget ? 64 : 48,
-                            leading: const Icon(Icons.science_outlined),
-                            title: const Text('تصفح المزود — تجريبي'),
-                            subtitle: const Text('ميزة تحت التجربة'),
-                            onTap: () {
-                              if (drawer) _closeNavigation();
-                              if (!NajdPreferences.instance.providerBeta) {
-                                _selectPage(8);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'فعّل تصفح المزود التجريبي من الإعدادات',
+              Expanded(
+                child: FocusTraversalGroup(
+                  policy: OrderedTraversalPolicy(),
+                  child: ListView.builder(
+                    scrollCacheExtent: const ScrollCacheExtent.pixels(2000),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    itemCount: NajdUi.pageIds.length + 1,
+                    itemBuilder: (context, i) {
+                      if (i >= NajdUi.pageIds.length) {
+                        return Column(
+                          children: [
+                            ServerFeatureTile(
+                              api: api,
+                              feature: 'short_drama_v1',
+                              title: 'الدراما القصيرة',
+                              icon: Icons.video_collection_outlined,
+                              onTap: () {
+                                if (drawer) _closeNavigation();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => Scaffold(
+                                      appBar: AppBar(
+                                        title: const Text('الدراما القصيرة'),
+                                      ),
+                                      body: CatalogPage(
+                                        api: api,
+                                        store: widget.store,
+                                        title: 'الدراما القصيرة',
+                                        categoryId: 'catalog:short-drama:all',
+                                      ),
                                     ),
                                   ),
                                 );
-                                return;
-                              }
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ProviderBrowserPage(
-                                    api: api,
-                                    store: widget.store,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      );
-                    }
-                    return FocusTraversalOrder(
-                      order: NumericFocusOrder(i.toDouble()),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        child: Focus(
-                          canRequestFocus: false,
-                          onKeyEvent: (node, event) {
-                            if (event is! KeyDownEvent) {
-                              return KeyEventResult.ignored;
-                            }
-                            if (event.logicalKey ==
-                                    LogicalKeyboardKey.arrowDown ||
-                                event.logicalKey ==
-                                    LogicalKeyboardKey.arrowUp) {
-                              final next =
-                                  (i +
-                                      (event.logicalKey ==
-                                              LogicalKeyboardKey.arrowDown
-                                          ? 1
-                                          : -1)) %
-                                  _navFocus.length;
-                              _navFocus[next].requestFocus();
-                              return KeyEventResult.handled;
-                            }
-                            if (event.logicalKey == LogicalKeyboardKey.select) {
-                              _selectPage(i);
-                              if (drawer) _closeNavigation();
-                              return KeyEventResult.handled;
-                            }
-                            return KeyEventResult.ignored;
-                          },
-                          child: FocusHighlight(
-                            child: TextButton(
-                              key: ValueKey('nav-${NajdUi.pageIds[i]}'),
+                              },
+                            ),
+                            ListTile(
+                              key: const Key('nav-provider-beta'),
                               focusNode: _navFocus[i],
-                              autofocus: !drawer && i == index,
-                              style: TextButton.styleFrom(
-                                alignment: Alignment.centerRight,
-                                minimumSize: Size.fromHeight(
-                                  isTvTarget ? 64 : 50,
-                                ),
-                                foregroundColor: i == index
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                backgroundColor: i == index
-                                    ? _brandAccent.withAlpha(26)
-                                    : Colors.transparent,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 12,
-                                ),
-                              ),
-                              onPressed: () {
+                              minTileHeight: isTvTarget ? 64 : 48,
+                              leading: const Icon(Icons.science_outlined),
+                              title: const Text('تصفح المزود — تجريبي'),
+                              subtitle: const Text('ميزة تحت التجربة'),
+                              onTap: () {
+                                if (drawer) _closeNavigation();
+                                if (!NajdPreferences.instance.providerBeta) {
+                                  _selectPage(8);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'فعّل تصفح المزود التجريبي من الإعدادات',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ProviderBrowserPage(
+                                      api: api,
+                                      store: widget.store,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      }
+                      return FocusTraversalOrder(
+                        order: NumericFocusOrder(i.toDouble()),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Focus(
+                            canRequestFocus: false,
+                            onKeyEvent: (node, event) {
+                              if (event is! KeyDownEvent) {
+                                return KeyEventResult.ignored;
+                              }
+                              if (event.logicalKey ==
+                                      LogicalKeyboardKey.arrowDown ||
+                                  event.logicalKey ==
+                                      LogicalKeyboardKey.arrowUp) {
+                                final next =
+                                    (i +
+                                        (event.logicalKey ==
+                                                LogicalKeyboardKey.arrowDown
+                                            ? 1
+                                            : -1)) %
+                                    _navFocus.length;
+                                _navFocus[next].requestFocus();
+                                return KeyEventResult.handled;
+                              }
+                              if (event.logicalKey ==
+                                  LogicalKeyboardKey.select) {
                                 _selectPage(i);
                                 if (drawer) _closeNavigation();
-                              },
-                              child: Row(
-                                children: [
-                                  Icon(NajdUi.icons[i]),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: Text(NajdUi.labels[i])),
-                                ],
+                                return KeyEventResult.handled;
+                              }
+                              return KeyEventResult.ignored;
+                            },
+                            child: FocusHighlight(
+                              child: TextButton(
+                                key: ValueKey('nav-${NajdUi.pageIds[i]}'),
+                                focusNode: _navFocus[i],
+                                autofocus: !drawer && i == index,
+                                style: TextButton.styleFrom(
+                                  alignment: Alignment.centerRight,
+                                  minimumSize: Size.fromHeight(
+                                    isTvTarget ? 64 : 50,
+                                  ),
+                                  foregroundColor: i == index
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                  backgroundColor: i == index
+                                      ? _brandAccent.withAlpha(26)
+                                      : Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                ),
+                                onPressed: () {
+                                  _selectPage(i);
+                                  if (drawer) _closeNavigation();
+                                },
+                                child: Row(
+                                  children: [
+                                    Icon(NajdUi.icons[i]),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: Text(NajdUi.labels[i])),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ),
@@ -3492,4 +3498,15 @@ class _ErrorState extends StatelessWidget {
       child: Text(message, textAlign: TextAlign.center),
     ),
   );
+}
+
+class _NavigationSurface extends StatelessWidget {
+  const _NavigationSurface({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => isTvTarget
+      ? NajdGlassContainer(
+          child: Material(type: MaterialType.transparency, child: child),
+        )
+      : child;
 }

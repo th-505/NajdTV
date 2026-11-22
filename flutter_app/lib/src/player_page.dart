@@ -1,3 +1,4 @@
+import 'app_theme.dart';
 import 'deferred_client_features.dart';
 import 'work_sharing.dart';
 import 'live_channels_panel.dart';
@@ -2382,9 +2383,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  Widget _modernControls(UniversalPlayer controller) => Container(
+  Widget _modernControls(UniversalPlayer controller) => NajdGlassContainer(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    color: Colors.transparent,
+    blurSigma: kIsWeb ? 0 : 12,
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [

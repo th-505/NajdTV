@@ -31,6 +31,7 @@ class SourcePickerButton extends StatelessWidget {
           final index = await showNajdOptions<int>(
             context,
             title: 'مصادر التشغيل',
+            glass: true,
             description: scan['observed_servers'] is num
                 ? 'اكتُشف ${scan['observed_servers']} سيرفرًا؛ اجتاز الفحص ${scan['playable_servers']}. التبديل بين خوادم الحلقة من المصدر نفسه.'
                 : 'اختر خادمًا صالحًا لهذه الحلقة من المصدر نفسه.',

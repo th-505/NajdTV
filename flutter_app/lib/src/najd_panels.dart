@@ -1,3 +1,7 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+import 'app_theme.dart';
+
 import 'package:flutter/material.dart';
 
 import 'app_target.dart';
@@ -27,6 +31,7 @@ Future<T?> showNajdPanel<T>(
   String? description,
   required WidgetBuilder body,
   IconData icon = Icons.tune,
+  bool glass = false,
 }) {
   final wide = MediaQuery.sizeOf(context).width >= 700 || isTvTarget;
   final compact = !wide && MediaQuery.sizeOf(context).shortestSide < 600;
@@ -97,29 +102,34 @@ Future<T?> showNajdPanel<T>(
       ),
     ),
   );
+  Widget surface(BuildContext context) => glass
+      ? NajdGlassContainer(blurSigma: kIsWeb ? 0 : 12, child: panel(context))
+      : panel(context);
   if (wide) {
     return showDialog<T>(
       context: context,
       builder: (context) => Dialog(
+        backgroundColor: glass ? Colors.transparent : null,
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: 680,
             maxHeight: MediaQuery.sizeOf(context).height * .84,
           ),
-          child: panel(context),
+          child: surface(context),
         ),
       ),
     );
   }
   return showModalBottomSheet<T>(
     context: context,
+    backgroundColor: glass ? Colors.transparent : null,
     isScrollControlled: true,
     useSafeArea: true,
     builder: (context) => ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * .82,
       ),
-      child: panel(context),
+      child: surface(context),
     ),
   );
 }
@@ -131,11 +141,13 @@ Future<T?> showNajdOptions<T extends Object>(
   required List<NajdOption<T>> options,
   IconData icon = Icons.tune,
   Widget? empty,
+  bool glass = false,
 }) => showNajdPanel<T>(
   context,
   title: title,
   description: description,
   icon: icon,
+  glass: glass,
   body: (context) => Column(
     mainAxisSize: MainAxisSize.min,
     children: [

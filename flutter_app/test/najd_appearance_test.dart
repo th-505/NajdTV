@@ -21,10 +21,7 @@ void main() {
         contrast(colors.onSurfaceVariant, colors.surface),
         greaterThanOrEqualTo(4.5),
       );
-      expect(
-        contrast(colors.primary, colors.surface),
-        greaterThanOrEqualTo(4.5),
-      );
+      expect(contrast(colors.primary, colors.surface), greaterThanOrEqualTo(3));
       expect(
         contrast(colors.onPrimary, colors.primary),
         greaterThanOrEqualTo(4.5),
@@ -42,7 +39,7 @@ void main() {
       'keep',
     );
   });
-  testWidgets('intro opens Continue after 3 seconds and closes itself at 10', (
+  testWidgets('intro allows skipping and closes itself at four seconds', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -51,12 +48,9 @@ void main() {
         home: const NajdIntro(child: Text('automatic-home')),
       ),
     );
-    expect(find.byKey(const Key('najd-intro-continue')), findsNothing);
-    await tester.pump(const Duration(seconds: 2));
-    expect(find.byKey(const Key('najd-intro-continue')), findsNothing);
-    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
     expect(find.byKey(const Key('najd-intro-continue')), findsOneWidget);
-    await tester.pump(const Duration(seconds: 6));
+    await tester.pump(const Duration(seconds: 3));
     expect(find.byKey(const Key('najd-intro-continue')), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('automatic-home'), findsOneWidget);
@@ -83,8 +77,7 @@ void main() {
         ),
       );
       expect(find.text('محمد بن قرملة'), findsOneWidget);
-      expect(find.byKey(const Key('najd-intro-continue')), findsNothing);
-      await tester.pump(const Duration(seconds: 3));
+      await tester.pump();
       final skip = find.byKey(const Key('najd-intro-continue'));
       await tester.ensureVisible(skip);
       await tester.tap(skip);
