@@ -143,6 +143,16 @@ function normalizeDetails(body = {}, mediaType, id) {
         .filter(person => person.id && person.name),
       directors: [...new Set((Array.isArray(body.credits?.crew) ? body.credits.crew : []).filter(person=>person.job==='Director').map(person=>text(person.name)).filter(Boolean))],
       imdb_id: text(body.external_ids?.imdb_id),
+      related: (Array.isArray(body.similar?.results) ? body.similar.results : [])
+        .filter((item) => item?.adult !== true)
+        .map((item) => normalizeResult({ ...item, media_type: item?.media_type || mediaType }))
+        .filter(Boolean)
+        .slice(0, 14),
+      recommendations: (Array.isArray(body.recommendations?.results) ? body.recommendations.results : [])
+        .filter((item) => item?.adult !== true)
+        .map((item) => normalizeResult({ ...item, media_type: item?.media_type || mediaType }))
+        .filter(Boolean)
+        .slice(0, 14),
       similar: [...(Array.isArray(body.recommendations?.results) ? body.recommendations.results : []), ...(Array.isArray(body.similar?.results) ? body.similar.results : [])]
         .map((item) => normalizeResult({ ...item, media_type: item?.media_type || mediaType }))
         .filter(Boolean)

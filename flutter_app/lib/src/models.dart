@@ -415,6 +415,8 @@ class TitleDetails {
     this.cast = const [],
     this.directors = const [],
     this.directorPeople = const [],
+    this.related = const [],
+    this.recommendations = const [],
     this.genres = const [],
     this.season,
     this.episode,
@@ -466,6 +468,7 @@ class TitleDetails {
   final List<Map<String, dynamic>> cast;
   final List<String> directors;
   final List<Map<String, dynamic>> directorPeople;
+  final List<CatalogItem> related, recommendations;
   final List<String> genres;
   final int? season;
   final int? episode;
@@ -553,6 +556,8 @@ class TitleDetails {
     cast: List.unmodifiable(cast ?? this.cast),
     directors: List.unmodifiable(directors ?? this.directors),
     directorPeople: List.unmodifiable(directorPeople ?? this.directorPeople),
+    related: related,
+    recommendations: recommendations,
     genres: List.unmodifiable(genres ?? this.genres),
     season: season ?? this.season,
     episode: episode ?? this.episode,
@@ -572,6 +577,20 @@ class TitleDetails {
   bool get needsClientResolution =>
       playbackMode == 'client_resolve' && resolverUrl.isNotEmpty;
   bool get canPlay => hasDirectMedia || needsClientResolution;
+
+  static List<CatalogItem> _tmdbShelf(Object? payload) {
+    if (payload is! List) return const [];
+    return List.unmodifiable(
+      payload
+          .whereType<Map<String, dynamic>>()
+          .map(MediaItem.fromJson)
+          .where(
+            (item) =>
+                RegExp(r'^tmdb:(movie|tv):[1-9]\d*$').hasMatch(item.ref) &&
+                item.title.isNotEmpty,
+          ),
+    );
+  }
 
   factory TitleDetails.fromJson(Map<String, dynamic> json) {
     final rawEpisodes = json['episodes'];
@@ -644,6 +663,8 @@ class TitleDetails {
       year: int.tryParse('${json['year'] ?? ''}'),
       plot:
           '${json['plot'] ?? json['overview'] ?? json['description'] ?? json['story'] ?? ''}',
+      related: _tmdbShelf(json['related']),
+      recommendations: _tmdbShelf(json['recommendations']),
       cast: json['cast'] is List
           ? (json['cast'] as List)
                 .whereType<Map>()

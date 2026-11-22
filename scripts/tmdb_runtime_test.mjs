@@ -127,6 +127,8 @@ assert.deepEqual(details.data.genres, ["Drama"]);
 assert.equal(details.data.cast[0].name, "Bryan Cranston");
 assert.equal(details.data.imdb_id, "tt0903747");
 assert.equal(details.data.similar[0].ref, "tmdb:tv:1");
+assert.equal(details.data.recommendations[0].ref, "tmdb:tv:1");
+assert.deepEqual(details.data.related, []);
 assert.match(new URL(calls[1]).searchParams.get("append_to_response"), /credits/);
 assert.equal(calls.length, 2);
 

@@ -503,6 +503,25 @@ export default {
         };
       }
       const result = await aggregate(identity, env, { verifiedIdentity });
+      const reportedPlatform = url.searchParams.get("platform");
+      const platform = ["android", "ios", "tv", "desktop", "web", "mobile"].includes(reportedPlatform)
+        ? reportedPlatform : "unknown";
+      for (const row of result.availability) {
+        if (row.status === "available" || !identity.refs[row.provider_id]) continue;
+        const reason = row.reason || "DIRECT_MEDIA_NOT_FOUND";
+        const category = /BLOCK|CHALLENGE|FORBIDDEN|LOGIN/.test(reason)
+          ? "access_restricted"
+          : /TIMEOUT|DEADLINE|ABORT/i.test(reason)
+            ? "timeout"
+            : reason === "DIRECT_MEDIA_NOT_FOUND" ? "no_media" : "resolver_error";
+        console.warn(JSON.stringify({
+          event: "edge_resolver_failure",
+          provider: row.provider_id,
+          category,
+          platform,
+          timestamp: new Date().toISOString(),
+        }));
+      }
       if (!result.sources.length) return reply(result, 503);
 
       console.log(

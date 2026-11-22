@@ -326,6 +326,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   bool _levelGestureActive = false;
   Timer? _levelFeedbackTimer;
   Timer? _serverScanTimer;
+  Timer? _manualSourceTimer;
+  bool _suggestManualSources = false;
   int _serverScanGeneration = 0, _serverScanFailures = 0;
   bool _serverScanActive = true;
   Timer? _controlsTimer;
@@ -706,6 +708,17 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     final generation = _generation.next();
     _serverScanGeneration = generation;
     _serverScanFailures = 0;
+    _manualSourceTimer?.cancel();
+    _suggestManualSources = false;
+    if (!widget.isLive && widget.localFileUri == null) {
+      _manualSourceTimer = Timer(const Duration(seconds: 6), () {
+        if (mounted &&
+            _generation.isCurrent(generation) &&
+            _controller?.value.isInitialized != true) {
+          setState(() => _suggestManualSources = true);
+        }
+      });
+    }
     if (!_cloudPrepared) {
       _cloudPrepared = true;
       await CloudLibrarySync.refreshForPlayback(
@@ -2358,6 +2371,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     _boostSerial++;
     _boosting = false;
     _generation.cancelOutstanding();
+    _manualSourceTimer?.cancel();
     _serverScanTimer?.cancel();
     _controlsTimer?.cancel();
     _seekFeedbackTimer?.cancel();
@@ -3360,9 +3374,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                   exploreLabel:
                                       !widget.isLive &&
                                           widget.localFileUri == null
-                                      ? (widget.item.type == 'movie'
-                                            ? 'اختيار مزود للفيلم'
-                                            : 'اختيار مزود أو حلقة')
+                                      ? 'افتح المصادر يدوياً'
                                       : 'العودة',
                                 ),
                               )
@@ -3393,6 +3405,12 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                                     ),
                                   if (_failed && _sources.length > 1)
                                     _sourceMenu(),
+                                  if (_suggestManualSources)
+                                    OutlinedButton.icon(
+                                      onPressed: _providerCatalogue,
+                                      icon: const Icon(Icons.dns_outlined),
+                                      label: const Text('افتح المصادر يدوياً'),
+                                    ),
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.of(context).maybePop(),

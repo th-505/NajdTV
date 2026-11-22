@@ -20,6 +20,7 @@ import 'src/playback_resume.dart';
 import 'src/app_preferences.dart';
 import 'src/provider_browser_page.dart';
 import 'src/search_work_groups.dart';
+import 'src/search_scoring.dart';
 import 'src/account_settings.dart';
 import 'src/stitch_design.dart';
 import 'src/najd_panels.dart';
@@ -2815,6 +2816,8 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
+  String _submittedQuery = '';
+  int? _catalogueYear;
   List<CatalogItem>? _groupedInput;
   bool? _groupedAdvanced;
   List<SearchWorkGroup> _grouped = [];
@@ -2881,6 +2884,8 @@ class _SearchPageState extends State<SearchPage> {
     if (q.length < 2 || q.length > 120) return;
     final request = ++generation;
     setState(() {
+      _submittedQuery = q;
+      _catalogueYear = null;
       exploring = advanced;
       loading = true;
       loadingMore = false;
@@ -2889,6 +2894,7 @@ class _SearchPageState extends State<SearchPage> {
       submitted = true;
       error = null;
     });
+    if (advanced) unawaited(_resolveSearchYear(q, request));
     try {
       // A newly registered source becomes searchable in this same app session.
       var currentSources = sources;
@@ -2936,6 +2942,22 @@ class _SearchPageState extends State<SearchPage> {
             '${widget.api.lastSearchStage == 'client_no_response' ? 'لم يصل رد للتطبيق؛ قد يكون انقطاع اتصال أو مهلة.' : 'تعذر البحث حاليًا. أعد المحاولة.'}'
             '${widget.api.lastSearchTrace != null ? ' رقم التشخيص: ${widget.api.lastSearchTrace}' : ''}';
       });
+    }
+  }
+
+  Future<void> _resolveSearchYear(String query, int request) async {
+    final scoring = SearchScoring(query);
+    if (scoring.requestedYear != null) return;
+    try {
+      final catalogue = await widget.api
+          .searchTmdb(query)
+          .timeout(const Duration(seconds: 5));
+      final year = scoring.referenceYear(catalogue);
+      if (year != null && mounted && request == generation) {
+        setState(() => _catalogueYear = year);
+      }
+    } catch (_) {
+      // Provider results remain available when the catalogue cannot confirm a year.
     }
   }
 
@@ -3093,6 +3115,32 @@ class _SearchPageState extends State<SearchPage> {
           ),
         ),
       );
+      final ranked = SearchScoring(_submittedQuery)
+          .partition(_resultGroups, catalogueYear: _catalogueYear);
+      final gridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 185,
+        childAspectRatio: 2 / 3,
+        crossAxisSpacing: isTvTarget ? 18 : 10,
+        mainAxisSpacing: isTvTarget ? 18 : 10,
+      );
+      Widget card(BuildContext context, SearchWorkGroup group) => _CatalogCard(
+        item: group.representative.copyWith(title: group.title),
+        sourceLabel: !advanced
+            ? null
+            : group.providerChoices.length > 1
+            ? '${group.providerChoices.length} مزودين'
+            : _sourceLabel(group.representative.source),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DetailsPage(
+              api: widget.api,
+              store: widget.store,
+              item: group.representative,
+              searchMatches: group.members,
+            ),
+          ),
+        ),
+      );
       final results = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -3112,7 +3160,7 @@ class _SearchPageState extends State<SearchPage> {
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                   ),
-                  Text('${_resultGroups.length} عمل'),
+                  Text('${ranked.exact.length + ranked.possible.length} عمل'),
                 ],
               ),
             ),
@@ -3125,7 +3173,10 @@ class _SearchPageState extends State<SearchPage> {
                     message: error,
                     onRetry: () => run(),
                   )
-                : submitted && items.isEmpty
+                : submitted &&
+                      ranked.exact.isEmpty &&
+                      ranked.possible.isEmpty &&
+                      !hasMore
                 ? NajdEmptyState(
                     kind: NajdEmptyKind.search,
                     message: advanced
@@ -3142,48 +3193,39 @@ class _SearchPageState extends State<SearchPage> {
                   )
                 : !submitted
                 ? const Center(child: Text('اكتب اسم فيلم أو مسلسل للبحث'))
-                : GridView.builder(
+                : CustomScrollView(
                     controller: resultsController,
-                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 185,
-                      childAspectRatio: 2 / 3,
-                      crossAxisSpacing: isTvTarget ? 18 : 10,
-                      mainAxisSpacing: isTvTarget ? 18 : 10,
-                    ),
-                    itemCount: _resultGroups.length + (hasMore ? 1 : 0),
-                    itemBuilder: (context, i) => i == _resultGroups.length
-                        ? Center(
+                    slivers: [
+                      if (ranked.exact.isNotEmpty)
+                        SliverGrid.builder(
+                          gridDelegate: gridDelegate,
+                          itemCount: ranked.exact.length,
+                          itemBuilder: (context, i) =>
+                              card(context, ranked.exact[i]),
+                        ),
+                      if (ranked.possible.isNotEmpty) ...[
+                        const SliverToBoxAdapter(
+                          child: NajdSectionHeading('أعمال محتملة'),
+                        ),
+                        SliverGrid.builder(
+                          gridDelegate: gridDelegate,
+                          itemCount: ranked.possible.length,
+                          itemBuilder: (context, i) =>
+                              card(context, ranked.possible[i]),
+                        ),
+                      ],
+                      if (hasMore)
+                        SliverToBoxAdapter(
+                          child: Center(
                             child: loadingMore
                                 ? const CircularProgressIndicator()
                                 : TextButton(
                                     onPressed: loadMore,
                                     child: const Text('عرض المزيد'),
                                   ),
-                          )
-                        : _CatalogCard(
-                            item: _resultGroups[i].representative.copyWith(
-                              title: _resultGroups[i].title,
-                            ),
-                            sourceLabel: advanced
-                                ? _resultGroups[i].providerChoices.length > 1
-                                      ? '${_resultGroups[i].providerChoices.length} مزودين'
-                                      : _sourceLabel(
-                                          _resultGroups[i]
-                                              .representative
-                                              .source,
-                                        )
-                                : null,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => DetailsPage(
-                                  api: widget.api,
-                                  store: widget.store,
-                                  item: _resultGroups[i].representative,
-                                  searchMatches: _resultGroups[i].members,
-                                ),
-                              ),
-                            ),
                           ),
+                        ),
+                    ],
                   ),
           ),
         ],

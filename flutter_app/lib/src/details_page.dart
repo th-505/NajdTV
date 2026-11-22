@@ -281,59 +281,72 @@ class _DetailsPageState extends State<DetailsPage> {
     );
   }
 
-  Future<void> _showProviders() => showNajdPanel<void>(
-    context,
-    title: 'المصادر والمزودون',
-    icon: Icons.dns_outlined,
-    description:
-        'اختر المزود لعرض الاسم والملخص والمواسم والحلقات كما وردت في موقعه.',
-    body: (panelContext) => widget.searchMatches.length > 1
-        ? Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final item in SearchWorkGroup(
-                '',
-                widget.searchMatches,
-              ).providerChoices)
-                ExpansionTile(
-                  leading: const Icon(Icons.video_library_outlined),
-                  title: Text(widget.api.explorationSourceLabel(item.source)),
-                  subtitle: Text(item.title),
-                  children: [
-                    for (final match in widget.searchMatches.where(
-                      (entry) =>
-                          entry.source == item.source &&
-                          entry.edition == item.edition,
-                    ))
-                      ListTile(
-                        title: Text(match.title),
-                        trailing: const Icon(Icons.chevron_left),
-                        onTap: () {
-                          Navigator.pop(panelContext);
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => DetailsPage(
-                                api: widget.api,
-                                store: widget.store,
-                                item: match,
-                                searchMatches: widget.searchMatches,
+  Future<void> _showProviders() => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (pageContext) => Scaffold(
+        appBar: AppBar(title: const Text('المصادر والمزودون')),
+        body: ListView(
+          padding: EdgeInsets.all(isTvTarget ? 28 : 16),
+          children: [
+            ListTile(
+              leading: SizedBox(
+                width: 48,
+                height: 48,
+                child: NajdPoster(url: widget.item.poster),
+              ),
+              title: Text(widget.item.title),
+            ),
+            widget.searchMatches.length > 1
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final item in SearchWorkGroup(
+                        '',
+                        widget.searchMatches,
+                      ).providerChoices)
+                        ExpansionTile(
+                          leading: const Icon(Icons.video_library_outlined),
+                          title: Text(
+                            widget.api.explorationSourceLabel(item.source),
+                          ),
+                          subtitle: Text(item.title),
+                          children: [
+                            for (final match in widget.searchMatches.where(
+                              (entry) =>
+                                  entry.source == item.source &&
+                                  entry.edition == item.edition,
+                            ))
+                              ListTile(
+                                title: Text(match.title),
+                                trailing: const Icon(Icons.chevron_left),
+                                onTap: () {
+                                  Navigator.of(pageContext).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => DetailsPage(
+                                        api: widget.api,
+                                        store: widget.store,
+                                        item: match,
+                                        searchMatches: widget.searchMatches,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                  ],
-                ),
-            ],
-          )
-        : SourceEditionsPanel(
-            api: widget.api,
-            workRef: _providersRef,
-            onOpen: (edition) {
-              Navigator.pop(context);
-              unawaited(_openSourceEdition(edition));
-            },
-          ),
+                          ],
+                        ),
+                    ],
+                  )
+                : SourceEditionsPanel(
+                    api: widget.api,
+                    workRef: _providersRef,
+                    onOpen: (edition) {
+                      unawaited(_openSourceEdition(edition));
+                    },
+                  ),
+          ],
+        ),
+      ),
+    ),
   );
 
   Future<void> _watch(TitleDetails details) async {
@@ -1017,6 +1030,39 @@ class _DetailsPageState extends State<DetailsPage> {
     }
   }
 
+  Widget _recommendationShelf(String heading, List<CatalogItem> works) {
+    if (works.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        NajdSectionHeading(heading),
+        SizedBox(
+          height: isTvTarget ? 232 : 192,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: works.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            itemBuilder: (context, index) => SizedBox(
+              width: isTvTarget ? 150 : 124,
+              child: NajdWorkCard(
+                item: works[index],
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => DetailsPage(
+                      api: widget.api,
+                      store: widget.store,
+                      item: works[index],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -1255,74 +1301,6 @@ class _DetailsPageState extends State<DetailsPage> {
                       },
                     ),
                   ),
-                if (details.directors.isNotEmpty)
-                  Text('إخراج: ${details.directors.join('، ')}'),
-                if (details.cast.isNotEmpty ||
-                    details.directorPeople.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: SizedBox(
-                      height: 206,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount:
-                            details.directorPeople.length + details.cast.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 10),
-                        itemBuilder: (context, index) {
-                          final person = [
-                            ...details.directorPeople,
-                            ...details.cast,
-                          ][index];
-                          return SizedBox(
-                            width: 116,
-                            child: Card(
-                              clipBehavior: Clip.antiAlias,
-                              child: InkWell(
-                                onTap: person['id'] == null
-                                    ? null
-                                    : () => _personWorks(person),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    SizedBox(
-                                      height: 126,
-                                      child: NajdPoster(
-                                        url: '${person['photo'] ?? ''}',
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: SingleChildScrollView(
-                                        padding: const EdgeInsets.all(8),
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              '${person['name'] ?? ''}',
-                                              textAlign: TextAlign.center,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .labelLarge,
-                                            ),
-                                            if (person['role'] == 'Director')
-                                              Text(
-                                                'إخراج',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall,
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
                 if (details.sourceWorkRef.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1457,6 +1435,80 @@ class _DetailsPageState extends State<DetailsPage> {
                       ),
                     ),
                 ],
+                if (details.directors.isNotEmpty ||
+                    details.directorPeople.isNotEmpty ||
+                    details.cast.isNotEmpty)
+                  const NajdSectionHeading('طاقم العمل'),
+                if (details.directors.isNotEmpty)
+                  Text('إخراج: ${details.directors.join('، ')}'),
+                if (details.cast.isNotEmpty ||
+                    details.directorPeople.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: SizedBox(
+                      height: 206,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount:
+                            details.directorPeople.length + details.cast.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 10),
+                        itemBuilder: (context, index) {
+                          final person = [
+                            ...details.directorPeople,
+                            ...details.cast,
+                          ][index];
+                          return SizedBox(
+                            width: 116,
+                            child: Card(
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: person['id'] == null
+                                    ? null
+                                    : () => _personWorks(person),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    SizedBox(
+                                      height: 126,
+                                      child: NajdPoster(
+                                        url: '${person['photo'] ?? ''}',
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: SingleChildScrollView(
+                                        padding: const EdgeInsets.all(8),
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              '${person['name'] ?? ''}',
+                                              textAlign: TextAlign.center,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .labelLarge,
+                                            ),
+                                            if (person['role'] == 'Director')
+                                              Text(
+                                                'إخراج',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                _recommendationShelf('ذات صلة', details.related),
+                _recommendationShelf('قد تعجبك', details.recommendations),
               ],
             );
           },

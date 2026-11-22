@@ -1636,7 +1636,12 @@ class MitvApi implements MediaRepository {
                 : ref.startsWith('matchserver:')
                 ? '/v1/matches/playback'
                 : '/v1/resolve',
-            queryParameters: {'ref': ref, if (refresh) 'refresh': '1'},
+            queryParameters: {
+              'ref': ref,
+              if (!ref.startsWith('match:') && !ref.startsWith('matchserver:'))
+                'platform': appTargetValue,
+              if (refresh) 'refresh': '1',
+            },
           ),
           headers: const {'accept': 'application/json'},
         )
