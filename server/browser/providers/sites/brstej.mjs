@@ -5,7 +5,7 @@ import * as cheerio from 'cheerio';
 import {fetchProviderHtml, assertSafeScraperUrl, resolveSafeUrl} from '../../../scrapers/shared/http.mjs';
 import {normalizeCatalogItem, normalizeDetailsResult, normalizeEpisodeList, normalizeServerList,
   extractEpisodeNumber, extractYear, inferContentType} from '../../../scrapers/shared/normalize.mjs';
-import {attachResultMeta} from '../../../scrapers/shared/errors.mjs';
+import {attachResultMeta, ScraperError, SCRAPER_ERROR_CODES as E} from '../../../scrapers/shared/errors.mjs';
 import {extractRawStreamsFromText, isValidDirectMediaUrl, unwrapEmbedToDirectStreams} from '../../../scrapers/stream-unwrapper.mjs';
 import {BRSTEJ_CATEGORIES, BRSTEJ_CATEGORY_LABELS} from './brstej-categories.mjs';
 // HTTPS redirect and matching public catalog observed 2026-11-17; retain stored legacy origins.
@@ -17,6 +17,8 @@ export const PROVIDER_META = Object.freeze({id:'brstej',name:'برستيج',code
 export const BRSTEJ_CONFIG=Object.freeze({id:'brstej',baseUrl:ORIGIN,
   categories:{latest:'/home03',movies:'/cat03.php?cat=movies2-2224',series:'/moslslat.php',...BRSTEJ_CATEGORIES},
   categoryLabels:{latest:'الرئيسية',movies:'الأفلام',series:'المسلسلات',...BRSTEJ_CATEGORY_LABELS}});
+const catalogCardSelector = '.ptoday-card,.pgh-series-card,.prs-card,.pmc-card,.pcg-card,.pln-card,.psd-card,.thumbnail';
+const emptyCatalogMessage = /^(?:لا (?:توجد|يوجد) (?:أي )?(?:نتائج|عناصر|أعمال)(?: (?:في هذه الفئة|لعرضها|حاليًا|حالياً))?|لم يتم العثور على (?:أي )?نتائج)[.!؟]?$/u;
 const context=baseUrl=>({providerId:'brstej',baseUrl,allowHttp:false});
 const refFor=url=>'brstej:'+Buffer.from(url).toString('base64url');
 export function decodeProviderRef(input){
@@ -35,7 +37,8 @@ async function page(url,options={}){
 export function parseBrstejCatalog(html,baseUrl=ORIGIN){
   const $=cheerio.load(html),items=[],seen=new Set();
   // Scope to observed content cards, excluding navigation/footer/recommendations.
-  $('.ptoday-card,.pgh-series-card,.prs-card,.pmc-card,.pcg-card,.pln-card,.psd-card,.thumbnail').each((_,el)=>{
+  const cards = $(catalogCardSelector);
+  cards.each((_,el)=>{
     const card=$(el),anchor=card.is('a')?card:card.find('h3 a[href],h2 a[href],a[href*="video.php?vid="],a[href*="series1.php?id="]').first();
     const url=resolveSafeUrl(anchor.attr('href')||'',baseUrl,{allowHttp:false,allowedHosts:allowedHosts()});
     if(!url||!['/video.php','/series1.php'].includes(new URL(url).pathname)||seen.has(url))return;
@@ -51,13 +54,34 @@ export function parseBrstejCatalog(html,baseUrl=ORIGIN){
   const next=$('main a[rel=next],main .pagination li.active + li a,main .prs-pagination li.active + li a,main .psd-pages a[rel=next]').first().attr('href');
   const safe=next&&resolveSafeUrl(next,baseUrl,{allowHttp:false,allowedHosts:allowedHosts()});
   const n=safe?Number(new URL(safe).searchParams.get('page')):null;
-  return attachResultMeta(items,{ok:true,providerId:'brstej',url:baseUrl,next_page:Number.isInteger(n)&&n>current?n:null});
+  const emptyConfirmed = cards.length === 0 && $('main p, main [role="status"]').toArray()
+    .some(node => emptyCatalogMessage.test($(node).text().replace(/\s+/g, ' ').trim()));
+  return attachResultMeta(items,{
+    ok:true,providerId:'brstej',url:baseUrl,
+    next_page:Number.isInteger(n)&&n>current?n:null,
+    empty_confirmed:emptyConfirmed,
+  });
 }
 export async function scrapeCatalog(category='latest',n=1,options={}){
   const path=BRSTEJ_CONFIG.categories[category];if(!path)throw Error('BRSTEJ_UNKNOWN_CATEGORY');
   if(!Number.isInteger(n)||n<1||n>500)throw Error('BRSTEJ_BAD_PAGE');
   const url=new URL(path,ORIGIN);if(n>1)url.searchParams.set('page',n);
-  const result=await page(url.href,options);return parseBrstejCatalog(result.html,result.url);
+  const result = await page(url.href, options);
+  if (!result.ok) {
+    const missing = result.status === 404 || result.status === 410;
+    throw new ScraperError(
+      missing ? E.CATALOG_PATH_UNAVAILABLE : E.UPSTREAM_UNAVAILABLE,
+      missing ? 'CATALOG_PATH_UNAVAILABLE' : 'BRSTEJ_CATALOG_HTTP_ERROR',
+      {providerId:'brstej',status:result.status},
+    );
+  }
+  const items = parseBrstejCatalog(result.html, result.url);
+  if (!items.length && !items._meta.empty_confirmed) {
+    throw new ScraperError(E.STRUCTURE_CHANGED, 'BRSTEJ_CATALOG_STRUCTURE_CHANGED', {
+      providerId:'brstej',status:result.status,
+    });
+  }
+  return items;
 }
 export async function scrapeSearch(query,n=1,options={}){
   const q=String(query||'').trim();if(q.length<2||q.length>120)return[];

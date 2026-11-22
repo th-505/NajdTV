@@ -43,3 +43,57 @@ test('independent browser Brstej uses the same observed primary without sharing 
  assert.ok(rows.every(row=>new URL(beta.decodeProviderRef(row.ref)).hostname==='brstej1.site'));
  assert.throws(()=>beta.decodeProviderRef('https://unrelated.example/video.php?vid=abc123'));
 });
+
+test('Beta Brstej rejects HTTP error pages even when they contain catalog cards', async () => {
+  const { scrapeCatalog } = await import('../server/browser/providers/sites/brstej.mjs');
+  for (const status of [404, 410]) {
+    await assert.rejects(
+      scrapeCatalog('latest', 1, {
+        fetchImpl: async url => {
+          assert.equal(url, 'https://brstej1.site/home03');
+          return new Response(HOME_HTML, { status });
+        },
+      }),
+      { code: 'CATALOG_PATH_UNAVAILABLE', status },
+    );
+  }
+});
+
+test('Beta Brstej requires an explicit in-catalog empty message', async () => {
+  const { scrapeCatalog } = await import('../server/browser/providers/sites/brstej.mjs');
+  const page = html => ({ fetchImpl: async () => new Response(html) });
+  const empty = await scrapeCatalog('latest', 1, page('<main><p>لا توجد نتائج في هذه الفئة.</p></main>'));
+  assert.equal(empty.length, 0);
+  assert.equal(empty._meta.empty_confirmed, true);
+
+  for (const html of [
+    '<main><div class="new-layout">Unrecognized markup</div></main>',
+    '<main></main><footer><p>لا توجد نتائج</p></footer>',
+    '<main><div class="ptoday-card">Broken card</div><p>لا توجد نتائج</p></main>',
+  ]) {
+    await assert.rejects(scrapeCatalog('latest', 1, page(html)), {
+      code: 'STRUCTURE_CHANGED',
+      status: 200,
+    });
+  }
+});
+
+test('Beta Brstej applies configured HTTPS origin while preserving the latest path', async () => {
+  const {getProvider} = await import('../server/browser/registry.mjs');
+  const {browserConfigs, installBrowserConfigs} = await import('../server/browser/traffic.mjs');
+  const previous = browserConfigs();
+  const beta = getProvider('brstej');
+  const domain = 'https://brstej.garden';
+  installBrowserConfigs([{provider: 'brstej', config: {primary_domain: domain}}]);
+  try {
+    const rows = await beta.module.scrapeCatalog('latest', 1, {
+      fetchImpl: async url => {
+        assert.equal(url, domain + '/home03');
+        return new Response(HOME_HTML);
+      },
+    });
+    assert.equal(rows.length, 4);
+  } finally {
+    installBrowserConfigs(previous);
+  }
+});
