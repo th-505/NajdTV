@@ -1614,27 +1614,44 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Widget _section(String title, IconData icon, List<Widget> children) =>
-      NajdSurface(
-        padding: EdgeInsets.zero,
-        child: ListTile(
-          key: PageStorageKey('settings-$title'),
-          leading: Icon(icon),
-          title: Text(title),
-          trailing: const Icon(Icons.chevron_left),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => Scaffold(
-                appBar: AppBar(title: Text(title)),
-                body: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: children,
-                ),
-              ),
+  String? _selectedSection;
+
+  ({String title, IconData icon, List<Widget> children}) _section(
+    String title,
+    IconData icon,
+    List<Widget> children,
+  ) => (title: title, icon: icon, children: children);
+
+  Widget _sectionTile(
+    ({String title, IconData icon, List<Widget> children}) section, {
+    bool inline = false,
+    bool selected = false,
+  }) => ListTile(
+    key: PageStorageKey('settings-${section.title}'),
+    minTileHeight: isTvTarget ? 64 : 48,
+    selected: selected,
+    leading: Icon(section.icon),
+    title: Text(section.title),
+    trailing: inline ? null : const Icon(Icons.chevron_left),
+    onTap: () {
+      if (inline) {
+        setState(() => _selectedSection = section.title);
+        return;
+      }
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: Text(section.title)),
+            body: ListView(
+              padding: const EdgeInsets.all(16),
+              children: section.children,
             ),
           ),
         ),
       );
+    },
+  );
+
   Widget _open(String title, IconData icon, WidgetBuilder builder) => ListTile(
     leading: Icon(icon),
     title: Text(title),
@@ -1656,14 +1673,8 @@ class _SettingsPageState extends State<SettingsPage> {
     ),
   );
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(16),
-    children: [
-      const NajdSectionHeading('الإعدادات'),
-      const Padding(
-        padding: EdgeInsets.only(bottom: 18),
-        child: Text('خصص تجربة المشاهدة واحفظ تفضيلاتك على هذا الجهاز'),
-      ),
+  Widget build(BuildContext context) {
+    final sections = [
       _section('الحساب والمكتبة', Icons.person_outline, [
         _open(
           'تسجيل الدخول وإدارة الحساب',
@@ -1788,23 +1799,81 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
       ]),
-      const AboutListTile(
-        applicationName: NajdUi.brand,
-        applicationVersion: '$productVersion $productChannel ($productBuild)',
-        child: Text('عن نجد والتراخيص'),
-      ),
-      Padding(
-        key: const Key('settings-product-version'),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Text(
-          'الإصدار v$productVersion · $productChannel · البناء $productBuild',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall,
+    ];
+    return ListView(
+      padding: EdgeInsets.all(isTvTarget ? 24 : 16),
+      children: [
+        const NajdSectionHeading('الإعدادات'),
+        LayoutBuilder(
+          builder: (context, bounds) {
+            if (bounds.maxWidth < 900) {
+              return Column(
+                children: [
+                  for (final section in sections)
+                    NajdSurface(
+                      padding: EdgeInsets.zero,
+                      child: _sectionTile(section),
+                    ),
+                ],
+              );
+            }
+            final selected = sections.firstWhere(
+              (section) => section.title == _selectedSection,
+              orElse: () => sections[1],
+            );
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: NajdSurface(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        NajdSectionHeading(selected.title),
+                        ...selected.children,
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                SizedBox(
+                  width: 250,
+                  child: NajdSurface(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        for (final section in sections)
+                          _sectionTile(
+                            section,
+                            inline: true,
+                            selected: section == selected,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
-      ),
-      if (_busy) const LinearProgressIndicator(),
-    ],
-  );
+        const AboutListTile(
+          applicationName: NajdUi.brand,
+          applicationVersion: '$productVersion $productChannel ($productBuild)',
+          child: Text('عن نجد والتراخيص'),
+        ),
+        Padding(
+          key: const Key('settings-product-version'),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            'الإصدار v$productVersion · $productChannel · البناء $productBuild',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        if (_busy) const LinearProgressIndicator(),
+      ],
+    );
+  }
 }
 
 class _PlaybackPreferencesPanel extends StatelessWidget {
@@ -2872,125 +2941,162 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => Padding(
-      padding: EdgeInsets.all(isTvTarget ? 24 : 12),
-      child: Column(
-        children: [
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: (constraints.maxHeight * .62).clamp(
-                1,
-                double.infinity,
-              ),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  const NajdSectionHeading('البحث'),
-                  TextField(
-                    controller: query,
-                    textInputAction: TextInputAction.search,
-                    onChanged: onQueryChanged,
-                    onSubmitted: (_) => run(),
-                    decoration: InputDecoration(
-                      hintText: 'ابحث عن فيلم أو مسلسل',
-                      suffixIcon: IconButton(
-                        key: const Key('search-submit'),
-                        onPressed: loading ? null : () => run(),
-                        icon: const Icon(Icons.search),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SwitchListTile.adaptive(
-                    key: const Key('search-advanced-toggle'),
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('بحث متقدم — استكشاف'),
-                    subtitle: const Text(
-                      'ابحث في جميع المصادر بالتوازي أو اختر مصدراً محدداً',
-                    ),
-                    value: advanced,
-                    onChanged: _setAdvanced,
-                  ),
-                  if (advanced) ...[
-                    if (loadingSources) const LinearProgressIndicator(),
-                    if (sourceError != null)
-                      Row(
-                        children: [
-                          Expanded(child: Text(sourceError!)),
-                          TextButton(
-                            onPressed: () => _setAdvanced(true),
-                            child: const Text('إعادة المحاولة'),
-                          ),
-                        ],
-                      ),
-                    if (sources.isNotEmpty)
-                      NajdSurface(
-                        padding: EdgeInsets.zero,
-                        child: ListTile(
-                          key: const Key('search-explore-source'),
-                          leading: const Icon(Icons.travel_explore),
-                          title: Text(
-                            selectedSource == null
-                                ? 'جميع المصادر'
-                                : _sourceLabel(selectedSource!),
-                          ),
-                          subtitle: Text(
-                            selectedSource == null
-                                ? 'بحث متوازٍ في جميع المزودين'
-                                : 'نتائج هذا المصدر فقط',
-                          ),
-                          trailing: const Icon(Icons.expand_more),
-                          onTap: () async {
-                            try {
-                              final latest = await widget.api
-                                  .explorationSources();
-                              if (!mounted) return;
-                              setState(() => sources = latest);
-                            } catch (_) {
-                              if (!mounted) return;
-                            }
-                            if (!context.mounted) return;
-                            final value = await showNajdOptions<String>(
-                              context,
-                              title: 'مصادر البحث',
-                              description: 'ابحث في جميع المواقع معاً أو اختر موقعاً محدداً.',
-                              icon: Icons.travel_explore,
-                              options: [
-                                NajdOption(
-                                  'all',
-                                  'جميع المصادر',
-                                  selected: selectedSource == null,
-                                  icon: Icons.public,
-                                ),
-                                for (final source in sources)
-                                  NajdOption(
-                                    source,
-                                    _sourceLabel(source),
-                                    selected: source == selectedSource,
-                                    icon: Icons.language,
-                                  ),
-                              ],
-                            );
-                            if (!mounted || value == null) return;
-                            debounce?.cancel();
-                            generation += 1;
-                            setState(() {
-                              selectedSource = value == 'all' ? null : value;
-                              exploring = false;
-                              items = const [];
-                              submitted = false;
-                              loading = false;
-                              error = null;
-                            });
-                          },
-                        ),
-                      ),
-                  ],
-                ],
-              ),
-            ),
+    builder: (context, constraints) {
+      final wide = constraints.maxWidth >= 860 && constraints.maxHeight >= 420;
+      final controls = ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: (constraints.maxHeight * (wide ? .92 : .62)).clamp(
+            1,
+            double.infinity,
           ),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const NajdSectionHeading('البحث'),
+              TextField(
+                controller: query,
+                textInputAction: TextInputAction.search,
+                onChanged: onQueryChanged,
+                onSubmitted: (_) => run(),
+                decoration: InputDecoration(
+                  hintText: 'ابحث عن فيلم أو مسلسل',
+                  prefixIcon: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: query,
+                    builder: (context, value, _) => value.text.isEmpty
+                        ? const Icon(Icons.search)
+                        : IconButton(
+                            tooltip: 'مسح البحث',
+                            onPressed: () {
+                              query.clear();
+                              onQueryChanged('');
+                            },
+                            icon: const Icon(Icons.close),
+                          ),
+                  ),
+                  suffixIcon: IconButton(
+                    key: const Key('search-submit'),
+                    onPressed: loading ? null : () => run(),
+                    icon: const Icon(Icons.search),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SwitchListTile.adaptive(
+                key: const Key('search-advanced-toggle'),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('بحث متقدم — استكشاف'),
+                subtitle: const Text(
+                  'ابحث في جميع المصادر بالتوازي أو اختر مصدراً محدداً',
+                ),
+                value: advanced,
+                onChanged: _setAdvanced,
+              ),
+              if (advanced) ...[
+                if (loadingSources) const LinearProgressIndicator(),
+                if (sourceError != null)
+                  Row(
+                    children: [
+                      Expanded(child: Text(sourceError!)),
+                      TextButton(
+                        onPressed: () => _setAdvanced(true),
+                        child: const Text('إعادة المحاولة'),
+                      ),
+                    ],
+                  ),
+                if (sources.isNotEmpty)
+                  NajdSurface(
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      key: const Key('search-explore-source'),
+                      leading: const Icon(Icons.travel_explore),
+                      title: Text(
+                        selectedSource == null
+                            ? 'جميع المصادر'
+                            : _sourceLabel(selectedSource!),
+                      ),
+                      subtitle: Text(
+                        selectedSource == null
+                            ? 'بحث متوازٍ في جميع المزودين'
+                            : 'نتائج هذا المصدر فقط',
+                      ),
+                      trailing: const Icon(Icons.expand_more),
+                      onTap: () async {
+                        try {
+                          final latest = await widget.api.explorationSources();
+                          if (!mounted) return;
+                          setState(() => sources = latest);
+                        } catch (_) {
+                          if (!mounted) return;
+                        }
+                        if (!context.mounted) return;
+                        final value = await showNajdOptions<String>(
+                          context,
+                          title: 'مصادر البحث',
+                          description: 'ابحث في جميع المواقع معاً أو اختر موقعاً محدداً.',
+                          icon: Icons.travel_explore,
+                          options: [
+                            NajdOption(
+                              'all',
+                              'جميع المصادر',
+                              selected: selectedSource == null,
+                              icon: Icons.public,
+                            ),
+                            for (final source in sources)
+                              NajdOption(
+                                source,
+                                _sourceLabel(source),
+                                selected: source == selectedSource,
+                                icon: Icons.language,
+                              ),
+                          ],
+                        );
+                        if (!mounted || value == null) return;
+                        debounce?.cancel();
+                        generation += 1;
+                        setState(() {
+                          selectedSource = value == 'all' ? null : value;
+                          exploring = false;
+                          items = const [];
+                          submitted = false;
+                          loading = false;
+                          error = null;
+                        });
+                      },
+                    ),
+                  ),
+                if (wide)
+                  ListenableBuilder(
+                    listenable: widget.store,
+                    builder: (context, _) {
+                      final recent = widget.store.searchHistory.take(5);
+                      if (recent.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                        children: [
+                          const NajdSectionHeading('عمليات البحث الأخيرة'),
+                          for (final term in recent)
+                            ListTile(
+                              leading: const Icon(Icons.history),
+                              title: Text(term),
+                              onTap: () {
+                                debounce?.cancel();
+                                query.text = term;
+                                unawaited(run(term));
+                              },
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+              ],
+            ],
+          ),
+        ),
+      );
+      final results = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (wide) const NajdSectionHeading('نتائج البحث'),
           if (loading || exploring) const LinearProgressIndicator(),
           const SizedBox(height: 10),
           if (advanced && submitted)
@@ -3081,8 +3187,32 @@ class _SearchPageState extends State<SearchPage> {
                   ),
           ),
         ],
-      ),
-    ),
+      );
+      return Padding(
+        padding: EdgeInsets.all(isTvTarget ? 24 : 12),
+        child: wide
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: results),
+                  const SizedBox(width: 16),
+                  SizedBox(
+                    width: 340,
+                    child: NajdSurface(
+                      margin: EdgeInsets.zero,
+                      child: controls,
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                children: [
+                  controls,
+                  Expanded(child: results),
+                ],
+              ),
+      );
+    },
   );
 }
 
@@ -3167,6 +3297,12 @@ class _LibraryPageState extends State<LibraryPage> {
         children: [
           Row(
             children: [
+              Icon(switch (mode) {
+                NajdLibraryMode.favorites => Icons.favorite_outline,
+                NajdLibraryMode.history => Icons.history,
+                NajdLibraryMode.downloads => Icons.download_outlined,
+              }, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   switch (mode) {
@@ -3191,6 +3327,13 @@ class _LibraryPageState extends State<LibraryPage> {
                 ),
             ],
           ),
+          if (mode != NajdLibraryMode.downloads)
+            Text(
+              mode == NajdLibraryMode.history
+                  ? 'تابع من حيث توقفت'
+                  : 'الأعمال التي حفظتها للمشاهدة',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -3395,6 +3538,7 @@ class _LibraryPageState extends State<LibraryPage> {
               const NajdEmptyState(kind: NajdEmptyKind.history),
             for (final entry in history)
               NajdSurface(
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -3404,7 +3548,9 @@ class _LibraryPageState extends State<LibraryPage> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: SizedBox(
-                            width: 120,
+                            width: MediaQuery.sizeOf(context).width < 420
+                                ? 76
+                                : 144,
                             height: 82,
                             child: NajdPoster(url: entry.poster),
                           ),
@@ -3436,6 +3582,22 @@ class _LibraryPageState extends State<LibraryPage> {
                             ],
                           ),
                         ),
+                        IconButton.filledTonal(
+                          tooltip: entry.progress >= .95
+                              ? 'إعادة المشاهدة'
+                              : 'متابعة المشاهدة',
+                          onPressed: () => openHistoryEntry(
+                            context,
+                            widget.api,
+                            widget.store,
+                            entry,
+                          ),
+                          icon: Icon(
+                            entry.progress >= .95
+                                ? Icons.replay
+                                : Icons.play_arrow,
+                          ),
+                        ),
                         IconButton(
                           tooltip: 'إزالة من السجل',
                           onPressed: () =>
@@ -3445,30 +3607,18 @@ class _LibraryPageState extends State<LibraryPage> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Directionality(
-                      textDirection: TextDirection.ltr,
-                      child: LinearProgressIndicator(
-                        value: entry.progress,
-                        minHeight: 4,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: () => openHistoryEntry(
-                        context,
-                        widget.api,
-                        widget.store,
-                        entry,
-                      ),
-                      icon: Icon(
-                        entry.progress >= .95 ? Icons.replay : Icons.play_arrow,
-                      ),
-                      label: Text(
-                        entry.progress >= .95
-                            ? 'إعادة المشاهدة'
-                            : 'متابعة المشاهدة',
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: LinearProgressIndicator(
+                            value: entry.progress,
+                            minHeight: 5,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text('${(entry.progress * 100).round()}٪'),
+                      ],
                     ),
                   ],
                 ),

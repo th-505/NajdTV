@@ -167,12 +167,14 @@ class _NajdAccountPageState extends State<NajdAccountPage> {
             children: [
               if (busy) const LinearProgressIndicator(),
               if (authentication != null)
-                NajdEmailAuthPanel(
-                  auth: authentication!,
-                  onSignedIn: () {
-                    setState(() => busy = true);
-                    unawaited(load());
-                  },
+                _AccountEntry(
+                  child: NajdEmailAuthPanel(
+                    auth: authentication!,
+                    onSignedIn: () {
+                      setState(() => busy = true);
+                      unawaited(load());
+                    },
+                  ),
                 ),
               if (authentication == null && !busy) ...[
                 Text(message),
@@ -190,41 +192,94 @@ class _NajdAccountPageState extends State<NajdAccountPage> {
             padding: const EdgeInsets.all(20),
             children: [
               if (busy) const LinearProgressIndicator(),
-              if (avatar.isNotEmpty)
-                Center(
-                  child: ClipOval(
-                    child: Image.memory(
-                      base64Decode(avatar.split(',').last),
-                      width: 88,
-                      height: 88,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          const Icon(Icons.person, size: 88),
+              NajdSurface(
+                child: Row(
+                  children: [
+                    SizedBox.square(
+                      dimension: 78,
+                      child: avatar.isEmpty
+                          ? const Icon(Icons.account_circle, size: 72)
+                          : ClipOval(
+                              child: Image.memory(
+                                base64Decode(avatar.split(',').last),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    const Icon(Icons.account_circle, size: 72),
+                              ),
+                            ),
                     ),
-                  ),
-                )
-              else
-                const Icon(Icons.account_circle, size: 88),
-              ListTile(
-                leading: const Icon(Icons.verified_user_outlined),
-                title: Text(
-                  authentication!.client.auth.currentUser?.email ?? '',
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: name,
+                        builder: (context, value, _) => Text(
+                          value.text.trim().isEmpty ? 'حساب نجد' : value.text,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                      ),
+                    ),
+                    IconButton.filledTonal(
+                      tooltip: 'تغيير الصورة',
+                      onPressed: busy ? null : chooseAvatar,
+                      icon: const Icon(Icons.photo_camera_outlined),
+                    ),
+                  ],
                 ),
-                subtitle: const Text('حساب مسجّل ببريد مؤكّد'),
               ),
-              TextButton.icon(
-                onPressed: busy ? null : chooseAvatar,
-                icon: const Icon(Icons.image),
-                label: const Text('تغيير الصورة'),
-              ),
-              TextField(
-                controller: name,
-                maxLength: 64,
-                decoration: const InputDecoration(labelText: 'الاسم'),
-              ),
-              FilledButton(
-                onPressed: busy ? null : () => save(),
-                child: const Text('حفظ الحساب'),
+              if (widget.store case final store?)
+                ListenableBuilder(
+                  listenable: store,
+                  builder: (context, _) => Wrap(
+                    spacing: 12,
+                    children: [
+                      for (final (icon, label, count) in [
+                        (
+                          Icons.favorite_outline,
+                          'قائمتي',
+                          store.favorites.length,
+                        ),
+                        (Icons.history, 'سجل المشاهدة', store.history.length),
+                      ])
+                        NajdSurface(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                icon,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text('$label · $count'),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              NajdSurface(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const NajdSectionHeading('تفاصيل الحساب'),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.mail_outline),
+                      title: Text(
+                        authentication!.client.auth.currentUser?.email ?? '',
+                      ),
+                      subtitle: const Text('حساب مسجّل ببريد مؤكّد'),
+                    ),
+                    TextField(
+                      controller: name,
+                      maxLength: 64,
+                      decoration: const InputDecoration(labelText: 'الاسم'),
+                    ),
+                    FilledButton(
+                      onPressed: busy ? null : () => save(),
+                      child: const Text('حفظ الحساب'),
+                    ),
+                  ],
+                ),
               ),
               if (message.isNotEmpty)
                 Padding(
@@ -280,6 +335,47 @@ class _NajdAccountPageState extends State<NajdAccountPage> {
                 ),
             ],
           ),
+  );
+}
+
+class _AccountEntry extends StatelessWidget {
+  const _AccountEntry({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, bounds) {
+      final form = NajdSurface(child: child);
+      if (bounds.maxWidth < 740) return form;
+
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: form),
+          const SizedBox(width: 20),
+          Expanded(
+            child: NajdSurface(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset('assets/images/najd_logo.png'),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'مرحبًا بك في نجد',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    },
   );
 }
 
