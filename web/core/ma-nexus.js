@@ -187,7 +187,7 @@ export function classifyLatencyTier(ms, alive = true) {
     return { tier: 3, emoji: '🟡', label: `${ms}ms`, badgeColor: '#facc15', bgColor: 'rgba(250,204,21,0.16)', borderColor: '#facc15' };
   }
   if (ms <= 1100) {
-    return { tier: 4, emoji: '🟠', label: `${ms}ms`, badgeColor: '#fb923c', bgColor: 'rgba(251,146,60,0.16)', borderColor: '#fb923c' };
+    return { tier: 4, emoji: '◈', label: `${ms}ms`, badgeColor: '#c4b5fd', bgColor: 'rgba(196,181,253,0.16)', borderColor: '#c4b5fd' };
   }
   return { tier: 5, emoji: '🔴', label: `${ms}ms`, badgeColor: '#f87171', bgColor: 'rgba(248,113,113,0.16)', borderColor: '#f87171' };
 }

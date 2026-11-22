@@ -17,7 +17,7 @@ import sys
 import zlib
 from pathlib import Path
 
-BACKGROUND = (8, 8, 14, 255)
+BACKGROUND = (9, 7, 18, 255)
 ACCENT = (130, 128, 255, 255)
 FOREGROUND = (255, 255, 255, 255)
 TRANSPARENT = (0, 0, 0, 0)
@@ -30,7 +30,7 @@ def png_bytes(width: int, height: int, rgba: bytearray) -> bytes:
     return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
 
 
-def mark(size: int, background: tuple[int, int, int, int]) -> bytes:
+def mark(size: int, background: tuple[int, int, int, int], inset: bool = False) -> bytes:
     """Package the original generated Najd master with antialiased icon scaling."""
     master = Path(__file__).resolve().parents[1] / "assets/brand/najd-mark.png"
     image = Image.open(master).convert("RGBA")
@@ -38,7 +38,7 @@ def mark(size: int, background: tuple[int, int, int, int]) -> bytes:
     if bounds:
         image = image.crop(bounds)
     canvas = Image.new("RGBA", (max(16, int(size)),) * 2, background)
-    edge = max(12, round(canvas.width * .78))
+    edge = max(12, round(canvas.width * .78)) if inset else canvas.width
     image.thumbnail((edge, edge), Image.Resampling.LANCZOS)
     canvas.alpha_composite(image, ((canvas.width-image.width)//2, (canvas.height-image.height)//2))
     output = io.BytesIO()
@@ -46,9 +46,9 @@ def mark(size: int, background: tuple[int, int, int, int]) -> bytes:
     return output.getvalue()
 
 
-def write_icon(path: Path, size: int, transparent: bool = False):
+def write_icon(path: Path, size: int, transparent: bool = False, inset: bool = False):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(mark(size, TRANSPARENT if transparent else BACKGROUND))
+    path.write_bytes(mark(size, TRANSPARENT if transparent else BACKGROUND, inset))
 
 
 def apply_android(root: Path):
@@ -66,6 +66,11 @@ def apply_android(root: Path):
     for folder, size in sizes.items():
         write_icon(res / folder / "ic_launcher.png", size)
     write_icon(res / "drawable" / "launch_mitv.png", 256, transparent=True)
+    logo = Path(__file__).resolve().parents[1] / "flutter_app/assets/images/najd_logo.png"
+    with Image.open(logo) as image:
+        image.resize((320, 180), Image.Resampling.LANCZOS).save(
+            res / "drawable" / "najd_tv_banner.png", optimize=True
+        )
 
     # Android's layer-list item `android:drawable` requires a drawable resource
     # reference. Keep the splash background in a named color resource rather than
@@ -220,17 +225,15 @@ def apply_web(root: Path):
     if not web.exists(): return
     for size in (192,512):
         for name in (f"Icon-{size}.png",f"Icon-maskable-{size}.png"):
-            write_icon(web/"icons"/name,size)
+            write_icon(web/"icons"/name, size, inset="maskable" in name)
     write_icon(web/"favicon.png",64)
     write_icon(web/"icons"/"Najd-Apple-180.png",180)
     manifest = web / "manifest.json"
     if manifest.exists():
         data = json.loads(manifest.read_text(encoding="utf-8"))
         data.update({
-            "name": "Najd TV",
-            "short_name": "Najd TV",
-            "background_color": "#08080e",
-            "theme_color": "#08080e",
+            "background_color": "#090712",
+            "theme_color": "#090712",
             "description": "Najd TV للأفلام والمسلسلات والأنمي والمباريات المباشرة",
         })
         manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -264,6 +267,12 @@ def apply_macos(root: Path):
     macos = root / "macos"
     if not macos.exists():
         return
+    icons = macos / "Runner/Assets.xcassets/AppIcon.appiconset"
+    contents = icons / "Contents.json"
+    if contents.exists():
+        for entry in json.loads(contents.read_text(encoding="utf-8")).get("images", []):
+            if filename := entry.get("filename"):
+                write_icon(icons / filename, ios_pixel_size(entry))
     plist = macos / "Runner/Info.plist"
     if plist.exists():
         with plist.open("rb") as fh:

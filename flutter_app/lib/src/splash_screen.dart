@@ -77,7 +77,8 @@ class _NajdIntroState extends State<NajdIntro> {
                   children: [
                     Image.asset(
                       'assets/images/najd_logo.png',
-                      width: markSize,
+                      width: markSize * 2,
+                      fit: BoxFit.contain,
                       height: markSize,
                     ),
                     Text(
@@ -85,13 +86,6 @@ class _NajdIntroState extends State<NajdIntro> {
                       style: TextStyle(
                         fontSize: compact ? 32 : 44,
                         fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      'Najd TV',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],

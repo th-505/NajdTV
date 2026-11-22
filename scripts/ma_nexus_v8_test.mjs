@@ -22,7 +22,7 @@ assert.equal(classifyLatencyTier(110, true).emoji, '🟢');
 assert.match(classifyLatencyTier(110, true).label, /110ms ⚡/);
 assert.equal(classifyLatencyTier(250, true).emoji, '🟢');
 assert.equal(classifyLatencyTier(480, true).emoji, '🟡');
-assert.equal(classifyLatencyTier(850, true).emoji, '🟠');
+assert.equal(classifyLatencyTier(850, true).emoji, '◈');
 assert.equal(classifyLatencyTier(9999, false).emoji, '🔴');
 
 // 3. Composite work deduplication (Title + Year)
