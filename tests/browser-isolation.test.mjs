@@ -328,12 +328,16 @@ test('beta publishes first verified media while other probes continue, then repl
 test('explicit continuation advances the page budget without re-reading or losing earlier episodes',async()=>{
  const {service,fetched}=fixture({maxPages:2});
  const admitted=await service.request(ref(seed));await service.settle();
- const before=await service.details(admitted.ref);
+ const before=await service.details(admitted.ref,{stableOrder:true});
+ assert.equal((await service.status(admitted.ref)).index_state,"partial");
  assert.equal((await service.status(admitted.ref)).progress.continuation_available,true);
  await service.request(admitted.ref,{reason:'continue'});await service.settle();
  const after=await service.details(admitted.ref);
  assert.deepEqual(after.episodes.map(row=>row.episode_number),[1,2,12,19]);
- for(const row of before.episodes)assert(after.episodes.some(other=>other.ref===row.ref));
+ const appended=await service.details(admitted.ref,{stableOrder:true,offset:before.episodes.length});
+ const stable=await service.details(admitted.ref,{stableOrder:true});
+ assert.deepEqual(stable.episodes.map(row=>row.ref),[...before.episodes,...appended.episodes].map(row=>row.ref));
+ assert.deepEqual([...before.episodes,...appended.episodes].map(row=>row.episode_number).sort((a,b)=>a-b),[1,2,12,19]);
  assert.equal(new Set(fetched).size,fetched.length,'a continuation never resets visited pages');
  assert.equal((await service.status(admitted.ref)).progress.continuation_available,false);
 });

@@ -33,7 +33,7 @@ import { createPinnedPlayback } from './pinned-playback.mjs';
 import { listIndependentProviders,getProvider } from './scrapers/registry.mjs';
 import { createTmdbRuntime } from './tmdb-runtime.mjs';
 import { createMediaAuditor } from './media-audit.mjs';
-import { listSourceCapabilities } from './scrapers/source-registry.mjs';
+import { listSourceCapabilities, titleMatchesQuery } from './scrapers/source-registry.mjs';
 import { directCandidate } from './scrapers/content-discovery.mjs';
 import { createDiscoveryAudit } from './discovery-audit.mjs';
 import { createDiscoveryCoordinator } from './discovery-coordinator.mjs';
@@ -827,11 +827,11 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
             if(query.length<2||query.length>120||!Number.isSafeInteger(page)||page<1||page>500)throw Error('BROWSER_BAD_QUERY');
             const items=await runInBrowserLane(()=>entry.module.scrapeSearch(query,page,{strict:true,allowHttp:false,timeoutMs:6500,maxRetries:0}));
             if(items?._meta?.errorCode&&items._meta.errorCode!=='EMPTY_RESULT')throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE'),{code:items._meta.errorCode});
-            return sendJson(req,res,200,{status:'success',items:(Array.isArray(items)?items:items?.items||[]).map(row=>({...row,rating:Number.isFinite(Number(row.rating))?Number(row.rating):0})),pagination:items?._meta||{}});
+            return sendJson(req,res,200,{status:'success',items:(Array.isArray(items)?items:items?.items||[]).filter(row=>row && titleMatchesQuery(row.title,query)).map(row=>({...row,rating:Number.isFinite(Number(row.rating))?Number(row.rating):0})),pagination:items?._meta||{}});
           }
           if(action==='request')data=await browserWorks.request(ref,{reason:url.searchParams.get('reason')||'card_open'});
           if(action==='status')data=await browserWorks.status(ref);
-          if(action==='work')data=await browserWorks.details(ref,{season:Number(url.searchParams.get('season')||1),offset:Number(url.searchParams.get('offset')||0)});
+          if(action==='work')data=await browserWorks.details(ref,{season:Number(url.searchParams.get('season')||1),offset:Number(url.searchParams.get('offset')||0),stableOrder:url.searchParams.get('order')==='discovery'});
           if(action==='playback')data=await browserWorks.playback(ref,{season:Number(url.searchParams.get('season')||0),episode:Number(url.searchParams.get('episode')||0),platform:url.searchParams.get('platform')==='web'?'web':'native',refresh:url.searchParams.get('refresh')==='1',progressive:url.searchParams.get('progressive')==='1',origin:url.searchParams.get('origin')||''});
           return sendJson(req,res,200,{status:'success',data});
         }catch(error){const code=/^[A-Z][A-Z0-9_]{2,79}$/.test(error.code||error.message)?error.code||error.message:'BROWSER_SOURCE_UNAVAILABLE';return sendJson(req,res,503,{message:code});}

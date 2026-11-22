@@ -69,3 +69,6 @@ console.log('Unified search: registered VOD searchers, live-source exclusion, tw
 
 assert.equal(listSourceCapabilities().find(s=>s.id==='mewsry').content_type,'live');
 assert.equal(listSourceCapabilities().find(s=>s.id==='mewsry').scope.live,true);
+
+assert.equal(titleMatchesQuery('The Batman', 'Batman'), true);
+assert.equal(titleMatchesQuery('Superman', 'Man'), false);

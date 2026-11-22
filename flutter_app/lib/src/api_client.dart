@@ -415,6 +415,7 @@ class MitvApi implements MediaRepository {
         'ref': ref,
         'season': '$season',
         'offset': '$offset',
+        if (providerBrowser) 'order': 'discovery',
       }, const Duration(seconds: 15)),
     );
     if (providerBrowser &&

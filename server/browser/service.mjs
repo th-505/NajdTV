@@ -503,7 +503,7 @@ export function createBrowserWorkService({
             ? "failed"
             : "ready",
       reason: w.reason,
-      index_state: w.running ? "indexing" : w.reason ? "partial" : "ready",
+      index_state: w.running ? "indexing" : w.reason || w.frontier.length || w.failed.size ? "partial" : "ready",
       index_updated_at: w.updated,
       discovery_updated_at: w.updated,
       source_editions: [
@@ -523,7 +523,7 @@ export function createBrowserWorkService({
       },
     };
   }
-  function details(ref, { season = 1, offset = 0 } = {}) {
+  function details(ref, { season = 1, offset = 0, stableOrder = false } = {}) {
     if (
       !Number.isSafeInteger(offset) ||
       offset < 0 ||
@@ -536,10 +536,10 @@ export function createBrowserWorkService({
     if (!w.title) throw Error("SOURCE_INDEX_PENDING");
     const unique = new Map();
     for(const episode of w.episodes.values()){const key=episode.season+':'+episode.episode;if(!unique.has(key))unique.set(key,episode);}
-    const episodes = [...unique.values()].sort(
-        (a, b) => a.season - b.season || a.episode - b.episode,
-      ),
-      seasons = [...new Set(episodes.map((e) => e.season))].sort(
+    const episodes = [...unique.values()];
+    // Discovery order keeps existing offsets stable while earlier episode numbers arrive.
+    if (!stableOrder) episodes.sort((a, b) => a.season - b.season || a.episode - b.episode);
+    const seasons = [...new Set(episodes.map((e) => e.season))].sort(
         (a, b) => a - b,
       );
     const selected = seasons.includes(Number(season))

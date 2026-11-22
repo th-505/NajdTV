@@ -30,7 +30,7 @@ function normalizeTitle(value) {
 
 export function titleMatchesQuery(title, query) {
   const normalizedQuery = normalizeTitle(query);
-  return Boolean(normalizedQuery) && normalizeTitle(title).includes(normalizedQuery);
+  return Boolean(normalizedQuery) && (' ' + normalizeTitle(title) + ' ').includes(' ' + normalizedQuery + ' ');
 }
 
 // Loader injection lets routing tests run without network access or provider mocks.
