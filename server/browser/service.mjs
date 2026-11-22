@@ -107,6 +107,7 @@ export function createBrowserWorkService({
             episodes: [...work.episodes.values()],
             seen: [...work.seen],
             page_budget: work.pageBudget,
+            season_index_revision: 1,
             frontier: work.frontier,
             failed: [...work.failed],
             updated: work.updated,
@@ -174,7 +175,9 @@ export function createBrowserWorkService({
         episodes.set(row.source_ref, row);
       } catch {}
     }
-    const stale = saved.expires < now();
+    const needsSeasonReindex = saved.provider === "animezid" && saved.season_index_revision !== 1;
+    if (needsSeasonReindex) episodes.clear();
+    const stale = saved.expires < now() || needsSeasonReindex;
     const work = {
       ...saved,
       adapter: entry,

@@ -23,7 +23,7 @@ export function explicitSeason(title='',url='') {
     return null;
   };
   let decoded=String(url||'');try{decoded=decodeURIComponent(decoded)}catch{}
-  return parse(title)||parse(decoded);
+  return parse(title)||positive(decoded.match(/\/season\/(\d{1,3})(?:[/?#]|$)/i)?.[1])||parse(decoded);
 }
 export function contentIdentity(item={}) {
   const title=identityDigits(item.title||item.name||'');

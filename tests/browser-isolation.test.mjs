@@ -297,7 +297,7 @@ test('beta reuses guarded provider HTML and follows only source-owned season edi
  const entry={meta:{id:'animezid',domains:['https://animezid.org']},module:{scrapeDetails:async(url,options)=>{
   const season=url===child;
   options.onProviderPage({url,html:season?'<h1>Different source season</h1>':'<h1>Root title</h1><a href="/series/fixture/season/2/">Different source season</a>'});
-  return {title:season?'Different source season':'Root title',type:'series',sourceUrl:url,episodes:season?[{url:'https://animezid.org/watch.php?vid=one',title:'الحلقة 1',season:2,number:1}]:[]};
+  return {title:season?'Different source season':'Root title',type:'series',sourceUrl:url,episodes:season?[{url:'https://animezid.org/watch.php?vid=one',title:'الحلقة 1',number:1}]:[]};
  }}};
  const service=createBrowserWorkService({lookup:()=>entry,fetchPage:async()=>{fallback++;throw Error('DUPLICATE_FETCH');},store:null});
  const admitted=await service.request('animezid:'+Buffer.from(root).toString('base64url'));await service.settle();

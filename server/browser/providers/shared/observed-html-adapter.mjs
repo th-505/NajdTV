@@ -70,7 +70,7 @@ export function createObservedHtmlAdapter(meta, config) {
       const a=$(e), href=resolveSafeUrl(a.attr('href')||'',url,{allowHttp:false,allowedHosts:hosts()}), label=a.attr('title')||a.text().trim();
       const number=extractEpisodeNumber(label,href);if(!href||!number)return;
       try{target(href)}catch{return}
-      episodes.push({ref:refFor(href),url:href,title:label,number,season:extractSeasonNumber(label,extractSeasonNumber(title+' '+url,1))});
+      episodes.push({ref:refFor(href),url:href,title:label,number,season:extractSeasonNumber(label,Number(new URL(url).pathname.match(/\/season\/(\d{1,3})\/?$/i)?.[1])||extractSeasonNumber(title+' '+url,1))});
     });
     const series=seasons.length>0 || episodes.length>0 || /\/series\/|\/tv\//.test(new URL(url).pathname) || /مسلسل|الحلقة|الحلقه|الموسم/.test(title);
     let declared=null;
