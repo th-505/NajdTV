@@ -2894,7 +2894,9 @@ class _SearchPageState extends State<SearchPage> {
       submitted = true;
       error = null;
     });
-    if (advanced) unawaited(_resolveSearchYear(q, request));
+    if (advanced && selectedSource == null) {
+      unawaited(_resolveSearchYear(q, request));
+    }
     try {
       // A newly registered source becomes searchable in this same app session.
       var currentSources = sources;
