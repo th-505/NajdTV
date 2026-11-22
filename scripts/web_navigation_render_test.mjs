@@ -32,8 +32,8 @@ try {
  await page.waitForTimeout(7000);
  await page.locator('flt-semantics-placeholder').evaluateAll(nodes => nodes.forEach(n => n.click()));
  await page.waitForTimeout(1000);
- const text = await page.locator('body').innerText();
- if (!text.includes('خصص تجربة المشاهدة')) throw new Error('INITIAL_SETTINGS_ROUTE_NOT_RESTORED '+page.url()+' '+await page.locator('body').innerText()+' '+JSON.stringify({errors,blockedHosts}));
+ const settingsSection = page.getByText('التخزين والخصوصية', {exact:true});
+ if (!await settingsSection.count()) throw new Error('INITIAL_SETTINGS_ROUTE_NOT_RESTORED '+page.url()+' '+await page.locator('body').innerText()+' '+JSON.stringify({errors,blockedHosts}));
  // Exercise actual Chromium history, not mocked widget-test platform channels.
  const settingsRoot=page.url();
  await page.getByText('الأجهزة والتحكم',{exact:true}).click();await page.waitForTimeout(700);
@@ -52,15 +52,15 @@ try {
  await page.reload(); await page.waitForTimeout(5000);
  await page.locator('flt-semantics-placeholder').evaluateAll(nodes => nodes.forEach(n => n.click()));
  await page.waitForTimeout(500);
- if (!(await page.locator('body').innerText()).includes('خصص تجربة المشاهدة')) throw new Error('REFRESH_ROUTE_NOT_RESTORED '+page.url()+' '+await page.locator('body').innerText());
+ if (!await settingsSection.count()) throw new Error('REFRESH_ROUTE_NOT_RESTORED '+page.url()+' '+await page.locator('body').innerText());
  await page.getByText('البحث', {exact:true}).click();
  await page.waitForTimeout(3000);
  fs.mkdirSync(outputDir,{recursive:true}); await page.screenshot({path:path.join(outputDir,'web-search.png')});
- if ((await page.getByText('البحث', {exact:true}).count()) !== 2 || (await page.locator('body').innerText()).includes('خصص تجربة المشاهدة')) throw new Error('HISTORY_ROUTE_NOT_APPLIED '+page.url()+' '+await page.locator('body').innerText());
+ if ((await page.getByText('البحث', {exact:true}).count()) !== 2 || await settingsSection.count()) throw new Error('HISTORY_ROUTE_NOT_APPLIED '+page.url()+' '+await page.locator('body').innerText());
  await page.goBack(); await page.waitForTimeout(1000);
- if (!(await page.locator('body').innerText()).includes('خصص تجربة المشاهدة')) throw new Error('BROWSER_BACK_NOT_RESTORED '+page.url()+' '+await page.locator('body').innerText());
+ if (!await settingsSection.count()) throw new Error('BROWSER_BACK_NOT_RESTORED '+page.url()+' '+await page.locator('body').innerText());
  await page.goForward(); await page.waitForTimeout(1000);
- if ((await page.getByText('البحث', {exact:true}).count()) !== 2 || (await page.locator('body').innerText()).includes('خصص تجربة المشاهدة')) throw new Error('BROWSER_FORWARD_NOT_RESTORED');
+ if ((await page.getByText('البحث', {exact:true}).count()) !== 2 || await settingsSection.count()) throw new Error('BROWSER_FORWARD_NOT_RESTORED');
  upstreamRequests.length=0;
  const titleUrl=`http://127.0.0.1:${server.address().port}${base}#/title?ref=tmdb%3Amovie%3A1&type=movie`;
  await page.goto(titleUrl);await page.waitForTimeout(7000);

@@ -1633,9 +1633,9 @@ class _SettingsPageState extends State<SettingsPage> {
     selected: selected,
     leading: Icon(section.icon),
     title: Text(section.title),
-    trailing: inline ? null : const Icon(Icons.chevron_left),
+    trailing: inline && !kIsWeb ? null : const Icon(Icons.chevron_left),
     onTap: () {
-      if (inline) {
+      if (inline && !kIsWeb) {
         setState(() => _selectedSection = section.title);
         return;
       }
