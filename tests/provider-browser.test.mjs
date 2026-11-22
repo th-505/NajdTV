@@ -61,3 +61,96 @@ test('observed next URLs remain private, expire and cannot cross a provider or c
  clock+=1001;await browser.catalog('one','movies',2);
  assert.equal(calls.at(-1).next,undefined,'expired page evidence must never be reused');
 });
+
+test('Beta catalog preserves guarded Brstej errors without requesting rejected destinations', async t => {
+  const beta = await import('../server/browser/providers/sites/brstej.mjs');
+  const initialUrl = beta.BRSTEJ_CONFIG.baseUrl + '/home03';
+  const scenarios = [
+    ['foreign redirect', 'UNSAFE_URL', /^HOST_NOT_IN_ALLOWLIST:/, [
+      new Response(null, {status: 302, headers: {location: 'https://unrelated.example/home03'}}),
+    ]],
+    ['HTTP redirect', 'UNSAFE_URL', /^PROTOCOL_NOT_ALLOWED:/, [
+      new Response(null, {status: 302, headers: {location: initialUrl.replace('https:', 'http:')}}),
+    ]],
+    ['DNS rejected', 'UNSAFE_URL', /^SSRF_DNS_RESOLVED_TO_PRIVATE_IP:/, [], '127.0.0.1'],
+    ['timeout', 'NETWORK_TIMEOUT', /TimeoutError/, [new DOMException('TimeoutError', 'TimeoutError')]],
+    ['blocked', 'ACCESS_BLOCKED', /^CLOUDFLARE_OR_WAF_CHALLENGE/, [
+      new Response('<title>Just a moment...</title>', {status: 403, headers: {'cf-mitigated': 'challenge'}}),
+    ]],
+  ];
+  for (const [name, code, check, responses, address] of scenarios) {
+    await t.test(name, async () => {
+      const calls = [];
+      const browser = createProviderBrowser({
+        lookup: () => ({
+          meta: beta.PROVIDER_META,
+          module: {
+            CONFIG: beta.BRSTEJ_CONFIG,
+            scrapeCatalog: (category, page, options) => beta.scrapeCatalog(category, page, {
+              ...options,
+              dnsLookupImpl: async () => [{address: address ?? '93.184.216.34'}],
+              fetchImpl: async url => {
+                const response = responses[calls.length];
+                calls.push(url);
+                if (response instanceof Error) throw response;
+                assert.ok(response, 'unexpected upstream request');
+                return response;
+              },
+            }),
+          },
+        }),
+      });
+      await assert.rejects(browser.catalog('brstej', 'latest', 1), error => {
+        assert.equal(error.message, 'BROWSER_SOURCE_UNAVAILABLE');
+        assert.equal(error.code, code);
+        assert.equal(error.cause.code, code);
+        assert.match(error.cause.message, check);
+        return true;
+      });
+      assert.deepEqual(calls, responses.length ? [initialUrl] : []);
+    });
+  }
+});
+
+test('catalog HTTP correlates sanitized 503 diagnostics and keeps 400 unchanged', async t => {
+  const { createServer } = await import('../server/app.mjs');
+  const log = t.mock.method(console, 'log', () => {});
+  const server = createServer({
+    catalogStore: null,
+    harvestService: {start() {}, async stop() {}},
+    browserConfigurationService: {async refresh() {}, close() {}},
+    providerBrowser: {
+      async catalog(provider, category, page) {
+        if (page === 0) throw Error('BROWSER_BAD_PAGE');
+        assert.deepEqual([provider, category, page], ['brstej', 'latest', 1]);
+        const cause = Error('HOST_NOT_IN_ALLOWLIST: https://unrelated.example/?token=private-value');
+        throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE', {cause}), {code: 'UNSAFE_URL'});
+      },
+    },
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const endpoint = `http://127.0.0.1:${server.address().port}/api/v1/browser/catalog?provider=brstej&category=latest`;
+    const response = await fetch(endpoint + '&page=1');
+    const body = await response.json();
+    assert.equal(response.status, 503);
+    assert.match(body.trace_id, /^[0-9a-f-]{36}$/);
+    assert.equal(response.headers.get('x-trace-id'), body.trace_id);
+    assert.deepEqual([body.reason, body.provider, body.category, body.page], ['UNSAFE_URL', 'brstej', 'latest', 1]);
+    const logs = log.mock.calls.flatMap(call => call.arguments).filter(value =>
+      typeof value === 'string' && value.includes('browser_catalog_failed'));
+    assert.equal(logs.length, 1);
+    const event = JSON.parse(logs[0]);
+    assert.equal(event.check, 'HOST_NOT_IN_ALLOWLIST');
+    assert.equal(event.trace_id, body.trace_id);
+    assert.doesNotMatch(logs[0] + JSON.stringify(body), /unrelated\.example|private-value/);
+
+    const invalid = await fetch(endpoint + '&page=0');
+    assert.equal(invalid.status, 400);
+    assert.equal(invalid.headers.get('x-trace-id'), null);
+    assert.equal((await invalid.json()).message, 'BROWSER_BAD_PAGE');
+  } finally {
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+  }
+});

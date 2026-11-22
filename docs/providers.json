@@ -1041,7 +1041,7 @@
       "id": "brstej",
       "scope": "beta",
       "path": "server/browser/providers/sites/brstej.mjs",
-      "source_sha256": "ef8af2d1368359cd33aa5c5bc71a2afb75fc3d726d5663f5e379c5ab7aae11ad",
+      "source_sha256": "a11a5aa5b2c20050db4cd240439f10a8c26af6ff305db10b3b5aaa797abd4696",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"

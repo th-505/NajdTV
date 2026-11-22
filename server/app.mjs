@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {readSourceRevision} from './source-revision.mjs';
 const SOURCE_REVISION=readSourceRevision();
 import {sourceResponse,providerErrorCode} from '../shared/provider-contract.js';
@@ -13,7 +14,7 @@ import {runInBrowserLane} from './browser/traffic.mjs';
 import {getProvider as getBetaProvider} from './browser/registry.mjs';
 import {sourceManifest} from './scrapers/source-manifest.mjs';
 import { createProviderBrowser } from './scrapers/provider-browser.mjs';
-const providerBrowser = createProviderBrowser();
+const defaultProviderBrowser = createProviderBrowser();
 import {createPlaybackSessions} from './playback-sessions.mjs';
 import {readCachedPlayback} from './harvest/cached-playback.mjs';
 import {getProviderConfig} from './scrapers/shared/provider-config.mjs';
@@ -116,6 +117,15 @@ function sendJson(req, res, status, data) {
   res.writeHead(status);
   res.end(body);
 }
+
+const browserCatalogChecks = new Set([
+  'URL_REQUIRED', 'INVALID_URL', 'PROTOCOL_NOT_ALLOWED',
+  'CREDENTIALS_NOT_ALLOWED_IN_URL', 'HOST_NOT_IN_ALLOWLIST',
+  'SSRF_PRIVATE_OR_LOCAL_HOST_BLOCKED', 'SSRF_DNS_RESOLVED_TO_PRIVATE_IP',
+  'REDIRECT_NOT_ALLOWED', 'CROSS_ORIGIN_BODY_REDIRECT',
+  'CATALOG_PATH_UNAVAILABLE', 'BRSTEJ_CATALOG_STRUCTURE_CHANGED',
+  'BRSTEJ_CATALOG_HTTP_ERROR',
+]);
 
 function log(event, data = {}) {
   console.log(JSON.stringify({ ts: new Date().toISOString(), event, ...data }));
@@ -522,7 +532,7 @@ export function assertCatalogReference(ref) {
 export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = createAlooyProvider(), larozaRuntime = createLarozaProvider(),
   traceStore=createSearchTraces({logger:data=>log(data.event,data)}), searchPinned=scrapePinnedSource,
   catalogStore=createSupabaseCatalogStore(), catalogNow=Date.now, pinnedProviderLookup=getProvider,
-  catalogLoader=null, harvestService=null, browserWorkService=null, browserConfigurationService=null, systemCheckService=null, runtimeService = createIntegratedContentRuntime(iskRuntime, { alooyRuntime, larozaRuntime }) } = {}) {
+  catalogLoader=null, harvestService=null, providerBrowser=defaultProviderBrowser, browserWorkService=null, browserConfigurationService=null, systemCheckService=null, runtimeService = createIntegratedContentRuntime(iskRuntime, { alooyRuntime, larozaRuntime }) } = {}) {
   const catalog=createCatalogMetadataCache({store:catalogStore,now:catalogNow,validateRef:assertCatalogReference,
     load:catalogLoader || (async(provider,ref)=>{
       if(provider==='laroza') return larozaRuntime.metadata(ref);
@@ -809,7 +819,24 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           return sendJson(req,res,200,await providerBrowser.catalog(provider, category, page));
         } catch (error) {
           const invalid = /^BROWSER_(?:BAD_PAGE|BAD_CATEGORY|PROVIDER_UNAVAILABLE)$/.test(error.message);
-          return sendJson(req,res,invalid ? 400 : 503,{status:'error',message: invalid ? error.message : 'BROWSER_SOURCE_UNAVAILABLE',reason:/^[A-Z][A-Z0-9_]{2,79}$/.test(error.code||'')?error.code:'SOURCE_UNAVAILABLE'});
+          const reason = /^[A-Z][A-Z0-9_]{2,79}$/.test(error.code || '')
+            ? error.code : 'SOURCE_UNAVAILABLE';
+          if (invalid) {
+            return sendJson(req, res, 400, {status: 'error', message: error.message, reason});
+          }
+          const traceId = randomUUID();
+          const check = String(error.cause?.message || '').split(':', 1)[0];
+          log('browser_catalog_failed', {
+            trace_id: traceId,
+            provider: getBetaProvider(provider)?.meta.id ?? 'unknown',
+            reason,
+            check: browserCatalogChecks.has(check) ? check : null,
+          });
+          res.setHeader('X-Trace-Id', traceId);
+          return sendJson(req, res, 503, {
+            status: 'error', message: 'BROWSER_SOURCE_UNAVAILABLE', reason,
+            trace_id: traceId, provider, category, page,
+          });
         }
       }
       if (url.pathname === '/api/v1/sources') {

@@ -52,7 +52,7 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
       const nextUrl=previous?.expires>now()&&previous.data.pagination.next_page===page?previous.nextUrl:null;
       let result;
       try{result=await queue.run(()=>runInBrowserLane(()=>provider.module.scrapeCatalog(selected,page,{strict:true,allowHttp:false,timeoutMs:8000,maxRetries:0,...(nextUrl?{searchPageUrl:nextUrl}:{})})));}
-      catch(error){const failure=new Error('BROWSER_SOURCE_UNAVAILABLE');failure.code=error.code||classifyNetworkError(error).code;throw failure;}
+      catch(error){const failure=new Error('BROWSER_SOURCE_UNAVAILABLE',{cause:error});failure.code=error?.code||classifyNetworkError(error).code;throw failure;}
       if(result?._meta?.errorCode&&result._meta.errorCode!=='EMPTY_RESULT'){
         const failure=new Error('BROWSER_SOURCE_UNAVAILABLE');failure.code=result._meta.errorCode;throw failure;
       }
