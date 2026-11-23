@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-import requests
 
 def public_host(url):
     parsed = urlparse(url)
@@ -23,7 +22,7 @@ def public_host(url):
     except (OSError, ValueError):
         return False
 
-def inspect(session, provider):
+def inspect(session, provider, *, request_error):
     url = provider["url"]
     record = {"id": provider["id"], "name": str(provider.get("name", provider["id"]))[:160], "mirror_of": provider.get("mirror_of"), "seed_url": url, "status": "unavailable"}
     if not public_host(url):
@@ -50,7 +49,7 @@ def inspect(session, provider):
             response.close()
             return record
         record["error"] = "too_many_redirects"
-    except requests.RequestException as exc:
+    except request_error as exc:
         record["error"] = type(exc).__name__
     return record
 
@@ -61,13 +60,18 @@ def main():
     parser.add_argument("--fail-on-expired-key", action="store_true",
                         help="Compatibility flag; key expiry is not inferred from network failures")
     args = parser.parse_args()
+    try:
+        import requests
+    except ImportError:
+        parser.error("Provider network diagnostics require requests. Install it with python -m pip install requests.")
+
     providers = json.loads(Path(args.registry).read_text(encoding="utf-8"))["providers"]
     if len({p["id"] for p in providers}) != len(providers):
         parser.error("Duplicate provider IDs")
     output = Path(args.out_dir)
     output.mkdir(parents=True, exist_ok=True)
     with requests.Session() as session:
-        report = [inspect(session, provider) for provider in providers if provider.get("enabled")]
+        report = [inspect(session, provider, request_error=requests.RequestException) for provider in providers if provider.get("enabled")]
     scraper_root = Path(args.registry).parent
     discovered = []
     for path in sorted(scraper_root.rglob("*.mjs")):

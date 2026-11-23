@@ -1,0 +1,40 @@
+name: Najd automated tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: najd-test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  najd-tests:
+    name: Najd required tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CHROMIUM_BIN: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:continuation
+      - run: npm run test:unified
+      - run: node scripts/yalla_script_and_hash_test.mjs
+      - name: Run Python regression scripts
+        run: |
+          set -euo pipefail
+          for script in scripts/*_test.py scripts/test_*.py; do
+            python3 "$script"
+          done

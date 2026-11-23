@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {fetchEmbedResponse, cascadeResolveStream, isValidDirectMediaUrl, unpackDeanEdwards} from '../server/scrapers/stream-unwrapper.mjs';
+import {fetchEmbedResponse, cascadeResolveStream, isValidDirectMediaUrl, unpackDeanEdwards, extractRawStreamsFromText} from '../server/scrapers/stream-unwrapper.mjs';
 test('recursive embed resolver rejects private addresses and encoded bridges before network access',async()=>{
  for(const u of ['http://127.0.0.1/video.mp4','https://169.254.169.254/latest/meta-data','https://[::1]/embed/1','https://public.example/play?url='+Buffer.from('https://127.0.0.1/embed/1').toString('base64url')])assert.deepEqual(await cascadeResolveStream(u),[]);
  assert.equal(isValidDirectMediaUrl('https://127.0.0.1/video.mp4'),false);
@@ -18,4 +18,33 @@ test('untrusted packed metadata has bounded radix/count and literal substitution
  assert.equal(unpackDeanEdwards(packed(62,999999999999,'bad')),'');
  assert.equal(unpackDeanEdwards(packed(2,1,'$&')),'$&');
  assert.equal(unpackDeanEdwards(packed(2,1,'safe')),'safe');
+});
+
+test('each embed redirect validates destination DNS before a follow-up request', async () => {
+  for (const [status, privateIp] of [[301, '127.0.0.1'], [302, '10.0.0.1'],
+    [307, '192.168.0.1'], [308, '::1']]) {
+    const requests = [];
+    const lookups = [];
+    await assert.rejects(fetchEmbedResponse('https://embed.example/e/1', {
+      dnsLookupImpl: async host => {
+        lookups.push(host);
+        return [{address: host === 'embed.example' ? '93.184.216.34' : privateIp}];
+      },
+      fetchImpl: async url => {
+        requests.push(url);
+        return new Response(null, {status, headers: {location: 'https://redirect.example/watch'}});
+      },
+    }), {code: 'UNSAFE_URL'});
+    assert.deepEqual(lookups, ['embed.example', 'redirect.example']);
+    assert.deepEqual(requests, ['https://embed.example/e/1']);
+  }
+});
+
+
+test('media fixtures preserve the parent referrer and discard private links', () => {
+  const parent = 'https://embed.example/watch';
+  const html = '<source src="https://127.0.0.1/private.mp4"><source src="https://cdn.example/video.mp4">';
+  const links = extractRawStreamsFromText(html, parent);
+  assert.deepEqual(links.map(link => link.url), ['https://cdn.example/video.mp4']);
+  assert.equal(links[0].headers.Referer, parent);
 });

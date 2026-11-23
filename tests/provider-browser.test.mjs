@@ -128,6 +128,11 @@ test('catalog HTTP correlates sanitized 503 diagnostics and keeps 400 unchanged'
             code: 'ACCESS_BLOCKED', catalogCacheHit: true, retryAfterSeconds: 12,
           });
         }
+        if (page === 7) {
+          throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE'), {
+            code: 'ACCESS_BLOCKED', circuitOpen: true, retryAfterSeconds: 'invalid',
+          });
+        }
         const scenarios = {
           1: ['UNSAFE_URL', 'HOST_NOT_IN_ALLOWLIST: unrelated.example'],
           2: ['ACCESS_BLOCKED', 'CLOUDFLARE_OR_WAF_CHALLENGE_HTTP_403', 403],
@@ -190,6 +195,10 @@ test('catalog HTTP correlates sanitized 503 diagnostics and keeps 400 unchanged'
       typeof value === 'string' && value.includes(cachedBody.trace_id));
     assert.equal(JSON.parse(cachedLog).check, 'CACHED_ACCESS_BLOCKED');
     assert.equal(cachedBody.reason, 'ACCESS_BLOCKED');
+
+    const invalidRetry = await fetch(endpoint + '&page=7');
+    assert.equal(invalidRetry.status, 503);
+    assert.equal(invalidRetry.headers.get('retry-after'), null);
 
     const invalid = await fetch(endpoint + '&page=0');
     assert.equal(invalid.status, 400);
@@ -324,5 +333,9 @@ test('Brstej breaker spans search and catalog while leaving other providers avai
   blocked = false;
   assert.equal((await browser.search('brstej', 'احلى نصيب')).length, 1);
   assert.equal((await browser.catalog('brstej', 'latest', 2)).items.length, 1);
+  const stats = browser.health().find(row => row.provider === 'brstej');
+  assert.deepEqual(stats, {
+    provider: 'brstej', attempts: 5, successes: 2, average_ms: 0, last_error: 'ACCESS_BLOCKED',
+  });
   assert.equal(calls, 5);
 });

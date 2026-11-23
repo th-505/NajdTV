@@ -15,6 +15,26 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
   const maxBlockedPages = 64;
   function drop(key){const old=successful.get(key);if(old)cachedBytes-=old.bytes;successful.delete(key);}
 
+  const health = new Map();
+  async function observe(id, operation) {
+    const started = now();
+    let failure = null;
+    try {
+      return await operation();
+    } catch (error) {
+      const code = error?.code || classifyNetworkError(error).code;
+      failure = /^[A-Z][A-Z_0-9]{2,63}$/.test(code) ? code : 'UPSTREAM_UNAVAILABLE';
+      throw error;
+    } finally {
+      const stats = health.get(id) ?? {attempts: 0, successes: 0, totalMs: 0, last_error: null};
+      stats.attempts++;
+      stats.totalMs += Math.max(0, now() - started);
+      if (failure) stats.last_error = failure;
+      else stats.successes++;
+      health.set(id, stats);
+    }
+  }
+
   let brstejCircuit;
   function circuitFor(config, domain) {
     const revisionKey = JSON.stringify([config?.revision || 0, domain]);
@@ -101,6 +121,11 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
       label: config?.categoryLabels?.[key] || labels[key] || key.replace(/[-_]/g, ' ') }));
   }
   return {
+    health: () => [...health].map(([provider, stats]) => ({
+      provider, attempts: stats.attempts, successes: stats.successes,
+      average_ms: Math.round(stats.totalMs / stats.attempts),
+      last_error: stats.last_error,
+    })),
     sources: () => runInBrowserLane(()=>providers().filter(meta => meta.enabled !== false && meta.capabilities?.catalog
       && typeof lookup(meta.id)?.module.scrapeCatalog === 'function')
       .map(meta => ({ id: meta.id, name: meta.name, domain: new URL(meta.domains[0]).hostname,
@@ -121,7 +146,8 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
         }
         return items;
       };
-      if (id !== 'brstej') return fetchSearch();
+      const observedSearch = () => observe(id, fetchSearch);
+      if (id !== 'brstej') return observedSearch();
       const config = getProviderConfig(id);
       const digest = createHash('sha256').update(query).digest('hex');
       const key = JSON.stringify(['search', id, digest, page, config?.revision || 0,
@@ -130,7 +156,7 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
       if (error) throw error;
       if (pending.has(key)) return pending.get(key);
       const circuit = circuitFor(config, config?.primary_domain || provider.meta.domains[0]);
-      const work = withBrstejCircuit(circuit, fetchSearch).catch(error => rememberBlock(key, error))
+      const work = withBrstejCircuit(circuit, observedSearch).catch(error => rememberBlock(key, error))
         .finally(() => pending.delete(key));
       pending.set(key, work);
       return work;
@@ -186,7 +212,8 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
           basis: explicitPagination ? 'observed-source-pagination' : 'adapter-page-probe' } };
       }
       const circuit = id === 'brstej' ? circuitFor(config, config?.primary_domain || provider.meta.domains[0]) : null;
-      const work=(circuit ? withBrstejCircuit(circuit, fetchPage) : fetchPage()).then(data=>{
+      const observedCatalog = () => observe(id, fetchPage);
+      const work=(circuit ? withBrstejCircuit(circuit, observedCatalog) : observedCatalog()).then(data=>{
         if(data.items.length){
           const bytes=Buffer.byteLength(JSON.stringify(data));
           if(bytes<=256*1024){

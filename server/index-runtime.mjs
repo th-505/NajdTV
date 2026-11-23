@@ -1,3 +1,4 @@
+import { normalizeApiError } from './api-error-response.mjs';
 import { createLiveCatalog } from './live-catalog.mjs';
 import {sourceResponse,providerErrorCode} from '../shared/provider-contract.js';
 import { allowedOrigin, protectServer } from './security-boundary.mjs';
@@ -44,6 +45,7 @@ function applyCors(req, res) {
 }
 
 function sendJson(req, res, status, payload) {
+  payload = normalizeApiError(req.url, status, payload);
   if(payload && !Array.isArray(payload) && (payload.source || payload.state || payload.status==='error')) payload=sourceResponse(payload);
   applyCors(req, res);
   res.writeHead(status, {

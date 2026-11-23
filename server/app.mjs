@@ -1,3 +1,4 @@
+import { normalizeApiError } from './api-error-response.mjs';
 import { randomUUID } from 'node:crypto';
 import { readSourceRevision } from './source-revision.mjs';
 import { sourceResponse, providerErrorCode } from '../shared/provider-contract.js';
@@ -105,6 +106,7 @@ function appendVary(res, value) {
 }
 
 function sendJson(req, res, status, data) {
+  data = normalizeApiError(req.url, status, data);
   if(data && !Array.isArray(data) && (data.source || data.state || data.data?.state || data.data?.partial || data.status==='error')) data=sourceResponse(data);
   const payload = JSON.stringify(data);
   const compressed = maybeCompress(req, payload);
@@ -116,6 +118,13 @@ function sendJson(req, res, status, data) {
   res.setHeader("Content-Length", String(body.byteLength));
   res.writeHead(status);
   res.end(body);
+}
+
+function setBrowserRetryAfter(res, error) {
+  const seconds = error?.retryAfterSeconds;
+  if ((error?.catalogCacheHit || error?.circuitOpen) && Number.isSafeInteger(seconds) && seconds > 0) {
+    res.setHeader('Retry-After', String(seconds));
+  }
 }
 
 const browserCatalogChecks = new Set([
@@ -848,7 +857,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           const code = /^[A-Z][A-Z0-9_]{2,79}$/.test(value || '') ? value : 'BROWSER_SOURCE_UNAVAILABLE';
           if (action === 'search' && url.searchParams.get('provider') === 'brstej' && code === 'ACCESS_BLOCKED') {
             const traceId = randomUUID();
-            if ((error.catalogCacheHit || error.circuitOpen) && error.retryAfterSeconds) res.setHeader('Retry-After', String(error.retryAfterSeconds));
+            setBrowserRetryAfter(res, error);
             res.setHeader('X-Trace-Id', traceId);
             log('browser_search_failed', {
               trace_id: traceId, provider: 'brstej', reason: code,
@@ -858,6 +867,11 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           }
           return sendJson(req, res, 503, {message: code});
         }
+      }
+      if (url.pathname === '/api/v1/admin/browser-provider-health') {
+        if (!diagnosticsAuthorized(req)) return sendJson(req, res, 401, {message: 'DIAGNOSTICS_AUTH_REQUIRED'});
+        if (req.method !== 'GET') return sendJson(req, res, 405, {message: 'METHOD_NOT_ALLOWED'});
+        return sendJson(req, res, 200, {status: 'success', data: providerBrowser.health()});
       }
       if (url.pathname === '/api/v1/browser/sources') {
         await browserConfiguration.refresh();
@@ -888,7 +902,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
             : provider === 'brstej'
               ? brstejCatalogDiagnostic(error.cause, reason, knownCheck)
               : {check: knownCheck};
-          if ((error.catalogCacheHit || error.circuitOpen) && error.retryAfterSeconds) res.setHeader('Retry-After', String(error.retryAfterSeconds));
+          setBrowserRetryAfter(res, error);
           log('browser_catalog_failed', {
             trace_id: traceId,
             provider: getBetaProvider(provider)?.meta.id ?? 'unknown',
