@@ -847,11 +847,11 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           const code = /^[A-Z][A-Z0-9_]{2,79}$/.test(value || '') ? value : 'BROWSER_SOURCE_UNAVAILABLE';
           if (action === 'search' && url.searchParams.get('provider') === 'brstej' && code === 'ACCESS_BLOCKED') {
             const traceId = randomUUID();
-            if (error.catalogCacheHit) res.setHeader('Retry-After', error.retryAfterSeconds);
+            if (error.catalogCacheHit || error.circuitOpen) res.setHeader('Retry-After', error.retryAfterSeconds);
             res.setHeader('X-Trace-Id', traceId);
             log('browser_search_failed', {
               trace_id: traceId, provider: 'brstej', reason: code,
-              check: error.catalogCacheHit ? 'CACHED_ACCESS_BLOCKED' : 'ACCESS_BLOCKED',
+              check: error.circuitOpen ? 'CIRCUIT_OPEN' : error.catalogCacheHit ? 'CACHED_ACCESS_BLOCKED' : 'ACCESS_BLOCKED',
               cache_hit: Boolean(error.catalogCacheHit),
             });
           }
@@ -880,12 +880,14 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           const traceId = randomUUID();
           const check = String(error.cause?.message || '').split(':', 1)[0];
           const knownCheck = browserCatalogChecks.has(check) ? check : null;
-          const diagnostic = error.catalogCacheHit
+          const diagnostic = error.circuitOpen
+            ? {check: 'CIRCUIT_OPEN'}
+            : error.catalogCacheHit
             ? {check: 'CACHED_ACCESS_BLOCKED', cache_hit: true}
             : provider === 'brstej'
               ? brstejCatalogDiagnostic(error.cause, reason, knownCheck)
               : {check: knownCheck};
-          if (error.catalogCacheHit) res.setHeader('Retry-After', error.retryAfterSeconds);
+          if (error.catalogCacheHit || error.circuitOpen) res.setHeader('Retry-After', error.retryAfterSeconds);
           log('browser_catalog_failed', {
             trace_id: traceId,
             provider: getBetaProvider(provider)?.meta.id ?? 'unknown',

@@ -119,3 +119,17 @@ test('Beta Brstej follows the observed HTTPS catalog redirect and rejects unappr
     code: 'UNSAFE_URL',
   });
 });
+
+test('Beta Brstej sends the trimmed Arabic query once as a search parameter', async () => {
+  const {scrapeSearch} = await import('../server/browser/providers/sites/brstej.mjs');
+  const rows = await scrapeSearch('  احلى نصيب  ', 2, {
+    fetchImpl: async input => {
+      const url = new URL(input);
+      assert.equal(url.pathname, '/search.php');
+      assert.deepEqual([...url.searchParams], [['keywords', 'احلى نصيب'], ['page', '2']]);
+      assert.match(url.search, /%D8/);
+      return new Response(SEARCH_HTML);
+    },
+  });
+  assert.equal(rows.length, 4);
+});

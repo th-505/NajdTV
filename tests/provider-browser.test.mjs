@@ -269,7 +269,7 @@ test('Beta Brstej search caches blocked responses without logging the query', as
     assert.deepEqual(await first.json(), {message: 'ACCESS_BLOCKED'});
     assert.equal(first.headers.get('retry-after'), null);
 
-    const cached = await run('brstej');
+    const cached = await run('brstej', '  private-search-term  ');
     assert.equal(cached.status, 503);
     assert.equal(cached.headers.get('retry-after'), '30');
     assert.deepEqual(await cached.json(), {message: 'ACCESS_BLOCKED'});
@@ -291,4 +291,38 @@ test('Beta Brstej search caches blocked responses without logging the query', as
     server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));
   }
+});
+
+test('Brstej breaker spans search and catalog while leaving other providers available', async () => {
+  let clock = 1000;
+  let calls = 0;
+  let blocked = true;
+  const browser = createProviderBrowser({
+    now: () => clock,
+    lookup: id => {
+      const load = async () => {
+        if (id === 'brstej') {
+          calls++;
+          if (blocked) throw Object.assign(Error('blocked'), {code: 'ACCESS_BLOCKED'});
+        }
+        return [{ref: `${id}:work`, title: 'Work'}];
+      };
+      return {
+        meta: {id, domains: [`https://${id}.example`]},
+        module: {CONFIG: {categories: {latest: '/'}}, scrapeSearch: load, scrapeCatalog: load},
+      };
+    },
+  });
+  await assert.rejects(browser.catalog('brstej', 'latest'), {code: 'ACCESS_BLOCKED'});
+  await assert.rejects(browser.search('brstej', 'احلى نصيب'), {code: 'ACCESS_BLOCKED'});
+  await assert.rejects(browser.search('brstej', 'Another work'), {code: 'ACCESS_BLOCKED'});
+  await assert.rejects(browser.catalog('brstej', 'latest', 2), {circuitOpen: true, retryAfterSeconds: 30});
+  assert.equal(calls, 3);
+  assert.equal((await browser.catalog('3isk', 'latest')).items.length, 1);
+  assert.equal((await browser.search('animezid', 'One Piece')).length, 1);
+  clock += 30_000;
+  blocked = false;
+  assert.equal((await browser.search('brstej', 'احلى نصيب')).length, 1);
+  assert.equal((await browser.catalog('brstej', 'latest', 2)).items.length, 1);
+  assert.equal(calls, 5);
 });

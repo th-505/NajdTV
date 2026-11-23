@@ -15,6 +15,51 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
   const maxBlockedPages = 64;
   function drop(key){const old=successful.get(key);if(old)cachedBytes-=old.bytes;successful.delete(key);}
 
+  let brstejCircuit;
+  function circuitFor(config, domain) {
+    const revisionKey = JSON.stringify([config?.revision || 0, domain]);
+    if (brstejCircuit?.key !== revisionKey) {
+      brstejCircuit = {key: revisionKey, failures: 0, firstFailure: 0, openUntil: 0, probing: false};
+    }
+    return brstejCircuit;
+  }
+
+  async function withBrstejCircuit(circuit, fetchResult) {
+    const remaining = circuit.openUntil - now();
+    if (remaining > 0 || circuit.probing) {
+      throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE'), {
+        code: 'ACCESS_BLOCKED', circuitOpen: true,
+        retryAfterSeconds: Math.max(1, Math.ceil(remaining / 1000)),
+      });
+    }
+    const probe = circuit.openUntil > 0;
+    if (probe) circuit.probing = true;
+    try {
+      const result = await fetchResult();
+      if (probe || !circuit.openUntil) {
+        circuit.failures = 0;
+        circuit.openUntil = 0;
+      }
+      return result;
+    } catch (error) {
+      if (error?.code === 'ACCESS_BLOCKED') {
+        if (!circuit.failures || now() - circuit.firstFailure >= blockTtlMs) {
+          circuit.firstFailure = now();
+          circuit.failures = 0;
+        }
+        if (probe || (++circuit.failures >= 3 && !circuit.openUntil)) {
+          circuit.openUntil = now() + blockTtlMs;
+        }
+      } else if (probe || !circuit.openUntil) {
+        circuit.failures = 0;
+        circuit.openUntil = 0;
+      }
+      throw error;
+    } finally {
+      if (probe) circuit.probing = false;
+    }
+  }
+
   function blockedError(key) {
     const until = brstejBlocks.get(key);
     if (until === undefined) return;
@@ -30,7 +75,7 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
   }
 
   function rememberBlock(key, error) {
-    if (error?.code === 'ACCESS_BLOCKED') {
+    if (error?.code === 'ACCESS_BLOCKED' && !error.circuitOpen) {
       if (brstejBlocks.size >= maxBlockedPages) {
         brstejBlocks.delete(brstejBlocks.keys().next().value);
       }
@@ -62,6 +107,7 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
         content_type:meta.capabilities?.live===true && meta.capabilities?.episodes!==true?'live':'vod',categories: categories(meta.id) }))),
     async search(id, query, page = 1) { return runInBrowserLane(async () => {
       const provider = entry(id);
+      if (id === 'brstej') query = query.trim();
       if (!provider.module.scrapeSearch) throw Error('BROWSER_PROVIDER_UNAVAILABLE');
       if (query.length < 2 || query.length > 120 || !Number.isSafeInteger(page) || page < 1 || page > 500) {
         throw Error('BROWSER_BAD_QUERY');
@@ -83,7 +129,8 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
       const error = blockedError(key);
       if (error) throw error;
       if (pending.has(key)) return pending.get(key);
-      const work = fetchSearch().catch(error => rememberBlock(key, error))
+      const circuit = circuitFor(config, config?.primary_domain || provider.meta.domains[0]);
+      const work = withBrstejCircuit(circuit, fetchSearch).catch(error => rememberBlock(key, error))
         .finally(() => pending.delete(key));
       pending.set(key, work);
       return work;
@@ -138,7 +185,8 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
           has_more: explicitPagination ? observedNext || meta.has_more === true : items.length > 0,
           basis: explicitPagination ? 'observed-source-pagination' : 'adapter-page-probe' } };
       }
-      const work=fetchPage().then(data=>{
+      const circuit = id === 'brstej' ? circuitFor(config, config?.primary_domain || provider.meta.domains[0]) : null;
+      const work=(circuit ? withBrstejCircuit(circuit, fetchPage) : fetchPage()).then(data=>{
         if(data.items.length){
           const bytes=Buffer.byteLength(JSON.stringify(data));
           if(bytes<=256*1024){
