@@ -88,3 +88,34 @@ test('Beta Brstej applies configured HTTPS origin while preserving the latest pa
     installBrowserConfigs(previous);
   }
 });
+
+test('Beta Brstej follows the observed HTTPS catalog redirect and rejects unapproved descendants', async () => {
+  const {BRSTEJ_CONFIG: betaConfig, scrapeCatalog, decodeProviderRef: decodeBetaRef} =
+    await import('../server/browser/providers/sites/brstej.mjs');
+  const base = betaConfig.baseUrl + '/home03';
+  const approved = 'https://hd1.brstej.com/home03';
+  const unapproved = 'https://nested.hd1.brstej.com/home03';
+  const calls = [];
+  const rows = await scrapeCatalog('latest', 1, {
+    fetchImpl: async url => {
+      calls.push(url);
+      return url === base
+        ? new Response(null, {status: 301, headers: {location: approved}})
+        : new Response(HOME_HTML);
+    },
+  });
+  assert.deepEqual(calls, [base, approved]);
+  assert.equal(rows.length, 4);
+
+  calls.length = 0;
+  await assert.rejects(scrapeCatalog('latest', 1, {
+    fetchImpl: async url => {
+      calls.push(url);
+      return new Response(null, {status: 301, headers: {location: unapproved}});
+    },
+  }), {code: 'UNSAFE_URL'});
+  assert.deepEqual(calls, [base]);
+  assert.throws(() => decodeBetaRef('https://nested.hd1.brstej.com/series1.php?id=abc'), {
+    code: 'UNSAFE_URL',
+  });
+});

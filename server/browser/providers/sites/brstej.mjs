@@ -9,9 +9,10 @@ import {attachResultMeta, ScraperError, SCRAPER_ERROR_CODES as E} from '../../..
 import {extractRawStreamsFromText, isValidDirectMediaUrl, unwrapEmbedToDirectStreams} from '../../../scrapers/stream-unwrapper.mjs';
 import {BRSTEJ_CATEGORIES, BRSTEJ_CATEGORY_LABELS} from './brstej-categories.mjs';
 // Search redirect observed on 2026-11-07; retain previous origins for stored references.
-const ORIGIN='https://brstej1.com', HOSTS=['brstej1.com','brstej.garden','prstej.study','su.brstej.com','brstejj.pics','brstejj.beer'];
+const observedCatalogHost = 'hd1.brstej.com';
+const ORIGIN='https://brstej1.com', HOSTS=['brstej1.com','brstej.garden','prstej.study','su.brstej.com','brstejj.pics','brstejj.beer',observedCatalogHost];
 const allowedHosts=()=>effectiveProviderDomains('brstej',HOSTS);
-export const PROVIDER_META = Object.freeze({id:'brstej',name:'برستيج',code:'BR',domains:[ORIGIN,'https://brstej.garden','https://prstej.study','https://su.brstej.com','https://brstejj.pics','https://brstejj.beer'],mirrorOf:null,resolveOnDetails:true,
+export const PROVIDER_META = Object.freeze({id:'brstej',name:'برستيج',code:'BR',domains:[ORIGIN,'https://brstej.garden','https://prstej.study','https://su.brstej.com','https://brstejj.pics','https://brstejj.beer',`https://${observedCatalogHost}`],mirrorOf:null,resolveOnDetails:true,
   capabilities:{catalog:true,search:true,details:true,episodes:true,servers:true,resolve:true,live:false},
   searchSpec:{method:'GET',pathTemplate:'/search.php?keywords={query}',queryParam:'keywords',pagination:true},notImplemented:{}});
 export const BRSTEJ_CONFIG=Object.freeze({id:'brstej',baseUrl:ORIGIN,
@@ -26,12 +27,25 @@ export function decodeProviderRef(input){
   if(value.startsWith('brstej:')){value=value.slice(7);if(!value.startsWith('https://')&&!value.startsWith('/'))value=Buffer.from(value,'base64url').toString('utf8');}
   if(/^\/(?!\/)/.test(value)&&!/[\\\x00-\x20]/.test(value))value=new URL(value,ORIGIN).href;
   const url=assertSafeScraperUrl(value,{allowHttp:false,allowedHosts:allowedHosts()});
+  validateCatalogHost(url);
   const key=url.pathname==='/series1.php'?'id':'vid';
   if(!['/series1.php','/video.php','/play.php'].includes(url.pathname)||!/^\w{1,64}$/.test(url.searchParams.get(key)||''))throw Error('BRSTEJ_INVALID_REFERENCE');
   return url.href;
 }
+function validateCatalogHost(url) {
+  // Shared host rules ordinarily include subdomains. This approval covers only the observed host.
+  if (url.hostname.endsWith(`.${observedCatalogHost}`)) {
+    throw new ScraperError(E.UNSAFE_URL, `HOST_NOT_IN_ALLOWLIST: ${url.hostname}`, {
+      providerId: 'brstej', url: url.href,
+    });
+  }
+}
 async function page(url,options={}){
   return fetchProviderHtml(url,{...options,providerId:'brstej',allowHttp:false,allowedHosts:allowedHosts(),
+    validateUrl: target => {
+      validateCatalogHost(target);
+      options.validateUrl?.(target);
+    },
     maxRetries:0,timeoutMs:Math.min(15000,options.timeoutMs||12000),maxBytes:4*1024*1024});
 }
 export function parseBrstejCatalog(html,baseUrl=ORIGIN){
