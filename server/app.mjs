@@ -127,6 +127,49 @@ const browserCatalogChecks = new Set([
   'BRSTEJ_CATALOG_HTTP_ERROR',
 ]);
 
+const browserCatalogNetworkChecks = new Set([
+  'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT',
+  'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_SOCKET',
+  'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'AbortError', 'TimeoutError',
+]);
+const browserCatalogAccessChecks = new Set([
+  'DOMAIN_SUSPENDED', 'LOGIN_REQUIRED', 'UPSTREAM_HOST_COOLDOWN',
+  'DNS_EMPTY_RECORDS', 'DNS_TIMEOUT', 'TOO_MANY_REDIRECTS',
+]);
+
+function brstejCatalogDiagnostic(cause, reason, check) {
+  let host;
+  try {
+    const hostname = new URL(cause?.url).hostname;
+    if (/^[a-z0-9.-]{1,253}$/i.test(hostname)) host = hostname;
+  } catch {
+    // Some errors are raised before a target is available.
+  }
+  if (!['ACCESS_BLOCKED', 'NETWORK_TIMEOUT', 'UPSTREAM_UNAVAILABLE'].includes(reason)) {
+    return { check, ...(host ? {host} : {}) };
+  }
+  const detail = String(cause?.message || '');
+  const prefix = detail.split(':', 1)[0];
+  let accessCheck = null;
+  if (browserCatalogAccessChecks.has(prefix)) accessCheck = prefix;
+  else if (/^CLOUDFLARE_OR_WAF_CHALLENGE_HTTP_[1-5]\d{2}$/.test(detail)) {
+    accessCheck = 'UPSTREAM_CHALLENGE';
+  } else if (/^HTTP_[1-5]\d{2}_FETCHING_/.test(detail)) {
+    accessCheck = 'UPSTREAM_HTTP_ERROR';
+  }
+  for (let error = cause, depth = 0; !accessCheck && error && depth < 4; error = error.cause, depth++) {
+    accessCheck = [error.code, error.name].find(code => browserCatalogNetworkChecks.has(code)) ?? null;
+  }
+  const status = cause?.status;
+  const hasUpstreamStatus = accessCheck !== 'UPSTREAM_HOST_COOLDOWN' &&
+    Number.isInteger(status) && status >= 100 && status <= 599;
+  return {
+    check: accessCheck ?? check ?? 'UNCLASSIFIED_UPSTREAM_FAILURE',
+    ...(host ? {host} : {}),
+    ...(hasUpstreamStatus ? {upstream_status: status} : {}),
+  };
+}
+
 function log(event, data = {}) {
   console.log(JSON.stringify({ ts: new Date().toISOString(), event, ...data }));
 }
@@ -826,21 +869,15 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           }
           const traceId = randomUUID();
           const check = String(error.cause?.message || '').split(':', 1)[0];
-          let host;
-          if (provider === 'brstej' && check === 'HOST_NOT_IN_ALLOWLIST') {
-            try {
-              const hostname = new URL(error.cause.url).hostname;
-              if (/^[a-z0-9.-]{1,253}$/i.test(hostname)) host = hostname;
-            } catch {
-              // The original error may have no parsed target.
-            }
-          }
+          const knownCheck = browserCatalogChecks.has(check) ? check : null;
+          const diagnostic = provider === 'brstej'
+            ? brstejCatalogDiagnostic(error.cause, reason, knownCheck)
+            : {check: knownCheck};
           log('browser_catalog_failed', {
             trace_id: traceId,
             provider: getBetaProvider(provider)?.meta.id ?? 'unknown',
             reason,
-            check: browserCatalogChecks.has(check) ? check : null,
-            ...(host ? {host} : {}),
+            ...diagnostic,
           });
           res.setHeader('X-Trace-Id', traceId);
           return sendJson(req, res, 503, {

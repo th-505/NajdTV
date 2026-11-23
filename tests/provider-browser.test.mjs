@@ -122,11 +122,23 @@ test('catalog HTTP correlates sanitized 503 diagnostics and keeps 400 unchanged'
     providerBrowser: {
       async catalog(provider, category, page) {
         if (page === 0) throw Error('BROWSER_BAD_PAGE');
-        assert.deepEqual([provider, category, page], ['brstej', 'latest', 1]);
-        const cause = Object.assign(Error('HOST_NOT_IN_ALLOWLIST: unrelated.example'), {
+        assert.deepEqual([provider, category], ['brstej', 'latest']);
+        const scenarios = {
+          1: ['UNSAFE_URL', 'HOST_NOT_IN_ALLOWLIST: unrelated.example'],
+          2: ['ACCESS_BLOCKED', 'CLOUDFLARE_OR_WAF_CHALLENGE_HTTP_403', 403],
+          3: ['ACCESS_BLOCKED', 'fetch failed', null, 'EAI_AGAIN'],
+          4: ['ACCESS_BLOCKED', 'HTTP_429_FETCHING_https://unrelated.example/private-path', 429],
+          5: ['ACCESS_BLOCKED', 'UPSTREAM_HOST_COOLDOWN', 429],
+        };
+        const [code, message, status, networkCode] = scenarios[page];
+        const cause = Object.assign(Error(message), {
           url: 'https://unrelated.example/private-path?token=private-value',
+          status,
+          cause: networkCode
+            ? Error('fetch failed', {cause: Object.assign(Error('private-value'), {code: networkCode})})
+            : null,
         });
-        throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE', {cause}), {code: 'UNSAFE_URL'});
+        throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE', {cause}), {code});
       },
     },
   });
@@ -148,6 +160,22 @@ test('catalog HTTP correlates sanitized 503 diagnostics and keeps 400 unchanged'
     assert.equal(event.host, 'unrelated.example');
     assert.doesNotMatch(logs[0] + JSON.stringify(body), /https:\/\/|private-path|private-value/);
     assert.equal(body.host, undefined);
+
+    for (const [page, check, status] of [
+      [2, 'UPSTREAM_CHALLENGE', 403], [3, 'EAI_AGAIN', undefined],
+      [4, 'UPSTREAM_HTTP_ERROR', 429], [5, 'UPSTREAM_HOST_COOLDOWN', undefined],
+    ]) {
+      const result = await fetch(endpoint + '&page=' + page);
+      const payload = await result.json();
+      const line = log.mock.calls.flatMap(call => call.arguments).find(value =>
+        typeof value === 'string' && value.includes(payload.trace_id));
+      const diagnostic = JSON.parse(line);
+      assert.equal(result.status, 503);
+      assert.equal(diagnostic.check, check);
+      assert.equal(diagnostic.host, 'unrelated.example');
+      assert.equal(diagnostic.upstream_status, status);
+      assert.doesNotMatch(line + JSON.stringify(payload), /https:\/\/|private-path|private-value/);
+    }
 
     const invalid = await fetch(endpoint + '&page=0');
     assert.equal(invalid.status, 400);

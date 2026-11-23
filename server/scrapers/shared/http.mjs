@@ -30,7 +30,7 @@ function noteHostBlock(host, headers, status) {
 function assertHostAvailable(host, providerId) {
   const until = HOST_COOLDOWNS.get(host) || 0;
   if (until <= Date.now()) { HOST_COOLDOWNS.delete(host); return; }
-  throw new ScraperError(SCRAPER_ERROR_CODES.ACCESS_BLOCKED, 'UPSTREAM_HOST_COOLDOWN', {providerId, status:429, retryAfterMs:until-Date.now()});
+  throw new ScraperError(SCRAPER_ERROR_CODES.ACCESS_BLOCKED, 'UPSTREAM_HOST_COOLDOWN', {providerId, url:`https://${host}`, status:429, retryAfterMs:until-Date.now()});
 }
 
 const MAX_CONCURRENT_PER_HOST = 4;
