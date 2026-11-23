@@ -123,6 +123,11 @@ test('catalog HTTP correlates sanitized 503 diagnostics and keeps 400 unchanged'
       async catalog(provider, category, page) {
         if (page === 0) throw Error('BROWSER_BAD_PAGE');
         assert.deepEqual([provider, category], ['brstej', 'latest']);
+        if (page === 6) {
+          throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE'), {
+            code: 'ACCESS_BLOCKED', catalogCacheHit: true, retryAfterSeconds: 12,
+          });
+        }
         const scenarios = {
           1: ['UNSAFE_URL', 'HOST_NOT_IN_ALLOWLIST: unrelated.example'],
           2: ['ACCESS_BLOCKED', 'CLOUDFLARE_OR_WAF_CHALLENGE_HTTP_403', 403],
@@ -177,6 +182,15 @@ test('catalog HTTP correlates sanitized 503 diagnostics and keeps 400 unchanged'
       assert.doesNotMatch(line + JSON.stringify(payload), /https:\/\/|private-path|private-value/);
     }
 
+    const cached = await fetch(endpoint + '&page=6');
+    assert.equal(cached.status, 503);
+    assert.equal(cached.headers.get('retry-after'), '12');
+    const cachedBody = await cached.json();
+    const cachedLog = log.mock.calls.flatMap(call => call.arguments).find(value =>
+      typeof value === 'string' && value.includes(cachedBody.trace_id));
+    assert.equal(JSON.parse(cachedLog).check, 'CACHED_ACCESS_BLOCKED');
+    assert.equal(cachedBody.reason, 'ACCESS_BLOCKED');
+
     const invalid = await fetch(endpoint + '&page=0');
     assert.equal(invalid.status, 400);
     assert.equal(invalid.headers.get('x-trace-id'), null);
@@ -185,4 +199,36 @@ test('catalog HTTP correlates sanitized 503 diagnostics and keeps 400 unchanged'
     server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));
   }
+});
+
+test('Beta Brstej deduplicates blocked pages for 30 seconds without suppressing other providers', async () => {
+  let clock = 10_000;
+  let attempts = 0;
+  const browser = createProviderBrowser({
+    now: () => clock,
+    lookup: id => ({
+      meta: {id, name: id, domains: [`https://${id}.example`], capabilities: {catalog: true}},
+      module: {
+        CONFIG: {categories: {latest: '/'}},
+        async scrapeCatalog() {
+          if (id === 'brstej' && ++attempts === 1) {
+            throw Object.assign(Error('CLOUDFLARE_OR_WAF_CHALLENGE_HTTP_403'), {code: 'ACCESS_BLOCKED'});
+          }
+          return [{ref: `${id}:item`, title: 'An available result'}];
+        },
+      },
+    }),
+  });
+
+  await assert.rejects(browser.catalog('brstej', 'latest'), {code: 'ACCESS_BLOCKED'});
+  await assert.rejects(browser.catalog('brstej', 'latest'), {
+    code: 'ACCESS_BLOCKED', catalogCacheHit: true, retryAfterSeconds: 30,
+  });
+  assert.equal(attempts, 1);
+  assert.equal((await browser.catalog('other', 'latest')).items[0].source, 'other');
+  clock += 29_999;
+  await assert.rejects(browser.catalog('brstej', 'latest'), {catalogCacheHit: true});
+  clock += 1;
+  assert.equal((await browser.catalog('brstej', 'latest')).items[0].source, 'brstej');
+  assert.equal(attempts, 2);
 });

@@ -870,9 +870,12 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           const traceId = randomUUID();
           const check = String(error.cause?.message || '').split(':', 1)[0];
           const knownCheck = browserCatalogChecks.has(check) ? check : null;
-          const diagnostic = provider === 'brstej'
-            ? brstejCatalogDiagnostic(error.cause, reason, knownCheck)
-            : {check: knownCheck};
+          const diagnostic = error.catalogCacheHit
+            ? {check: 'CACHED_ACCESS_BLOCKED', cache_hit: true}
+            : provider === 'brstej'
+              ? brstejCatalogDiagnostic(error.cause, reason, knownCheck)
+              : {check: knownCheck};
+          if (error.catalogCacheHit) res.setHeader('Retry-After', error.retryAfterSeconds);
           log('browser_catalog_failed', {
             trace_id: traceId,
             provider: getBetaProvider(provider)?.meta.id ?? 'unknown',
