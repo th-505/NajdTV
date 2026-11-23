@@ -123,7 +123,9 @@ test('catalog HTTP correlates sanitized 503 diagnostics and keeps 400 unchanged'
       async catalog(provider, category, page) {
         if (page === 0) throw Error('BROWSER_BAD_PAGE');
         assert.deepEqual([provider, category, page], ['brstej', 'latest', 1]);
-        const cause = Error('HOST_NOT_IN_ALLOWLIST: https://unrelated.example/?token=private-value');
+        const cause = Object.assign(Error('HOST_NOT_IN_ALLOWLIST: unrelated.example'), {
+          url: 'https://unrelated.example/private-path?token=private-value',
+        });
         throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE', {cause}), {code: 'UNSAFE_URL'});
       },
     },
@@ -143,7 +145,9 @@ test('catalog HTTP correlates sanitized 503 diagnostics and keeps 400 unchanged'
     const event = JSON.parse(logs[0]);
     assert.equal(event.check, 'HOST_NOT_IN_ALLOWLIST');
     assert.equal(event.trace_id, body.trace_id);
-    assert.doesNotMatch(logs[0] + JSON.stringify(body), /unrelated\.example|private-value/);
+    assert.equal(event.host, 'unrelated.example');
+    assert.doesNotMatch(logs[0] + JSON.stringify(body), /https:\/\/|private-path|private-value/);
+    assert.equal(body.host, undefined);
 
     const invalid = await fetch(endpoint + '&page=0');
     assert.equal(invalid.status, 400);

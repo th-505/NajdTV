@@ -826,11 +826,21 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           }
           const traceId = randomUUID();
           const check = String(error.cause?.message || '').split(':', 1)[0];
+          let host;
+          if (provider === 'brstej' && check === 'HOST_NOT_IN_ALLOWLIST') {
+            try {
+              const hostname = new URL(error.cause.url).hostname;
+              if (/^[a-z0-9.-]{1,253}$/i.test(hostname)) host = hostname;
+            } catch {
+              // The original error may have no parsed target.
+            }
+          }
           log('browser_catalog_failed', {
             trace_id: traceId,
             provider: getBetaProvider(provider)?.meta.id ?? 'unknown',
             reason,
             check: browserCatalogChecks.has(check) ? check : null,
+            ...(host ? {host} : {}),
           });
           res.setHeader('X-Trace-Id', traceId);
           return sendJson(req, res, 503, {
