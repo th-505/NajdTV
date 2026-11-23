@@ -232,3 +232,63 @@ test('Beta Brstej deduplicates blocked pages for 30 seconds without suppressing 
   assert.equal((await browser.catalog('brstej', 'latest')).items[0].source, 'brstej');
   assert.equal(attempts, 2);
 });
+
+test('Beta Brstej search caches blocked responses without logging the query', async t => {
+  const {createServer} = await import('../server/app.mjs');
+  const log = t.mock.method(console, 'log', () => {});
+  let clock = 10_000;
+  let attempts = 0;
+  const browser = createProviderBrowser({
+    now: () => clock,
+    lookup: id => ({
+      meta: {id, domains: [`https://${id}.example`]},
+      module: {
+        async scrapeSearch() {
+          if (id === 'brstej' && ++attempts === 1) {
+            throw Object.assign(Error('CLOUDFLARE_OR_WAF_CHALLENGE_HTTP_403'), {code: 'ACCESS_BLOCKED'});
+          }
+          return [{title: 'Available work', ref: `${id}:result`}];
+        },
+      },
+    }),
+  });
+  const server = createServer({
+    catalogStore: null,
+    harvestService: {start() {}, async stop() {}},
+    browserConfigurationService: {async refresh() {}, close() {}},
+    providerBrowser: browser,
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const run = (provider, q = 'private-search-term') => {
+      const params = new URLSearchParams({provider, q, page: '1'});
+      return fetch(`http://127.0.0.1:${server.address().port}/api/v1/browser/search?${params}`);
+    };
+    const first = await run('brstej');
+    assert.equal(first.status, 503);
+    assert.deepEqual(await first.json(), {message: 'ACCESS_BLOCKED'});
+    assert.equal(first.headers.get('retry-after'), null);
+
+    const cached = await run('brstej');
+    assert.equal(cached.status, 503);
+    assert.equal(cached.headers.get('retry-after'), '30');
+    assert.deepEqual(await cached.json(), {message: 'ACCESS_BLOCKED'});
+    assert.equal(attempts, 1);
+    const line = log.mock.calls.flatMap(call => call.arguments).find(value =>
+      typeof value === 'string' && value.includes(cached.headers.get('x-trace-id')));
+    assert.equal(JSON.parse(line).check, 'CACHED_ACCESS_BLOCKED');
+    assert.doesNotMatch(line, /private-search-term|https?:/);
+
+    assert.equal((await run('other')).status, 200);
+    assert.equal((await run('brstej', 'distinct search')).status, 200);
+    assert.equal(attempts, 2);
+    clock += 29_999;
+    assert.equal((await run('brstej')).headers.get('retry-after'), '1');
+    clock += 1;
+    assert.equal((await run('brstej')).status, 200);
+    assert.equal(attempts, 3);
+  } finally {
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+  }
+});

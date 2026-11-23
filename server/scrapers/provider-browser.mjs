@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {assertSafeScraperUrl} from './shared/http.mjs';
 import {getProviderConfig,effectiveProviderDomains} from './shared/provider-config.mjs';
 import {runInBrowserLane} from '../browser/traffic.mjs';
@@ -13,6 +14,30 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
   const blockTtlMs = 30_000;
   const maxBlockedPages = 64;
   function drop(key){const old=successful.get(key);if(old)cachedBytes-=old.bytes;successful.delete(key);}
+
+  function blockedError(key) {
+    const until = brstejBlocks.get(key);
+    if (until === undefined) return;
+    const remaining = until - now();
+    if (remaining <= 0) {
+      brstejBlocks.delete(key);
+      return;
+    }
+    return Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE'), {
+      code: 'ACCESS_BLOCKED', catalogCacheHit: true,
+      retryAfterSeconds: Math.ceil(remaining / 1000),
+    });
+  }
+
+  function rememberBlock(key, error) {
+    if (error?.code === 'ACCESS_BLOCKED') {
+      if (brstejBlocks.size >= maxBlockedPages) {
+        brstejBlocks.delete(brstejBlocks.keys().next().value);
+      }
+      brstejBlocks.set(key, now() + blockTtlMs);
+    }
+    throw error;
+  }
 
   function entry(id) {
     const provider = lookup(id);
@@ -35,6 +60,34 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
       && typeof lookup(meta.id)?.module.scrapeCatalog === 'function')
       .map(meta => ({ id: meta.id, name: meta.name, domain: new URL(meta.domains[0]).hostname,
         content_type:meta.capabilities?.live===true && meta.capabilities?.episodes!==true?'live':'vod',categories: categories(meta.id) }))),
+    async search(id, query, page = 1) { return runInBrowserLane(async () => {
+      const provider = entry(id);
+      if (!provider.module.scrapeSearch) throw Error('BROWSER_PROVIDER_UNAVAILABLE');
+      if (query.length < 2 || query.length > 120 || !Number.isSafeInteger(page) || page < 1 || page > 500) {
+        throw Error('BROWSER_BAD_QUERY');
+      }
+      const fetchSearch = async () => {
+        const items = await provider.module.scrapeSearch(query, page, {
+          strict: true, allowHttp: false, timeoutMs: 6500, maxRetries: 0,
+        });
+        if (items?._meta?.errorCode && items._meta.errorCode !== 'EMPTY_RESULT') {
+          throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE'), {code: items._meta.errorCode});
+        }
+        return items;
+      };
+      if (id !== 'brstej') return fetchSearch();
+      const config = getProviderConfig(id);
+      const digest = createHash('sha256').update(query).digest('hex');
+      const key = JSON.stringify(['search', id, digest, page, config?.revision || 0,
+        config?.primary_domain || provider.meta.domains[0]]);
+      const error = blockedError(key);
+      if (error) throw error;
+      if (pending.has(key)) return pending.get(key);
+      const work = fetchSearch().catch(error => rememberBlock(key, error))
+        .finally(() => pending.delete(key));
+      pending.set(key, work);
+      return work;
+    }); },
     async catalog(id, category, page = 1) { return runInBrowserLane(async()=>{
       const provider = entry(id);
       if (typeof provider.module.scrapeCatalog !== 'function') throw Error('BROWSER_CATALOG_UNSUPPORTED');
@@ -48,15 +101,10 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
       const cached=successful.get(key);
       if(cached&&cached.expires>now())return structuredClone(cached.data);
       if(cached)drop(key);
-      const blockedUntil = brstejBlocks.get(key);
-      if (blockedUntil > now()) {
-        throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE'), {
-          code: 'ACCESS_BLOCKED',
-          catalogCacheHit: true,
-          retryAfterSeconds: Math.ceil((blockedUntil - now()) / 1000),
-        });
+      if (id === 'brstej') {
+        const error = blockedError(key);
+        if (error) throw error;
       }
-      if (blockedUntil !== undefined) brstejBlocks.delete(key);
       if(pending.has(key))return structuredClone(await pending.get(key));
       let observedNextUrl=null;
       async function fetchPage(){
@@ -101,14 +149,7 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
         }
         return data;
       }).catch(error => {
-        // The guarded HTTP client classifies upstream challenges as ACCESS_BLOCKED.
-        // Keep only an expiry, with no response HTML, upstream URL or credentials.
-        if (id === 'brstej' && error?.code === 'ACCESS_BLOCKED') {
-          if (brstejBlocks.size >= maxBlockedPages) {
-            brstejBlocks.delete(brstejBlocks.keys().next().value);
-          }
-          brstejBlocks.set(key, now() + blockTtlMs);
-        }
+        if (id === 'brstej') return rememberBlock(key, error);
         throw error;
       }).finally(()=>pending.delete(key));
       pending.set(key,work);

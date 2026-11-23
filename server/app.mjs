@@ -10,7 +10,6 @@ import {browserConfigs} from './browser/traffic.mjs';
 import {createServiceChecks} from './diagnostics/service-checks.mjs';
 import {createHarvestStore} from './harvest/store.mjs';
 import {createBrowserWorkService} from './browser/service.mjs';
-import {runInBrowserLane} from './browser/traffic.mjs';
 import {getProvider as getBetaProvider} from './browser/registry.mjs';
 import {sourceManifest} from './scrapers/source-manifest.mjs';
 import { createProviderBrowser } from './scrapers/provider-browser.mjs';
@@ -835,10 +834,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           let data;
           if(action==='search'){
             const provider=url.searchParams.get('provider'),query=url.searchParams.get('q')||'',page=Number(url.searchParams.get('page')||1);
-            const entry=getBetaProvider(provider);if(!entry||entry.meta.enabled===false||entry.meta.mirrorOf||!entry.module.scrapeSearch)throw Error('BROWSER_PROVIDER_UNAVAILABLE');
-            if(query.length<2||query.length>120||!Number.isSafeInteger(page)||page<1||page>500)throw Error('BROWSER_BAD_QUERY');
-            const items=await runInBrowserLane(()=>entry.module.scrapeSearch(query,page,{strict:true,allowHttp:false,timeoutMs:6500,maxRetries:0}));
-            if(items?._meta?.errorCode&&items._meta.errorCode!=='EMPTY_RESULT')throw Object.assign(Error('BROWSER_SOURCE_UNAVAILABLE'),{code:items._meta.errorCode});
+            const items = await providerBrowser.search(provider, query, page);
             return sendJson(req,res,200,{status:'success',items:(Array.isArray(items)?items:items?.items||[]).map(row=>({...row,rating:Number.isFinite(Number(row.rating))?Number(row.rating):0})),pagination:items?._meta||{}});
           }
           if(action==='request')data=await browserWorks.request(ref,{reason:url.searchParams.get('reason')||'card_open'});
@@ -846,7 +842,21 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           if(action==='work')data=await browserWorks.details(ref,{season:Number(url.searchParams.get('season')||1),offset:Number(url.searchParams.get('offset')||0)});
           if(action==='playback')data=await browserWorks.playback(ref,{season:Number(url.searchParams.get('season')||0),episode:Number(url.searchParams.get('episode')||0),platform:url.searchParams.get('platform')==='web'?'web':'native',refresh:url.searchParams.get('refresh')==='1',origin:url.searchParams.get('origin')||''});
           return sendJson(req,res,200,{status:'success',data});
-        }catch(error){const code=/^[A-Z][A-Z0-9_]{2,79}$/.test(error.code||error.message)?error.code||error.message:'BROWSER_SOURCE_UNAVAILABLE';return sendJson(req,res,503,{message:code});}
+        } catch (error) {
+          const value = error?.code || error?.message;
+          const code = /^[A-Z][A-Z0-9_]{2,79}$/.test(value || '') ? value : 'BROWSER_SOURCE_UNAVAILABLE';
+          if (action === 'search' && url.searchParams.get('provider') === 'brstej' && code === 'ACCESS_BLOCKED') {
+            const traceId = randomUUID();
+            if (error.catalogCacheHit) res.setHeader('Retry-After', error.retryAfterSeconds);
+            res.setHeader('X-Trace-Id', traceId);
+            log('browser_search_failed', {
+              trace_id: traceId, provider: 'brstej', reason: code,
+              check: error.catalogCacheHit ? 'CACHED_ACCESS_BLOCKED' : 'ACCESS_BLOCKED',
+              cache_hit: Boolean(error.catalogCacheHit),
+            });
+          }
+          return sendJson(req, res, 503, {message: code});
+        }
       }
       if (url.pathname === '/api/v1/browser/sources') {
         await browserConfiguration.refresh();
