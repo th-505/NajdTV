@@ -1,20 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import {readSourceRevision} from './source-revision.mjs';
-const SOURCE_REVISION=readSourceRevision();
-import {sourceResponse,providerErrorCode} from '../shared/provider-contract.js';
+import { readSourceRevision } from './source-revision.mjs';
+import { sourceResponse, providerErrorCode } from '../shared/provider-contract.js';
 import { validOffset } from '../shared/provider-pagination.js';
-import {createDatabaseMetrics} from './diagnostics/database-metrics.mjs';
-import {createOptionalCacheReader} from './optional-cache.mjs';
-import {createBrowserConfiguration} from './browser/configuration.mjs';
-import {browserConfigs} from './browser/traffic.mjs';
-import {createServiceChecks} from './diagnostics/service-checks.mjs';
-import {createHarvestStore} from './harvest/store.mjs';
-import {createBrowserWorkService} from './browser/service.mjs';
-import {getProvider as getBetaProvider} from './browser/registry.mjs';
-import {sourceManifest} from './scrapers/source-manifest.mjs';
+import { createDatabaseMetrics } from './diagnostics/database-metrics.mjs';
+import { createOptionalCacheReader } from './optional-cache.mjs';
+import { createBrowserConfiguration } from './browser/configuration.mjs';
+import { browserConfigs } from './browser/traffic.mjs';
+import { createServiceChecks } from './diagnostics/service-checks.mjs';
+import { createHarvestStore } from './harvest/store.mjs';
+import { createBrowserWorkService } from './browser/service.mjs';
+import { getProvider as getBetaProvider } from './browser/registry.mjs';
+import { sourceManifest } from './scrapers/source-manifest.mjs';
 import { createProviderBrowser } from './scrapers/provider-browser.mjs';
-const defaultProviderBrowser = createProviderBrowser();
-import {createPlaybackSessions} from './playback-sessions.mjs';
+import { createPlaybackSessions } from './playback-sessions.mjs';
 import {readCachedPlayback} from './harvest/cached-playback.mjs';
 import {getProviderConfig} from './scrapers/shared/provider-config.mjs';
 import {createGithubIdentityVerifier} from './maintenance/github-identity.mjs';
@@ -61,6 +59,9 @@ import { buildRuntimeEnvelope, normalizeCatalogItem,PRODUCT_VERSION } from "./co
 import { createRateLimiter, getClientAddress, maybeCompress } from "./hardening.mjs";
 import { scrapeRealCategory, scrapeRealSearch, scrapePinnedSource, scrapeRealDetails, activateAllScrapersForContent } from "./scrapers/index.mjs";
 import { unwrapEmbedToDirectStreams } from "./scrapers/stream-unwrapper.mjs";
+
+const SOURCE_REVISION = readSourceRevision();
+const defaultProviderBrowser = createProviderBrowser();
 
 const MATCHES = "https://api.albasritv1.workers.dev/";
 const CINEMA = "https://albas.albesriali03.workers.dev/";
@@ -847,7 +848,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
           const code = /^[A-Z][A-Z0-9_]{2,79}$/.test(value || '') ? value : 'BROWSER_SOURCE_UNAVAILABLE';
           if (action === 'search' && url.searchParams.get('provider') === 'brstej' && code === 'ACCESS_BLOCKED') {
             const traceId = randomUUID();
-            if (error.catalogCacheHit || error.circuitOpen) res.setHeader('Retry-After', error.retryAfterSeconds);
+            if ((error.catalogCacheHit || error.circuitOpen) && error.retryAfterSeconds) res.setHeader('Retry-After', String(error.retryAfterSeconds));
             res.setHeader('X-Trace-Id', traceId);
             log('browser_search_failed', {
               trace_id: traceId, provider: 'brstej', reason: code,
@@ -887,7 +888,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
             : provider === 'brstej'
               ? brstejCatalogDiagnostic(error.cause, reason, knownCheck)
               : {check: knownCheck};
-          if (error.catalogCacheHit || error.circuitOpen) res.setHeader('Retry-After', error.retryAfterSeconds);
+          if ((error.catalogCacheHit || error.circuitOpen) && error.retryAfterSeconds) res.setHeader('Retry-After', String(error.retryAfterSeconds));
           log('browser_catalog_failed', {
             trace_id: traceId,
             provider: getBetaProvider(provider)?.meta.id ?? 'unknown',

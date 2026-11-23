@@ -115,7 +115,7 @@ export function extractRawStreamsFromText(text = '', refererUrl = '') {
           url: rawUrl,
           streamType,
           quality: qualityMatch ? qualityMatch[1].toUpperCase() : (streamType === 'm3u8' ? 'AUTO-HLS' : 'تلقائي'),
-          headers: generateAntiBanHeaders(refererUrl || rawUrl)
+          headers: generateAntiBanHeaders(rawUrl, refererUrl)
         });
       }
     }
@@ -130,7 +130,7 @@ async function extractSpecialHostStreams(embedUrl, parentReferer) {
   // أ) مشغل Ok.ru (استخراج HLS و MP4 من JSON data-options)
   if (lower.includes('ok.ru/videoembed')) {
     try {
-      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(parentReferer), signal: AbortSignal.timeout(6000) });
+      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(embedUrl, parentReferer), signal: AbortSignal.timeout(6000) });
       if (!res.ok) return [];
       const html = await res.text();
       const optsMatch = html.match(/data-options="([^"]+)"/);
@@ -155,7 +155,7 @@ async function extractSpecialHostStreams(embedUrl, parentReferer) {
   // ب) مشغل DoodStream / Dooood / Ds2play
   if (/dood|d000d|ds2play|doods/i.test(lower)) {
     try {
-      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(parentReferer), signal: AbortSignal.timeout(6000) });
+      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(embedUrl, parentReferer), signal: AbortSignal.timeout(6000) });
       if (!res.ok) return [];
       const html = await res.text();
       const passMatch = html.match(/\$\.get\(['"](\/pass_md5\/[^'"]+)['"]/);
@@ -163,14 +163,14 @@ async function extractSpecialHostStreams(embedUrl, parentReferer) {
         const origin = new URL(embedUrl).origin;
         const passUrl = `${origin}${passMatch[1]}`;
         const passRes = await fetchEmbedResponse(passUrl, {
-          headers: { ...generateAntiBanHeaders(embedUrl), Referer: embedUrl },
+          headers: { ...generateAntiBanHeaders(passUrl, embedUrl), Referer: embedUrl },
           signal: AbortSignal.timeout(6000)
         });
         if (passRes.ok) {
           const baseStream = await passRes.text();
           const randomToken = Math.random().toString(36).substring(2, 12);
           const directMp4 = `${baseStream}${randomToken}?token=${passMatch[1].split('/').pop()}&expiry=${Date.now()}`;
-          return [{ url: directMp4, streamType: 'mp4', quality: null, headers: { ...generateAntiBanHeaders(embedUrl), Referer: `${origin}/` } }];
+          return [{ url: directMp4, streamType: 'mp4', quality: null, headers: { ...generateAntiBanHeaders(directMp4, embedUrl), Referer: `${origin}/` } }];
         }
       }
     } catch (_) {}
@@ -179,13 +179,13 @@ async function extractSpecialHostStreams(embedUrl, parentReferer) {
   // ج) مشغل Sibnet (شائع في الأنمي)
   if (lower.includes('sibnet.ru')) {
     try {
-      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(parentReferer), signal: AbortSignal.timeout(6000) });
+      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(embedUrl, parentReferer), signal: AbortSignal.timeout(6000) });
       if (!res.ok) return [];
       const html = await res.text();
       const m = html.match(/player\.src\(\[\{src:\s*["']([^"']+)["']/);
       if (m) {
         const fullUrl = m[1].startsWith('http') ? m[1] : `https://video.sibnet.ru${m[1]}`;
-        return [{ url: fullUrl, streamType: 'mp4', quality: null, headers: { ...generateAntiBanHeaders(embedUrl), Referer: embedUrl } }];
+        return [{ url: fullUrl, streamType: 'mp4', quality: null, headers: { ...generateAntiBanHeaders(fullUrl, embedUrl), Referer: embedUrl } }];
       }
     } catch (_) {}
   }
@@ -193,12 +193,12 @@ async function extractSpecialHostStreams(embedUrl, parentReferer) {
   // د) مشغل Vidmoly
   if (lower.includes('vidmoly')) {
     try {
-      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(parentReferer), signal: AbortSignal.timeout(6000) });
+      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(embedUrl, parentReferer), signal: AbortSignal.timeout(6000) });
       if (!res.ok) return [];
       const html = await res.text();
       const m = html.match(/file\s*:\s*["'](https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)["']/i);
       if (m) {
-        return [{ url: m[1], streamType: 'm3u8', quality: 'AUTO-HLS', headers: { ...generateAntiBanHeaders(embedUrl), Referer: 'https://vidmoly.to/' } }];
+        return [{ url: m[1], streamType: 'm3u8', quality: 'AUTO-HLS', headers: { ...generateAntiBanHeaders(m[1], embedUrl), Referer: 'https://vidmoly.to/' } }];
       }
     } catch (_) {}
   }
@@ -206,12 +206,12 @@ async function extractSpecialHostStreams(embedUrl, parentReferer) {
   // هـ) مشغل Uqload
   if (lower.includes('uqload')) {
     try {
-      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(parentReferer), signal: AbortSignal.timeout(6000) });
+      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(embedUrl, parentReferer), signal: AbortSignal.timeout(6000) });
       if (!res.ok) return [];
       const html = await res.text();
       const m = html.match(/sources\s*:\s*\[\s*["'](https?:\/\/[^"']+\.mp4[^"']*)["']/i);
       if (m) {
-        return [{ url: m[1], streamType: 'mp4', quality: null, headers: { ...generateAntiBanHeaders(embedUrl), Referer: 'https://uqload.com/' } }];
+        return [{ url: m[1], streamType: 'mp4', quality: null, headers: { ...generateAntiBanHeaders(m[1], embedUrl), Referer: 'https://uqload.com/' } }];
       }
     } catch (_) {}
   }
@@ -219,13 +219,13 @@ async function extractSpecialHostStreams(embedUrl, parentReferer) {
   // و) مشغل Streamwish / Awish / Flaswish
   if (/streamwish|awish|flaswish|embedwish|strwish/i.test(lower)) {
     try {
-      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(parentReferer), signal: AbortSignal.timeout(6000) });
+      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(embedUrl, parentReferer), signal: AbortSignal.timeout(6000) });
       if (!res.ok) return [];
       const html = await res.text();
       const unpacked = unpackDeanEdwards(html);
       const m = `${html}\n${unpacked}`.match(/["'](https?:\/\/[^"'\s]+\.m3u8(?:\?[^"'\s]*)?)["']/i);
       if (m) {
-        return [{ url: m[1], streamType: 'm3u8', quality: 'AUTO-HLS', headers: generateAntiBanHeaders(embedUrl) }];
+        return [{ url: m[1], streamType: 'm3u8', quality: 'AUTO-HLS', headers: generateAntiBanHeaders(m[1], embedUrl) }];
       }
     } catch (_) {}
   }
@@ -233,13 +233,13 @@ async function extractSpecialHostStreams(embedUrl, parentReferer) {
   // ز) مشغل Filemoon / Moonplayer
   if (/filemoon|moonplayer/i.test(lower)) {
     try {
-      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(parentReferer), signal: AbortSignal.timeout(6000) });
+      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(embedUrl, parentReferer), signal: AbortSignal.timeout(6000) });
       if (!res.ok) return [];
       const html = await res.text();
       const unpacked = unpackDeanEdwards(html);
       const m = `${html}\n${unpacked}`.match(/["'](https?:\/\/[^"'\s]+\.m3u8(?:\?[^"'\s]*)?)["']/i);
       if (m) {
-        return [{ url: m[1], streamType: 'm3u8', quality: 'AUTO-HLS', headers: generateAntiBanHeaders(embedUrl) }];
+        return [{ url: m[1], streamType: 'm3u8', quality: 'AUTO-HLS', headers: generateAntiBanHeaders(m[1], embedUrl) }];
       }
     } catch (_) {}
   }
@@ -247,14 +247,14 @@ async function extractSpecialHostStreams(embedUrl, parentReferer) {
   // ح) مشغل Mixdrop
   if (lower.includes('mixdrop')) {
     try {
-      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(parentReferer), signal: AbortSignal.timeout(6000) });
+      const res = await fetchEmbedResponse(embedUrl, { headers: generateAntiBanHeaders(embedUrl, parentReferer), signal: AbortSignal.timeout(6000) });
       if (!res.ok) return [];
       const html = await res.text();
       const unpacked = unpackDeanEdwards(html);
       const m = `${html}\n${unpacked}`.match(/MDCore\.wurl\s*=\s*["']((?:https?:)?\/\/[^"']+)["']/i);
       if (m) {
         const streamUrl = m[1].startsWith('//') ? `https:${m[1]}` : m[1];
-        return [{ url: streamUrl, streamType: 'mp4', quality: null, headers: generateAntiBanHeaders(embedUrl) }];
+        return [{ url: streamUrl, streamType: 'mp4', quality: null, headers: generateAntiBanHeaders(streamUrl, embedUrl) }];
       }
     } catch (_) {}
   }
@@ -340,21 +340,29 @@ export async function cascadeResolveStream(rawUrl, parentReferer = '', depth = 0
       url: targetUrl,
       streamType,
       quality: streamType === 'm3u8' ? 'AUTO-HLS' : 'HD',
-      headers: generateAntiBanHeaders(parentReferer || targetUrl)
+      headers: generateAntiBanHeaders(targetUrl, parentReferer)
     }];
   }
 
   // ب) فحص المشغلات الخاصة المعروفة (Ok.ru, Sibnet, Dood, Vidmoly, إلخ)
   try {
     const special = await extractSpecialHostStreams(targetUrl, parentReferer);
-    if (special.length > 0) return special.filter(s=>{try{assertSafeScraperUrl(s.url,{allowHttp:false});return true}catch{return false}});
+    const validSpecial = special.filter(s => {
+      try {
+        assertSafeScraperUrl(s.url, { allowHttp: false });
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    if (validSpecial.length > 0) return validSpecial;
   } catch (_) {}
 
   // ج) جلب صفحة المشغل لاستخراج البث أو العثور على المشغل الداخلي التالي
   try {
     const res = await fetchEmbedResponse(targetUrl, {
       headers: {
-        ...generateAntiBanHeaders(targetUrl),
+        ...generateAntiBanHeaders(targetUrl, parentReferer),
         Referer: parentReferer || new URL(targetUrl).origin + '/'
       },
       signal: AbortSignal.timeout(6500)
