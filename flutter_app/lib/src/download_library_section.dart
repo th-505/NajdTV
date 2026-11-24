@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'app_target.dart';
 import 'download_service.dart';
 import 'local_download_player_page.dart';
+import 'library_store.dart';
 
 typedef DownloadOpenHandler = Future<void> Function(DownloadedFileInfo item);
 typedef DownloadShareHandler = Future<void> Function(DownloadedFileInfo item);
@@ -19,11 +20,13 @@ class DownloadLibrarySection extends StatefulWidget {
   const DownloadLibrarySection({
     super.key,
     this.service,
+    this.store,
     this.onOpen,
     this.onShare,
   });
 
   final DownloadService? service;
+  final LocalLibraryStore? store;
   final DownloadOpenHandler? onOpen;
   final DownloadShareHandler? onShare;
 
@@ -101,7 +104,11 @@ class _DownloadLibrarySectionState extends State<DownloadLibrarySection> {
     }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LocalDownloadPlayerPage(file: file, title: item.name),
+        builder: (_) => LocalDownloadPlayerPage(
+          file: file,
+          title: item.name,
+          store: widget.store,
+        ),
       ),
     );
   }

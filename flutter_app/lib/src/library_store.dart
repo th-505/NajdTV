@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'library_snapshot_database.dart';
+import 'library_snapshot_database_stub.dart'
+    if (dart.library.io) 'library_snapshot_database_native.dart';
 import 'library_sync_record.dart';
 import 'watch_identity.dart';
 import 'models.dart';
@@ -175,7 +179,7 @@ class WatchEntry {
 }
 
 class LocalLibraryStore extends ChangeNotifier {
-  LocalLibraryStore._(this._prefs, this._clock);
+  LocalLibraryStore._(this._prefs, this._clock, this._database);
   static const _favoritesKey = 'library.favorites.v1';
   static const _historyKey = 'library.history.v1';
   static const _legacySnapshotKey = 'library.snapshot.v2';
@@ -190,6 +194,7 @@ class LocalLibraryStore extends ChangeNotifier {
   static const recentHistoryLimit = 80;
   static const _searchHistoryLimit = 12;
   final SharedPreferences _prefs;
+  final LibrarySnapshotDatabase? _database;
   final DateTime Function() _clock;
   final Map<String, CatalogItem> _favorites = {};
   final Map<String, WatchEntry> _history = {};
@@ -203,15 +208,29 @@ class LocalLibraryStore extends ChangeNotifier {
   bool _closed = false;
   Future<void> _writeTail = Future.value();
 
-  static Future<LocalLibraryStore> create({DateTime Function()? clock}) async {
+  static Future<LocalLibraryStore> create({
+    DateTime Function()? clock,
+    bool persistent = false,
+    LibrarySnapshotDatabase? database,
+  }) async {
+    final preferences = await SharedPreferences.getInstance();
+    final snapshots =
+        database ?? (persistent ? await openPlatformLibrarySnapshots() : null);
     final store = LocalLibraryStore._(
-      await SharedPreferences.getInstance(),
+      preferences,
       clock ?? DateTime.now,
+      snapshots,
     );
-    store._storageOwner =
-        store._prefs.getString('library.local.owner.v1') ?? '';
-    store._load();
-    return store;
+    store._storageOwner = preferences.getString('library.local.owner.v1') ?? '';
+    try {
+      final saved = snapshots?.read(store._snapshotKey);
+      store._load(saved);
+      if (snapshots != null && saved == null) await store._persistLibrary();
+      return store;
+    } catch (_) {
+      store.dispose();
+      rethrow;
+    }
   }
 
   /// Claim legacy local state once. A later owner gets a separate snapshot.
@@ -233,7 +252,7 @@ class LocalLibraryStore extends ChangeNotifier {
       _pending.clear();
       _attempted.clear();
       _lastMutationMs = 0;
-      _load();
+      _load(_database?.read(_snapshotKey));
     }
     await _persistLibrary();
     await _prefs.setString('library.local.owner.v1', owner);
@@ -595,10 +614,12 @@ class LocalLibraryStore extends ChangeNotifier {
     return false;
   }
 
-  void _load() {
+  void _load([String? persisted]) {
     Map? snapshot;
     try {
-      final raw = jsonDecode(_prefs.getString(_snapshotKey) ?? 'null');
+      final raw = jsonDecode(
+        persisted ?? _prefs.getString(_snapshotKey) ?? 'null',
+      );
       if (raw is Map &&
           raw['schema_version'] == 2 &&
           [
@@ -823,7 +844,9 @@ class LocalLibraryStore extends ChangeNotifier {
             )
             .toList(),
       });
-      if (!await _prefs.setString(_snapshotKey, snapshot)) {
+      if (_database case final database?) {
+        database.write(_snapshotKey, snapshot);
+      } else if (!await _prefs.setString(_snapshotKey, snapshot)) {
         throw StateError('LIBRARY_CHECKPOINT_NOT_SAVED');
       }
       // v2 is already the atomic format understood by the supported clients.
@@ -841,6 +864,14 @@ class LocalLibraryStore extends ChangeNotifier {
   @override
   void dispose() {
     _closed = true;
+    if (_database case final database?) {
+      unawaited(
+        _writeTail.then<void>(
+          (_) => database.close(),
+          onError: (Object _, StackTrace _) => database.close(),
+        ),
+      );
+    }
     super.dispose();
   }
 }

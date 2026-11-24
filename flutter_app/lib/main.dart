@@ -52,13 +52,16 @@ const _brandAccentMuted = NajdUi.accentLight;
 void main() => runApp(const NajdApp());
 
 class NajdApp extends StatefulWidget {
-  const NajdApp({super.key});
+  const NajdApp({super.key, this.createLibrary});
+  final Future<LocalLibraryStore> Function()? createLibrary;
   @override
   State<NajdApp> createState() => _NajdAppState();
 }
 
 class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
-  late final Future<LocalLibraryStore> storeFuture = LocalLibraryStore.create();
+  late final Future<LocalLibraryStore> storeFuture =
+      widget.createLibrary?.call() ??
+      LocalLibraryStore.create(persistent: true);
   final _pointer = VirtualPointerController();
   final _browserObserver = BrowserRouteObserver();
   final _navigatorKey = GlobalKey<NavigatorState>();
@@ -88,7 +91,15 @@ class _NajdAppState extends State<NajdApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pointer.dispose();
-    unawaited(CloudLibrarySync.closeDefault());
+    unawaited(
+      CloudLibrarySync.closeDefault().whenComplete(() async {
+        try {
+          (await storeFuture).dispose();
+        } catch (_) {
+          // Initialization can fail before a library exists.
+        }
+      }),
+    );
     super.dispose();
   }
 
@@ -3244,7 +3255,8 @@ class _LibraryPageState extends State<LibraryPage> {
                 ),
               ),
           ],
-          if (mode == NajdLibraryMode.downloads) const DownloadLibrarySection(),
+          if (mode == NajdLibraryMode.downloads)
+            DownloadLibrarySection(store: widget.store),
         ],
       );
     },

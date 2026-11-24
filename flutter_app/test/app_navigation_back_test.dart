@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mitv/main.dart';
+import 'package:mitv/src/library_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -8,7 +9,7 @@ void main() {
     'native system back pops the owned navigator instead of exiting the application',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
-      await tester.pumpWidget(const NajdApp());
+      await tester.pumpWidget(NajdApp(createLibrary: LocalLibraryStore.create));
       await tester.pump(const Duration(seconds: 11));
       await tester.pump();
       final navigator = tester.state<NavigatorState>(

@@ -1,5 +1,7 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
+
 import 'api_client.dart';
 import 'library_store.dart';
 import 'models.dart';
@@ -7,10 +9,15 @@ import 'player_page.dart';
 
 /// Downloads share the cinema/live surface and renderer without network resolution.
 class LocalDownloadPlayerPage extends StatefulWidget {
-  const LocalDownloadPlayerPage(
-      {super.key, required this.file, required this.title});
+  const LocalDownloadPlayerPage({
+    super.key,
+    required this.file,
+    required this.title,
+    this.store,
+  });
   final File file;
   final String title;
+  final LocalLibraryStore? store;
   @override
   State<LocalDownloadPlayerPage> createState() =>
       _LocalDownloadPlayerPageState();
@@ -23,7 +30,7 @@ class _LocalDownloadPlayerPageState extends State<LocalDownloadPlayerPage> {
     if (!await widget.file.exists() || await widget.file.length() == 0) {
       throw StateError('LOCAL_DOWNLOAD_MISSING');
     }
-    return LocalLibraryStore.create();
+    return widget.store ?? await LocalLibraryStore.create();
   }
 
   @override
@@ -34,28 +41,33 @@ class _LocalDownloadPlayerPageState extends State<LocalDownloadPlayerPage> {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<LocalLibraryStore>(
-      future: library,
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          return PlayerPage(
-              api: api,
-              store: snapshot.data!,
-              item: MediaItem(
-                  id: widget.file.uri.pathSegments.last,
-                  title: widget.title,
-                  poster: '',
-                  type: 'download',
-                  ref: 'download:${widget.file.uri.pathSegments.last}'),
-              title: widget.title,
-              localFileUri: widget.file.uri,
-              mediaType: widget.file.path.split('.').last.toLowerCase(),
-              persistProgress: false);
-        }
-        return Scaffold(
-            appBar: AppBar(title: Text(widget.title)),
-            body: Center(
-                child: snapshot.hasError
-                    ? const Text('الملف المحمّل غير متاح أو فارغ.')
-                    : const CircularProgressIndicator()));
-      });
+    future: library,
+    builder: (context, snapshot) {
+      if (snapshot.hasData) {
+        return PlayerPage(
+          api: api,
+          store: snapshot.data!,
+          item: MediaItem(
+            id: widget.file.uri.pathSegments.last,
+            title: widget.title,
+            poster: '',
+            type: 'download',
+            ref: 'download:${widget.file.uri.pathSegments.last}',
+          ),
+          title: widget.title,
+          localFileUri: widget.file.uri,
+          mediaType: widget.file.path.split('.').last.toLowerCase(),
+          persistProgress: false,
+        );
+      }
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.title)),
+        body: Center(
+          child: snapshot.hasError
+              ? const Text('الملف المحمّل غير متاح أو فارغ.')
+              : const CircularProgressIndicator(),
+        ),
+      );
+    },
+  );
 }
