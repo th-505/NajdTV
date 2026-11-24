@@ -77,10 +77,13 @@ void main() {
         api.categoryRequests.every(
           (ref) =>
               ref == 'catalog:movie:all:1' ||
+              ref.startsWith('catalog:collection:home-') ||
               ref.startsWith('catalog:collection:movie-') ||
               ref == 'catalog:collection:series-top:1',
         ),
         isTrue,
+        reason:
+            'Unexpected section requests: ${api.categoryRequests.join(', ')}',
       );
       final visitedRequests = List<String>.of(api.categoryRequests);
       final cinemaState = tester.state(find.byType(CatalogPage));

@@ -10,7 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
-  test('SDK startup retries offline, restores same anonymous owner and registers once', () async {
+  test('SDK account startup retries offline registration and restores the same signed-in owner', () async {
     const owner = '00000000-0000-4000-8000-000000000001';
     var signups = 0;
     var registrations = 0;
@@ -31,10 +31,11 @@ void main() {
         'id': owner,
         'aud': 'authenticated',
         'role': 'authenticated',
-        'is_anonymous': true,
+        'is_anonymous': false,
+        'email_confirmed_at': '2026-01-01T00:00:00Z',
         'app_metadata': {
-          'provider': 'anonymous',
-          'providers': ['anonymous'],
+          'provider': 'email',
+          'providers': ['email'],
         },
         'user_metadata': {},
         'identities': [],
@@ -60,6 +61,14 @@ void main() {
       }
       if (request.url.path.endsWith('/mitv_devices')) {
         registrations++;
+        if (registrations == 1) {
+          return http.Response(
+            '{"message":"offline fixture","code":"fixture_error"}',
+            400,
+            request: request,
+            headers: {'content-type': 'application/json'},
+          );
+        }
         final body = jsonDecode(request.body) as Map;
         expect(body['user_id'], owner);
         expect(body['device_id'], matches(r'^[0-9a-f-]{36}$'));
@@ -93,17 +102,17 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final adapter = AnonymousLibraryTransport(client, prefs);
     try {
-      await expectLater(adapter.prepare(), throwsA(isA<AuthException>()));
+      await client.auth.recoverSession(jsonEncode(session));
+      await expectLater(adapter.prepare(), throwsA(isA<PostgrestException>()));
       final uuid = prefs.getString(CloudLibrarySync.deviceIdKey);
       expect(uuid, isNotNull);
       await adapter.prepare();
       await adapter.prepare();
       expect(adapter.ownerId, owner);
-      expect(signups, 2);
-      expect(registrations, 1);
+      expect(signups, 0);
+      expect(registrations, 2);
       expect(prefs.getString(CloudLibrarySync.deviceIdKey), uuid);
-      final saved = prefs.getString('sb-roqccichwszxamdpvhli-auth-token');
-      expect(saved, isNotNull);
+      final saved = jsonEncode(client.auth.currentSession!.toJson());
       final restored = SupabaseClient(
         'https://sdk.example.test',
         'sb_publishable_fixture',
@@ -111,12 +120,12 @@ void main() {
         authOptions: const AuthClientOptions(autoRefreshToken: false),
       );
       try {
-        await restored.auth.recoverSession(saved!);
+        await restored.auth.recoverSession(saved);
         final restoredAdapter = AnonymousLibraryTransport(restored, prefs);
         await restoredAdapter.prepare();
         expect(restoredAdapter.ownerId, owner);
-        expect(signups, 2);
-        expect(registrations, 1);
+        expect(signups, 0);
+        expect(registrations, 2);
       } finally {
         await restored.dispose();
       }

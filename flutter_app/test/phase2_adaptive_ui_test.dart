@@ -26,6 +26,17 @@ class _LayoutApi extends MitvApi {
   }
 
   @override
+  Future<Map<String, dynamic>> liveChannels(
+    String group, {
+    int page = 1,
+    String query = '',
+  }) async => {
+    'status': 'success',
+    'data': [],
+    'pagination': {'has_more': false},
+  };
+
+  @override
   Future<List<MatchItem>> matches() async => List.generate(
     5,
     (i) => MatchItem(
@@ -114,7 +125,9 @@ void main() {
               .scrollDirection,
           Axis.horizontal,
         );
-        expect(find.text('لا توجد قنوات مباشرة مهيأة حاليًا'), findsOneWidget);
+        await tester.tap(find.widgetWithText(Tab, 'القنوات المباشرة'));
+        await tester.pumpAndSettle();
+        expect(find.text('لا توجد قنوات مطابقة'), findsOneWidget);
         await selectShellDestination(tester, 'movies');
         await tester.pumpAndSettle();
         final dropdown = tester.widget<DropdownButton<String>>(

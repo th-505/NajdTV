@@ -122,7 +122,13 @@ class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
           _update(
             value.copyWith(
               isPlaying: false,
-              errorDescription: 'تعذر تشغيل المصدر',
+              errorDescription:
+                  RegExp(
+                    r'codec|decoder|decode|unsupported.*format',
+                    caseSensitive: false,
+                  ).hasMatch(v)
+                  ? 'DECODER_UNSUPPORTED_CODEC'
+                  : 'SOURCE_MEDIA_FAILED',
             ),
           );
         }

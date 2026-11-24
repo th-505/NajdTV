@@ -10,9 +10,11 @@ class SourcePickerButton extends StatelessWidget {
     required this.sources,
     required this.selected,
     required this.onSelected,
+    this.scan = const {},
     this.onOpened,
     this.onClosed,
   });
+  final Map<String, dynamic> scan;
   final List<PlaybackSource> sources;
   final int selected;
   final Future<void> Function(int) onSelected;
@@ -29,7 +31,9 @@ class SourcePickerButton extends StatelessWidget {
           final index = await showNajdOptions<int>(
             context,
             title: 'مصادر التشغيل',
-            description: 'اختر المصدر المناسب. تظهر هنا المصادر المستخرجة فعلياً لهذا العمل.',
+            description: scan['observed_servers'] is num
+                ? 'اكتُشف ${scan['observed_servers']} سيرفرًا؛ اجتاز الفحص ${scan['playable_servers']}. التبديل بين خوادم الحلقة من المصدر نفسه.'
+                : 'اختر خادمًا صالحًا لهذه الحلقة من المصدر نفسه.',
             icon: Icons.dns_outlined,
             options: [
               for (var i = 0; i < sources.length; i++)
@@ -44,6 +48,21 @@ class SourcePickerButton extends StatelessWidget {
                       ? 'قيد التشغيل'
                       : 'التبديل إلى هذا المصدر',
                 ),
+              if (scan['server_inventory'] is List)
+                for (final (index, row)
+                    in (scan['server_inventory'] as List)
+                        .whereType<Map>()
+                        .indexed)
+                  if (row['state'] != 'playable')
+                    NajdOption(
+                      -index - 1,
+                      '${row['label'] ?? 'سيرفر'}',
+                      enabled: false,
+                      icon: Icons.block,
+                      subtitle: row['state'] == 'unavailable'
+                          ? 'لم يُعثر على فيديو قابل للتشغيل'
+                          : 'لم يكتمل فحص هذا السيرفر',
+                    ),
             ],
             empty: const NajdEmptyState(kind: NajdEmptyKind.source),
           );

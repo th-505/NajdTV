@@ -254,6 +254,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   StreamSubscription<NajdPipEvent>? _pipSubscription;
   bool _controlsLocked = false;
   bool _pipAvailable = false, _pipActive = false, _pipHandoff = false;
+  bool _pipEntering = false;
+  Map<String, dynamic> _serverScan = const {};
   bool? _lastPipPlaying;
   Size? _lastPipSize;
   Duration? _pipPosition, _pipDuration;
@@ -362,6 +364,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _libraryScopeAtOpen = widget.store.ownerScope;
     _displayOwner = this;
     _pipSubscription = _pip.events.listen(
       (event) => unawaited(_onPipEvent(event)),
@@ -384,6 +387,14 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive &&
+        !kIsWeb &&
+        _pip.needsNativeHandoff &&
+        _controller?.value.isPlaying == true &&
+        !_pipActive &&
+        !_pipEntering) {
+      unawaited(_enterPip());
+    }
     if (state != AppLifecycleState.resumed) {
       unawaited(_endBoost());
       unawaited(_saveProgress(force: true));
@@ -653,6 +664,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
           refresh: forceRefresh,
         );
         if (!mounted || !_generation.isCurrent(generation)) return;
+        _serverScan = resolved.serverScan;
         mediaPath = resolved.mediaPath;
         mediaType = resolved.mediaType;
         playbackMode = resolved.playbackMode;
@@ -1028,7 +1040,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         _failed = false;
-        _status = 'جاري تجربة مصدر بديل…';
+        _status = 'جارٍ فحص خوادم هذه الحلقة…';
       });
     }
     _progressTimer?.cancel();
@@ -1074,6 +1086,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         _sources.isNotEmpty) {
       if (controller != null &&
           !controller.software &&
+          RegExp(
+            r'codec|decoder|decode|unsupported.*format',
+            caseSensitive: false,
+          ).hasMatch(controller.value.errorDescription ?? '') &&
           _decoderRetries.add(_sourceIndex)) {
         _nativeFailureInFlight = false;
         await _initialize(keepSources: true, software: true);
@@ -1113,7 +1129,18 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     final origin = _activeSource;
     if (origin == null) return null;
     for (var index = _sourceIndex + 1; index < _sources.length; index++) {
-      if (sourcesShareTimeline(origin, _sources[index]) ||
+      final candidate = _sources[index];
+      final pinned =
+          widget.item.ref.startsWith('source:') ||
+          widget.item.discoveryScope == 'beta';
+      if (pinned &&
+          (origin.providerId.isEmpty ||
+              candidate.providerId != origin.providerId ||
+              (origin.sourceRef.isNotEmpty &&
+                  candidate.sourceRef != origin.sourceRef))) {
+        continue;
+      }
+      if (sourcesShareTimeline(origin, candidate) ||
           (_handoffPosition ??
                   historyPositionForSource(
                     _savedEntry,
@@ -1177,6 +1204,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
 
   Widget _sourceMenu() => SourcePickerButton(
     sources: _sources,
+    scan: _serverScan,
     selected: _sourceIndex,
     onOpened: () => _controlsTimer?.cancel(),
     onClosed: _revealControls,
@@ -1571,54 +1599,60 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     if (!_pipAvailable ||
         player == null ||
         !player.value.isInitialized ||
-        _pipActive) {
+        _pipActive ||
+        _pipEntering) {
       return;
     }
     if (!_progressReady || _pendingResumeTarget != null) {
       _subtitleNotice('انتظر اكتمال استئناف التشغيل أولًا.');
       return;
     }
-    final wasPlaying = player.value.isPlaying;
-    _pipPosition = player.value.position;
-    _pipDuration = player.value.duration;
-    Future<bool> enter() => _pip.enter(
-      url: player.uri.toString(),
-      headers: player.headers,
-      position: _pipPosition!,
-      playing: wasPlaying,
-      rate: _playbackSpeed,
-      width: player.value.size.width,
-      height: player.value.size.height,
-    );
-    bool entered;
-    if (kIsWeb) {
-      // Safari requires the OS request in the tap's user-activation turn.
-      final pending = enter();
-      unawaited(_endBoost());
-      unawaited(_saveProgress(force: true));
-      entered = await pending;
-    } else {
-      await _endBoost();
-      unawaited(_saveProgress(force: true));
-      if (_pip.needsNativeHandoff) {
-        _pipHandoff = true;
-        _requestedPlaying = false;
-        await player.pause();
+    _pipEntering = true;
+    try {
+      final wasPlaying = player.value.isPlaying;
+      _pipPosition = player.value.position;
+      _pipDuration = player.value.duration;
+      Future<bool> enter() => _pip.enter(
+        url: player.uri.toString(),
+        headers: player.headers,
+        position: _pipPosition!,
+        playing: wasPlaying,
+        rate: _playbackSpeed,
+        width: player.value.size.width,
+        height: player.value.size.height,
+      );
+      bool entered;
+      if (kIsWeb) {
+        // Safari requires the OS request in the tap's user-activation turn.
+        final pending = enter();
+        unawaited(_endBoost());
+        unawaited(_saveProgress(force: true));
+        entered = await pending;
+      } else {
+        await _endBoost();
+        unawaited(_saveProgress(force: true));
+        if (_pip.needsNativeHandoff) {
+          _pipHandoff = true;
+          _requestedPlaying = false;
+          await player.pause();
+        }
+        entered = await enter();
       }
-      entered = await enter();
-    }
-    if (!mounted || player != _controller) return;
-    if (!entered) {
-      _pipHandoff = false;
-      _requestedPlaying = wasPlaying;
-      if (wasPlaying) await player.play();
-      _subtitleNotice('تعذر فتح صورة داخل صورة لهذا الفيديو على جهازك.');
-    } else {
-      setState(() {
-        _pipActive = true;
-        _controlsVisible = false;
-      });
-      unawaited(_keepScreenOn(false));
+      if (!mounted || player != _controller) return;
+      if (!entered) {
+        _pipHandoff = false;
+        _requestedPlaying = wasPlaying;
+        if (wasPlaying) await player.play();
+        _subtitleNotice('تعذر فتح صورة داخل صورة لهذا الفيديو على جهازك.');
+      } else {
+        setState(() {
+          _pipActive = true;
+          _controlsVisible = false;
+        });
+        unawaited(_keepScreenOn(false));
+      }
+    } finally {
+      _pipEntering = false;
     }
   }
 
@@ -1668,12 +1702,15 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     }
   }
 
+  late final String _libraryScopeAtOpen;
+
   Future<void> _saveProgress({
     bool force = false,
     Duration? positionOverride,
     Duration? durationOverride,
   }) async {
-    if (widget.isLive ||
+    if (widget.store.ownerScope != _libraryScopeAtOpen ||
+        widget.isLive ||
         !widget.persistProgress ||
         !_progressReady ||
         _pendingResumeTarget != null) {
