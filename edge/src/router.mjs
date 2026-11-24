@@ -344,6 +344,7 @@ export default {
     )
       cors["Access-Control-Allow-Origin"] = origin;
     cors["Access-Control-Allow-Methods"] = "GET, OPTIONS";
+    cors["Access-Control-Expose-Headers"] = "X-Cache-Status, Retry-After";
     const reply = (body, status = 200, headers = {}) =>
       Response.json(body, {
         status,
@@ -393,7 +394,7 @@ export default {
             (await refKey(target.pathname + target.search)),
         );
         const cached = await cachedResult(cacheKey, false);
-        if (cached) return reply({ ...cached, cached: true });
+        if (cached) return reply({ ...cached, cached: true }, 200, {"X-Cache-Status": "HIT"});
         if (!(await permitted(env.EDGE_RESOLVE_LIMITER, actor)))
           return reply({ error: "RESOLUTION_RATE_LIMITED" }, 429, {
             "Retry-After": "60",
@@ -421,7 +422,7 @@ export default {
             false,
           );
         }
-        return reply(data, response.status);
+        return reply(data, response.status, {"X-Cache-Status": "MISS"});
       }
       if (url.pathname.startsWith("/v1/matches")) {
         const route = {
@@ -446,7 +447,7 @@ export default {
         );
         const hasSources = route === "/playback" || route === "/resolve";
         const cached = hasSources ? null : await cachedResult(cacheKey, false);
-        if (cached) return reply({ ...cached, cached: true });
+        if (cached) return reply({ ...cached, cached: true }, 200, {"X-Cache-Status": "HIT"});
         if (!(await permitted(env.EDGE_RESOLVE_LIMITER, actor)))
           return reply({ error: "RESOLUTION_RATE_LIMITED" }, 429, {
             "Retry-After": "60",
@@ -463,7 +464,7 @@ export default {
           (!hasSources || activeSources(data))
         )
           cacheResult(cacheKey, data, ctx, hasSources ? 60 : 15, hasSources);
-        return reply(data, result.status);
+        return reply(data, result.status, {"X-Cache-Status": hasSources ? "BYPASS" : "MISS"});
       }
       const ref = url.searchParams.get("ref"),
         id = url.searchParams.get("episode_id");
@@ -503,7 +504,7 @@ export default {
         };
       }
       const result = await aggregate(identity, env, { verifiedIdentity });
-      if (!result.sources.length) return reply(result, 503);
+      if (!result.sources.length) return reply(result, 503, {"X-Cache-Status": "BYPASS"});
 
       console.log(
         JSON.stringify({
@@ -512,7 +513,7 @@ export default {
           sources: result.sources.length,
         }),
       );
-      return reply(result);
+      return reply(result, 200, {"X-Cache-Status": "BYPASS"});
     } catch (e) {
       return reply(
         { error: String(e.message).slice(0, 100) },

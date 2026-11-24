@@ -1008,6 +1008,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         code: failureCode,
       ),
     );
+    final cleanupTimeout = _compatibleAlternative() == null
+        ? const Duration(seconds: 2)
+        : const Duration(milliseconds: 600);
     if (controller != null) {
       if (controller.value.isInitialized && !controller.value.hasError) {
         _handoffPosition = controller.value.position;
@@ -1018,10 +1021,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       }
       controller.removeListener(_nativeValueChanged);
       try {
-        await controller.pause().timeout(const Duration(seconds: 2));
+        await controller.pause().timeout(cleanupTimeout);
       } catch (_) {}
       try {
-        await controller.dispose().timeout(const Duration(seconds: 2));
+        await controller.dispose().timeout(cleanupTimeout);
       } catch (_) {}
     }
     _controller = null;
@@ -1042,18 +1045,22 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       return;
     }
     final edgeSources = _sources.any((s) => s.playbackMode.startsWith('edge_'));
+    final alternative = _compatibleAlternative();
+    if (alternative != null) {
+      widget.api.sourceRouter.record(
+        _sources[_sourceIndex].mediaPath,
+        success: false,
+      );
+      _prepareHandoff(alternative);
+      _nativeFailureInFlight = false;
+      await _initialize(keepSources: true);
+      return;
+    }
     if (edgeSources && _sources.isNotEmpty) {
       widget.api.sourceRouter.record(
         _sources[_sourceIndex].mediaPath,
         success: false,
       );
-      final alternative = _compatibleAlternative();
-      if (alternative != null) {
-        _prepareHandoff(alternative);
-        _nativeFailureInFlight = false;
-        await _initialize(keepSources: true);
-        return;
-      }
       if (_directRefreshAttempts < 1) {
         _directRefreshAttempts += 1;
         _nativeFailureInFlight = false;
@@ -1083,13 +1090,6 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         _sources[_sourceIndex].mediaPath,
         success: false,
       );
-      final alternative = _compatibleAlternative();
-      if (alternative != null) {
-        _prepareHandoff(alternative);
-        _nativeFailureInFlight = false;
-        await _initialize(keepSources: true);
-        return;
-      }
     }
     if (!edgeSources &&
         !widget.sourceRef.startsWith('3isk:') &&

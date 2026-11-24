@@ -140,11 +140,11 @@ async function extractSpecialHostStreams(embedUrl, parentReferer) {
         const metadata = JSON.parse(opts?.flashvars?.metadata || '{}');
         const results = [];
         if (metadata.hlsManifestUrl) {
-          results.push({ url: metadata.hlsManifestUrl, streamType: 'm3u8', quality: 'AUTO-HLS', headers: generateAntiBanHeaders(embedUrl) });
+          results.push({ url: metadata.hlsManifestUrl, streamType: 'm3u8', quality: 'AUTO-HLS', headers: generateAntiBanHeaders(metadata.hlsManifestUrl, embedUrl) });
         }
         if (Array.isArray(metadata.videos)) {
           for (const v of metadata.videos) {
-            if (v.url) results.push({ url: v.url, streamType: 'mp4', quality: (v.name || '').toUpperCase(), headers: generateAntiBanHeaders(embedUrl) });
+            if (v.url) results.push({ url: v.url, streamType: 'mp4', quality: (v.name || '').toUpperCase(), headers: generateAntiBanHeaders(v.url, embedUrl) });
           }
         }
         return results;
@@ -323,7 +323,7 @@ function extractChildPlayerCandidates(html = '', currentUrl = '') {
 
 // 7. محرك الاستعلام المتسلسل العنقودي (Recursive Cascade Stream Resolver)
 // يسأل المشغل الحالي، وإن كان جسراً يسأل المشغل الداخلي حتى يجد البث الفعلي
-export async function cascadeResolveStream(rawUrl, parentReferer = '', depth = 0, visited = new Set(), deadlineMs = Date.now() + 20000) {
+export async function cascadeResolveStream(rawUrl, parentReferer = '', depth = 0, visited = new Set(), deadlineMs = Date.now() + 20000, transport = {}) {
   if (!rawUrl || typeof rawUrl !== 'string' || !rawUrl.startsWith('http')) return [];
   if (Date.now() > deadlineMs || visited.size >= 16 || rawUrl.length > 4096) return [];
   if (depth > 4) return []; // حد العمق الأقصى لمنع الحلقات اللانهائية
@@ -361,6 +361,8 @@ export async function cascadeResolveStream(rawUrl, parentReferer = '', depth = 0
   // ج) جلب صفحة المشغل لاستخراج البث أو العثور على المشغل الداخلي التالي
   try {
     const res = await fetchEmbedResponse(targetUrl, {
+      fetchImpl: transport.fetchImpl,
+      dnsLookupImpl: transport.dnsLookupImpl,
       headers: {
         ...generateAntiBanHeaders(targetUrl, parentReferer),
         Referer: parentReferer || new URL(targetUrl).origin + '/'
@@ -382,7 +384,7 @@ export async function cascadeResolveStream(rawUrl, parentReferer = '', depth = 0
       const childCandidates = extractChildPlayerCandidates(html, targetUrl);
       for (const childUrl of childCandidates) {
         if (!visited.has(childUrl)) {
-          const childStreams = await cascadeResolveStream(childUrl, targetUrl, depth + 1, visited, deadlineMs);
+          const childStreams = await cascadeResolveStream(childUrl, targetUrl, depth + 1, visited, deadlineMs, transport);
           if (childStreams.length > 0) {
             return childStreams; // عثر على البث العامل، نرجعه فوراً
           }

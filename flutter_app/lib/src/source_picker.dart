@@ -17,6 +17,15 @@ class SourcePickerButton extends StatelessWidget {
   final int selected;
   final Future<void> Function(int) onSelected;
   final VoidCallback? onOpened, onClosed;
+  Iterable<int> get _visibleSources sync* {
+    final count = sources.length < 4 ? sources.length : 4;
+    for (var i = 0; i < count; i++) {
+      yield i == 3 && selected >= count && selected < sources.length
+          ? selected
+          : i;
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Tooltip(
     message: 'السيرفر / الجودة',
@@ -32,7 +41,7 @@ class SourcePickerButton extends StatelessWidget {
             description: 'اختر المصدر المناسب. تظهر هنا المصادر المستخرجة فعلياً لهذا العمل.',
             icon: Icons.dns_outlined,
             options: [
-              for (var i = 0; i < sources.length; i++)
+              for (final i in _visibleSources)
                 NajdOption(
                   i,
                   sources[i].displayLabel,

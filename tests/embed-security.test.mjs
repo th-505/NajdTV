@@ -48,3 +48,26 @@ test('media fixtures preserve the parent referrer and discard private links', ()
   assert.deepEqual(links.map(link => link.url), ['https://cdn.example/video.mp4']);
   assert.equal(links[0].headers.Referer, parent);
 });
+
+test('cascade skips an unsafe child and can read a later synthetic Base64 media reference', async () => {
+  const root = 'https://embed.example/watch/root';
+  const media = 'https://cdn.example/video.mp4';
+  const b64 = Buffer.from(media).toString('base64url');
+  const requests = [];
+  const sources = await cascadeResolveStream(root, '', 0, new Set(), Date.now() + 2000, {
+    dnsLookupImpl: async host => [{address: host === 'rejected.example' ? '127.0.0.1' : '93.184.216.34'}],
+    fetchImpl: async url => {
+      requests.push(url);
+      return new Response(`<iframe src="https://rejected.example/embed/child"></iframe>
+        <a href="/play?url=${b64}">Play</a>`);
+    },
+  });
+  assert.deepEqual(requests, [root]);
+  assert.deepEqual(sources.map(source => source.url), [media]);
+  assert.equal(sources[0].headers.Referer, root);
+});
+
+test('synthetic packed literals can contain HLS metadata', () => {
+  const packed = 'eval(function(p,a,c,k,e,d){return p}(\'"0"\',2,1,\'https://cdn.example/live.m3u8\'.split(\'|\')))';
+  assert.deepEqual(extractRawStreamsFromText(packed).map(source => source.url), ['https://cdn.example/live.m3u8']);
+});

@@ -442,6 +442,7 @@ try {
     "/v1/laroza/category",
   );
   assert.equal(metadataHit.body.cached, true);
+  assert.equal(metadataHit.response.headers.get("X-Cache-Status"), "HIT");
   assert.equal(
     metadataRequests.length,
     1,
