@@ -33,8 +33,10 @@ import * as threeIskMod from './providers/sites/3isk.mjs';
 import * as alooyMod from './providers/sites/alooy.mjs';
 import * as larozaMod from './providers/sites/laroza.mjs';
 import * as fivetvMod from './providers/sites/fivetv.mjs';
+import * as shoofLiveMod from './providers/sites/shoof-live.mjs';
 
 const PROVIDER_ENTRIES = [
+  { meta: shoofLiveMod.PROVIDER_META, module: shoofLiveMod },
   {meta:animezidMod.PROVIDER_META,module:animezidMod},
   {meta:movizlandMod.PROVIDER_META,module:movizlandMod},
   {meta:egybestMod.PROVIDER_META,module:egybestMod},

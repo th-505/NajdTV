@@ -2,7 +2,7 @@
 
 هذا تقرير آلي ساكن؛ لا يرسل أي طلب للمزودين ولا يثبت نجاح التشغيل.
 
-- قواشط نجد: **28**؛ قواشط البيتا: **28**؛ مجموع وحدات التنفيذ المنفصلة: **56**.
+- قواشط نجد: **28**؛ قواشط البيتا: **29**؛ مجموع وحدات التنفيذ المنفصلة: **57**.
 - المعروضة افتراضيًا: **25**؛ وحدات التوافق القديمة المخفية: **3**. لا يتم تحويل المراجع القديمة إلى مصدر آخر تلقائيًا.
 - وحدات مواقع ذات تعريف PROVIDER_META: **28**؛ المسجل منها: **28**.
 - مرآتان مصرح بهما في التعريف: **2**؛ الوحدات غير الموسومة كمرآة: **26**. هذا لا يثبت استقلال مالكي المواقع.
@@ -75,6 +75,7 @@
 | `ristoanime` | — | `server/browser/providers/sites/ristoanime.mjs` |
 | `shahid4u` | — | `server/browser/providers/sites/shahid4u.mjs` |
 | `shii4u` | shahid4u | `server/browser/providers/sites/shii4u.mjs` |
+| `shoof-live` | — | `server/browser/providers/sites/shoof-live.mjs` |
 | `witanime` | — | `server/browser/providers/sites/witanime.mjs` |
 | `yallashoot` | — | `server/browser/providers/sites/yallashoot.mjs` |
 

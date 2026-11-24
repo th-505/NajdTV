@@ -12,8 +12,8 @@
     "active_registered_modules": 25,
     "legacy_compatible_modules": 3,
     "najd_scrapers": 28,
-    "beta_scrapers": 28,
-    "total_scraper_implementations": 56,
+    "beta_scrapers": 29,
+    "total_scraper_implementations": 57,
     "explicit_mirrors": 2,
     "not_marked_as_mirror": 26,
     "ui_spellings": 0,
@@ -1188,6 +1188,15 @@
       "source_sha256": "5d448fc36c9aeae2a5514c86867a74cdfca88227724eff98345f60f871f02fb1",
       "registered": true,
       "mirror_of": "shahid4u",
+      "live_validation": "not_run"
+    },
+    {
+      "id": "shoof-live",
+      "scope": "beta",
+      "path": "server/browser/providers/sites/shoof-live.mjs",
+      "source_sha256": "b0faa501188b40ea717597fc6115fdd2ecbdb3fab22f7c320b98cd398edb271f",
+      "registered": true,
+      "mirror_of": null,
       "live_validation": "not_run"
     },
     {
