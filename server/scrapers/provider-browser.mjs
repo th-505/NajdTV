@@ -206,7 +206,9 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
           genres:Array.isArray(item.genres)?item.genres:[],edition:item.edition||'',
           audio_language:item.audio_language||'',imdb_id:item.imdb_id||'',
           identity_verified:item.identity_verified===true,work_identity_verified:item.work_identity_verified===true,
-          source: id, selected_source: id, source_refs: { [id]: item.ref } })),
+          source: id, selected_source: id, source_refs: { [id]: item.ref },
+          ...(item.schedule_date ? {schedule_date:item.schedule_date,schedule_day:item.schedule_day,scheduled_episode:item.scheduled_episode} : {}) })),
+        ...(Array.isArray(meta.schedule_days) ? {schedule_days:meta.schedule_days} : {}),
         pagination: { page, next_page: observedNext ? nextPage : null,
           has_more: explicitPagination ? observedNext || meta.has_more === true : items.length > 0,
           basis: explicitPagination ? 'observed-source-pagination' : 'adapter-page-probe' } };

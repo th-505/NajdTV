@@ -54,7 +54,7 @@ export function decodeProviderRef(input) {
   const value = String(input || '');
   const raw = value.startsWith(ID + ':') ? Buffer.from(value.slice(ID.length + 1), 'base64url').toString() : value;
   const url = safe(raw, ORIGIN, workHosts());
-  if (!url || !isWork(url)) throw new ScraperError('INVALID_INPUT', 'SHOOF_INVALID_REFERENCE', {providerId:ID});
+  if (!url || (!isWork(url) && !/^\/news\/[^/]+\/?$/.test(pathOf(url)))) throw new ScraperError('INVALID_INPUT', 'SHOOF_INVALID_REFERENCE', {providerId:ID});
   return url;
 }
 async function page(url, options, allowedHosts, referer) {
@@ -103,6 +103,7 @@ export async function scrapeDetails(ref, options={}) {
   const title = clean($('.singleSeries .info h1, h1').first().text());
   if (!title) throw new ScraperError('STRUCTURE_CHANGED', 'SHOOF_DETAILS_STRUCTURE_CHANGED');
   const series = pathOf(result.url).startsWith('/series/');
+  const news = pathOf(result.url).startsWith('/news/');
   const episodes = [];
   if (series) $('article.postEp').each((_, node) => {
     const card = $(node);
@@ -118,7 +119,7 @@ export async function scrapeDetails(ref, options={}) {
   const ctx = context(result.url);
   return normalizeDetailsResult({sourceUrl:result.url,ref:reference(result.url),title,
     poster:poster($('.singleSeries .cover img').first(), result.url),
-    type:series || pathOf(result.url).startsWith('/episode/') ? 'series' : 'movie',
+    type:news ? 'news' : series || pathOf(result.url).startsWith('/episode/') ? 'series' : 'movie',
     overview:clean($('meta[property="og:description"]').attr('content')),
     episodes:normalizeEpisodeList(episodes, ctx)}, ctx);
 }
@@ -153,7 +154,7 @@ function publicFailure(error) {
 
 async function observedServers(ref, options) {
   const target = decodeProviderRef(ref);
-  if (pathOf(target).startsWith('/series/')) return [];
+  if (/^\/(series|news)\//.test(pathOf(target))) return [];
   let work = await page(target, options, workHosts());
   let players = playerLinks(work);
   if (!players.length) {
@@ -239,30 +240,86 @@ export async function resolveStream(ref, options={}) {
   {ok:Boolean(first),providerId:ID,errorCode:first ? null : 'SERVER_EXTRACTION_FAILED'});
 }
 
+const scheduleDays = {
+  sunday:'الأحد', monday:'الإثنين', tuesday:'الثلاثاء', wednesday:'الأربعاء',
+  thursday:'الخميس', friday:'الجمعة', saturday:'السبت',
+};
+const catalogLabels = {
+  latest:'الأحدث', 'arabic-series':'مسلسلات عربية', 'turkish-series':'مسلسلات تركية',
+  'foreign-series':'مسلسلات أجنبية', 'asian-series':'مسلسلات آسيوية',
+  'dubbed-series':'مسلسلات مدبلجة', 'short-series':'مسلسلات قصيرة',
+  'ramadan-series-2026':'مسلسلات رمضان 2026', 'foreign-movies':'أفلام أجنبية',
+  'turkish-movies':'أفلام تركية', 'arabic-movies':'أفلام عربية', 'asian-movies':'أفلام آسيوية',
+  'indian-movies':'أفلام هندية', 'animation-movies':'أفلام أنيميشن',
+  news:'الأخبار', schedule:'جدول المسلسلات',
+  ...Object.fromEntries(Object.entries(scheduleDays).map(([id,label]) => ['schedule-'+id,label])),
+};
 export const SHOOF_CONFIG = Object.freeze({
-  categories:{latest:'/'},
-  categoryLabels:{latest:'الأحدث'},
+  categories:Object.fromEntries(Object.keys(catalogLabels).map(id => [id,
+    id === 'latest' ? '/' : id.startsWith('schedule') ? '/series-schedule/' : '/'+id+'/'])),
+  categoryLabels:catalogLabels,
 });
 
+function parseSchedule($, base, category) {
+  const sections = $('main section.slcal-day');
+  if (!sections.length) throw new ScraperError('STRUCTURE_CHANGED', 'SHOOF_SCHEDULE_STRUCTURE_CHANGED');
+  const days = [];
+  sections.each((_, node) => {
+    const section = $(node);
+    const date = section.find('header time').attr('datetime') || '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+    const weekday = Object.keys(scheduleDays)[new Date(date+'T00:00:00Z').getUTCDay()];
+    if (!weekday || (category !== 'schedule' && category !== 'schedule-'+weekday)) return;
+    const items = [];
+    section.find('.slcal-entry').each((_, child) => {
+      const card = $(child);
+      const anchor = card.find('.slcal-entry-info h4 a[href]').first();
+      const url = safe(anchor.attr('href'),base,workHosts());
+      if (!url || !isWork(url) || !pathOf(url).startsWith('/series/')) return;
+      const episode = clean(card.find('.slcal-episode-number').text());
+      const item = normalizeCatalogItem({url,ref:reference(url),title:clean(anchor.text()),
+        poster:poster(card.find('.slcal-poster img').first(),base),type:'series'},context(base));
+      if (item) items.push({...item, schedule_date:date, schedule_day:scheduleDays[weekday],
+        scheduled_episode:extractEpisodeNumber(episode), genres:[scheduleDays[weekday],episode].filter(Boolean)});
+    });
+    days.push({date,day:scheduleDays[weekday],items});
+  });
+  return {items:days.flatMap(day => day.items), days};
+}
+
 export async function scrapeCatalog(category='latest', n=1, options={}) {
-  if (category !== 'latest' || !Number.isSafeInteger(n) || n < 1) {
+  if (!Object.hasOwn(SHOOF_CONFIG.categories, category) || !Number.isSafeInteger(n) || n < 1) {
     throw new ScraperError('INVALID_INPUT', 'SHOOF_INVALID_CATALOG_REQUEST');
   }
   const meta = {ok:true,providerId:ID,next_page:null};
-  if (n > 1) return attachResultMeta([], meta);
-  const result = await page(ORIGIN + '/', options, workHosts());
+  const schedule = category.startsWith('schedule');
+  if (n > 1 && (schedule || category === 'latest')) return attachResultMeta([], meta);
+  const path = SHOOF_CONFIG.categories[category];
+  const target = new URL(n === 1 ? path : path+'page/'+n+'/', ORIGIN);
+  const result = await page(target.href, options, workHosts());
   const $ = cheerio.load(result.html);
+  if (schedule) {
+    const {items,days} = parseSchedule($,result.url,category);
+    return attachResultMeta(items,{...meta,schedule_days:days.map(({date,day,items}) => ({date,day,count:items.length}))});
+  }
   const items = new Map();
-  $('main .block-post > a[href]').each((_, node) => {
+  const news = category === 'news';
+  $(news ? 'main .block-news > a.block-news-img[href]' : 'main .block-post > a[href]').each((_, node) => {
     const card = $(node);
     const url = safe(card.attr('href'), result.url, workHosts());
-    if (!url || !isWork(url) || pathOf(url).startsWith('/episode/') || items.has(url)) return;
+    if (!url || items.has(url)) return;
+    if (news ? !/^\/news\/[^/]+\/?$/.test(pathOf(url)) : !isWork(url) || pathOf(url).startsWith('/episode/')) return;
     const image = card.find('img').first();
     const title = clean(card.find('.title').first().text() || card.attr('title') || image.attr('alt'));
     const item = normalizeCatalogItem({url,ref:reference(url),title,poster:poster(image,result.url),
-      type:pathOf(url).startsWith('/series/') ? 'series' : 'movie'}, context(result.url));
+      type:news ? 'news' : pathOf(url).startsWith('/series/') ? 'series' : 'movie'}, context(result.url));
     if (item) items.set(url,item);
   });
   if (!items.size) throw new ScraperError('STRUCTURE_CHANGED', 'SHOOF_CATALOG_STRUCTURE_CHANGED');
+  const nextPath = path+'page/'+(n+1)+'/';
+  if (category !== 'latest' && $('main a[href]').toArray().some(node => {
+    const url = safe($(node).attr('href'), result.url, workHosts());
+    return url && pathOf(url) === nextPath;
+  })) meta.next_page=n+1;
   return attachResultMeta([...items.values()], meta);
 }

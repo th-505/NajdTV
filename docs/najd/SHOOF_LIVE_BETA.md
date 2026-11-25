@@ -15,3 +15,9 @@ The adapter lives in `server/browser/providers/sites/shoof-live.mjs` and is regi
 Use the existing Beta provider configuration for the site's `primary_domain`. Add exact verified hostnames in comma-separated `SHOOF_LIVE_PLAYER_HOSTS` or `SHOOF_LIVE_EMBED_HOSTS` when the published player changes hosts. Hostnames seen in redirects are not added automatically. Direct media uses the actual embed as its Referer. The adapter discards an expired URL when a signed link carries a recognizable Unix timestamp in `s` and a duration in `e`. A fresh resolution reads the published embed again.
 
 The adapter exposes process-local diagnostic snapshots through `getShoofDiagnostics()`. Rows cover attempts, successful extractions, average elapsed milliseconds and the last failure category, keyed by approved host. The snapshots omit full URLs, query text, token values and cookies. There is no public metrics endpoint for this adapter.
+
+## Catalog sections and weekly schedule
+
+The Beta provider menu includes Latest, the seven series and six film categories observed in the upstream navigation, and News. Category pages expose a next page only when the upstream HTML links to it. The Latest feed lists work pages so that a visit opens a movie or a series, without confusing a recently added episode for a separate series.
+
+The Series Schedule page exposes an overview and a tab for each weekday. Each weekday tab lists that day's work links. Catalog responses also include the date and scheduled episode where provided by ShoofLive. Dates are read from the site's published schedule, independently of the device time zone. The inspected markup did not publish a time of day for individual works.

@@ -91,9 +91,26 @@ test('expired observed media is discarded without altering the signed links', as
 
 test('Beta browser lists Shoof and its home catalog links to selectable works', async () => {
   const source = createProviderBrowser().sources().find(entry => entry.id === 'shoof-live');
-  assert.deepEqual(source.categories, [{id:'latest',label:'الأحدث'}]);
+  assert.deepEqual(source.categories[0], {id:'latest',label:'الأحدث'});
   const rows = await shoof.scrapeCatalog('latest',1,{fixtureHtml:CATALOG_HTML});
   assert.deepEqual(rows.map(row=>row.type),['movie','series']);
   assert.equal(rows._meta.next_page,null);
   assert.equal(shoof.decodeProviderRef(rows[1].ref),site+'/series/show/');
+});
+
+test('catalog pagination follows the observed next path and schedule days retain source dates and numbers', async () => {
+  const rows = await shoof.scrapeCatalog('foreign-movies',1,{fixtureHtml:CATALOG_HTML+
+    '<main><a href="/foreign-movies/page/2/">2</a><a href="https://outside.test/foreign-movies/page/2/">external</a></main>'});
+  assert.equal(rows._meta.next_page,2);
+  const schedule = '<main>' + ['2026-11-25','2026-11-26'].map((date,i)=>
+    '<section class="slcal-day"><header><time datetime="'+date+'"></time></header>'+
+    '<article class="slcal-entry"><div class="slcal-entry-info"><h4><a href="/series/show/">مسلسل</a></h4>'+
+    '<span class="slcal-episode-number">الحلقة '+(1215+i)+'</span></div></article></section>').join('')+'</main>';
+  const all = await shoof.scrapeCatalog('schedule',1,{fixtureHtml:schedule});
+  assert.deepEqual(all._meta.schedule_days.map(d=>d.day),['الأربعاء','الخميس']);
+  assert.deepEqual(all.map(row=>row.scheduled_episode),[1215,1216]);
+  const thursday = await shoof.scrapeCatalog('schedule-thursday',1,{fixtureHtml:schedule});
+  assert.deepEqual(thursday.map(row=>[row.schedule_date,row.scheduled_episode]),[['2026-11-26',1216]]);
+  assert.equal(thursday._meta.next_page,null);
+  assert.equal(createProviderBrowser().sources().find(x=>x.id==='shoof-live').categories.filter(x=>x.id.startsWith('schedule-')).length,7);
 });
