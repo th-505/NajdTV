@@ -118,3 +118,33 @@ test("check all reports real metadata/media stages separately for Najd and beta 
     );
   }
 });
+
+test("strict provider checklist rejects a non-image response despite verified media", async () => {
+  const provider = {id:"atv-tr",name:"ATV",capabilities:{catalog:true,search:true}};
+  const row = {ref:"atv-tr:film",title:"Film",poster:"https://images.example/film.webp"};
+  const module = {
+    settings:{categories:{series:"/diziler"}},
+    scrapeCatalog:async()=>[row],
+    scrapeSearch:async query=>query.startsWith("najd_probe_")?[]:[row],
+    scrapeDetails:async()=>({...row,type:"movie",media_sources:[{url:"https://cdn.example/film.mp4"}]}),
+  };
+  const checks=createServiceChecks({
+    strictChecklist:true,providers:()=>[provider],lookup:()=>({meta:provider,module}),
+    fetchResponse:async()=>({ok:true,bytes:new Uint8Array([1]),headers:new Headers({"content-type":"text/html"})}),
+    probe:async()=>({playable:true,container_verified:true}),
+  });
+  const job=checks.start("najd");
+  let report;
+  do {
+    await new Promise(resolve=>setImmediate(resolve));
+    report=checks.status(job.id);
+  } while(report.state!=="ready");
+  const rowResult=report.checks[0];
+  assert.equal(rowResult.state,"partial");
+  assert.deepEqual(rowResult.stages.map(stage=>stage.stage),[
+    "specialization","categories","catalog","search","name","poster","media",
+  ]);
+  assert.deepEqual(rowResult.stages.filter(stage=>stage.state==="failed"),[
+    {stage:"poster",state:"failed",reason:"SOURCE_POSTER_UNCONFIRMED"},
+  ]);
+});

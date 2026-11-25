@@ -15,6 +15,8 @@ import {
 import { probeHarvestMedia } from "../harvest/media-probe.mjs";
 import { runInBrowserLane, runInDiagnosticLane } from "../browser/traffic.mjs";
 import {getProvider as getBetaProvider, listIndependentProviders as listBetaProviders} from '../browser/registry.mjs';
+import {providerGroups} from '../browser/provider-directory.mjs';
+
 export function createServiceChecks({
   tmdb,
   database,
@@ -25,6 +27,7 @@ export function createServiceChecks({
   fetchResponse = fetchSafeResponse,
   probe = probeHarvestMedia,
   now = Date.now,
+  strictChecklist = false,
 } = {}) {
   const jobs = new Map(),
     queue = createConcurrencyQueue({ concurrency: 4, maxQueued: 100 });
@@ -57,6 +60,23 @@ export function createServiceChecks({
             return null;
           }
         };
+        const groups = strictChecklist ? providerGroups(id) : [];
+        if (strictChecklist) {
+          await step("specialization", () => {
+            if (!groups.length) throw Error("SOURCE_SPECIALIZATION_MISSING");
+          });
+          await step("categories", async () => {
+            const config = Object.values(entry.module).find(value =>
+              value && typeof value === 'object' && value.categories &&
+              typeof value.categories === 'object');
+            const category = Object.keys(config?.categories || {})[0];
+            if (!category) throw Error("SOURCE_SECTIONS_UNDECLARED");
+            const items = await entry.module.scrapeCatalog(category, 1, options);
+            if (!Array.isArray(items) || !items.length || items._meta?.errorCode) {
+              throw Error(items?._meta?.errorCode || "SOURCE_SECTION_EMPTY");
+            }
+          });
+        }
         const rows = await step("catalog", async () => {
           const value = await entry.module.scrapeCatalog(undefined, 1, options);
           if (value?._meta?.errorCode) throw Error(value._meta.errorCode);
@@ -65,7 +85,7 @@ export function createServiceChecks({
           return value;
         });
         if (!rows) return { state: "failed", stages };
-        const sample = rows[0],
+        const sample = rows.find(row=>row?.title && (row.ref || row.url)) || rows[0],
           source = sample.ref || sample.url;
         if (entry.meta.capabilities?.search && entry.module.scrapeSearch)
           await step("search", async () => {
@@ -81,12 +101,31 @@ export function createServiceChecks({
             if(!Array.isArray(negative)||negative.length||(negative?._meta?.errorCode&&negative._meta.errorCode!=='EMPTY_RESULT'))throw Error('SEARCH_QUERY_NOT_RESPECTED');
             return hits;
           });
-        const details = await step("details", async () => {
+        else if (strictChecklist) {
+          await step("search", () => { throw Error("SOURCE_SEARCH_UNSUPPORTED"); });
+        }
+        const details = await step(strictChecklist ? "name" : "details", async () => {
           const d = await entry.module.scrapeDetails(source, options);
           if (!d?.title) throw Error("DETAILS_UNAVAILABLE");
+          if (strictChecklist && !titleIdentityMatches(d.title,sample.title)) {
+            throw Error("SOURCE_NAME_MISMATCH");
+          }
           return d;
         });
         if (!details) return { state: "partial", stages };
+        if (strictChecklist) await step("poster", async () => {
+          const poster = details.poster || details.image || sample.poster || sample.image;
+          let url;
+          try { url = new URL(poster); } catch { throw Error("SOURCE_POSTER_MISSING"); }
+          const result = await fetchResponse(url.href,{
+            allowHttp:false, allowedHosts:[url.hostname], timeoutMs:5000, maxRetries:0,
+            maxBytes:4096, prefixBytes:64, responseType:'bytes',
+            headers:{Range:'bytes=0-63'},
+          });
+          if (!result.ok || !result.bytes?.length || !/^image\//i.test(result.headers.get('content-type') || '')) {
+            throw Error("SOURCE_POSTER_UNCONFIRMED");
+          }
+        });
         await step("media", async () => {
           const episode = details.episodes?.find((e) => e.ref || e.url),
             target = episode?.ref || episode?.url || source;

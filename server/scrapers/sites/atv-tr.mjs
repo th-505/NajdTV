@@ -16,6 +16,8 @@ const seriesPath=/^\/[a-z0-9-]+\/?$/;
 const context=baseUrl=>({providerId:id,baseUrl,allowHttp:false});
 const ref=url=>id+':'+Buffer.from(url).toString('base64url');
 const text=value=>String(value||'').replace(/\s+/g,' ').trim();
+const searchKey=value=>text(value).toLocaleLowerCase('tr-TR')
+  .replace(/ı/g,'i').normalize('NFD').replace(/\p{M}/gu,'');
 
 export function decodeProviderRef(value) {
   let raw=String(value||'');
@@ -56,13 +58,13 @@ export async function scrapeCatalog(category='series',page=1,options={}) {
   return attachResultMeta([...items.values()],{ok:true,next_page:null,providerId:id});
 }
 export async function scrapeSearch(query,page=1,options={}) {
-  const needle=text(query).toLocaleLowerCase('tr-TR');
+  const needle=searchKey(query);
   if (needle.length<2 || page!==1) return attachResultMeta([],{ok:true,next_page:null});
   const results=await Promise.allSettled(['series','archive'].map(category=>scrapeCatalog(category,1,options)));
   if (results.every(result=>result.status==='rejected')) throw results[0].reason;
   const rows=new Map();
   for (const result of results) if (result.status==='fulfilled') {
-    for (const item of result.value) if (item.title.toLocaleLowerCase('tr-TR').includes(needle)) rows.set(item.ref,item);
+    for (const item of result.value) if (searchKey(item.title).includes(needle)) rows.set(item.ref,item);
   }
   return attachResultMeta([...rows.values()],{ok:true,next_page:null,partial:results.some(r=>r.status==='rejected')});
 }
@@ -72,7 +74,8 @@ export async function scrapeDetails(value,options={}) {
   const slug=new URL(target).pathname.split('/')[1];
   const {html,url}=await load(new URL('/'+slug+'/bolumler',origin).href,options);
   const $=cheerio.load(html);
-  const title=text($('h1').first().text() || $('meta[property="og:title"]').attr('content'));
+  const heading=text($('h1').first().text() || $('meta[property="og:title"]').attr('content'));
+  const title=heading.replace(/\s+(?:DİZİSİ|Dizisi|dizisi)$/u,'');
   if (!title) throw new ScraperError('STRUCTURE_CHANGED','ATV_DETAILS_STRUCTURE_CHANGED',{providerId:id});
   const episodes=[];
   $('a[href*="-bolum"]').each((_,node)=>{

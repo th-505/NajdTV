@@ -25,3 +25,15 @@ for (const [family,get] of [['Core',core],['Beta',beta]]) {
     assert.equal(result.servers[0].quality,'1080p');
   });
 }
+
+for (const [family,get] of [['Core',core],['Beta',beta]]) {
+  test(family+' ATV matches dotted and dotless Turkish letters and removes the series heading suffix',async()=>{
+    const atv=get('atv-tr').module;
+    const fetchImpl=async raw=>new Response(new URL(raw).pathname.endsWith('/bolumler')
+      ? '<h1>ALTI ÜSTÜ İSTANBUL DİZİSİ</h1>'
+      : '<div class="category-classic-item"><a href="/alti-ustu-istanbul"><img alt="Altı Üstü İstanbul"></a></div>');
+    const results=await atv.scrapeSearch('alti üstü istanbul',1,{fetchImpl});
+    assert.equal(results.length,1);
+    assert.equal((await atv.scrapeDetails(results[0].ref,{fetchImpl})).title,'ALTI ÜSTÜ İSTANBUL');
+  });
+}

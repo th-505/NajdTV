@@ -38,3 +38,9 @@ The next inspection found 100 signed-out Plex VOD cards in the public on-demand 
 ATV now has separate Core and Beta modules. Live guarded tests of both modules returned three current series, a result for Hamal, and thirteen observed Kuruluş Osman episodes including episode 187. Both modules resolved the published MP4 for episode 187 and verified the CDN response using a bounded 1024-byte range request. The CDN returned HTTP 206 with an MP4 file signature. The observed URL carries a 1080p label. This check does not confirm playback on every Najd client or availability outside the tested network.
 
 The separate Kanal D work sample exposed an embed link but no direct media response was verified.
+
+## Release acceptance
+
+Run the strict audit independently for Core and Beta using the audit script with scope najd or beta and the strict flag. To focus a diagnostic run on one provider, pass its ID using the provider option. The seven recorded stages verify specialization, one declared catalog section, catalog, positive and negative search, work name, image response, and direct media container. Image and media probes read a bounded prefix. A probe is distinct from playback on a physical device.
+
+The release flag checks that both families expose 39 active, independent providers with a catalog before starting the strict audit for the selected scope. Run it once per family. Any missing or failed stage causes a nonzero exit. Fixture passes are separate from live verification.
