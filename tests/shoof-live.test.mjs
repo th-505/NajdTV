@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import * as shoof from '../server/browser/providers/sites/shoof-live.mjs';
 import {getProvider as beta} from '../server/browser/registry.mjs';
 import {getProvider as core} from '../server/scrapers/registry.mjs';
+import {createProviderBrowser} from '../server/scrapers/provider-browser.mjs';
+import {CATALOG_HTML} from '../scripts/fixtures/providers/shoof-live.fixture.mjs';
 
 const site = 'https://m1.shooflive.buzz';
 const player = 'https://shooof.online';
@@ -85,4 +87,13 @@ test('expired observed media is discarded without altering the signed links', as
   assert.equal(result.servers.length,1);
   assert.equal(result.streamUrl,current);
   assert.equal(result.servers[0].expiresAt,(issued+18000)*1000);
+});
+
+test('Beta browser lists Shoof and its home catalog links to selectable works', async () => {
+  const source = createProviderBrowser().sources().find(entry => entry.id === 'shoof-live');
+  assert.deepEqual(source.categories, [{id:'latest',label:'الأحدث'}]);
+  const rows = await shoof.scrapeCatalog('latest',1,{fixtureHtml:CATALOG_HTML});
+  assert.deepEqual(rows.map(row=>row.type),['movie','series']);
+  assert.equal(rows._meta.next_page,null);
+  assert.equal(shoof.decodeProviderRef(rows[1].ref),site+'/series/show/');
 });

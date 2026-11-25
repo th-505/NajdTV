@@ -20,7 +20,7 @@ const embedHosts = () => configuredHosts('SHOOF_LIVE_EMBED_HOSTS', ['anafast.cyo
 export const PROVIDER_META = Object.freeze({
   id:'shoof-live', name:'شوف لايف', code:'SHFL', domains,
   mirrorOf:null, resolveOnDetails:true,
-  capabilities:{catalog:false,search:true,details:true,episodes:true,servers:true,resolve:true,live:false},
+  capabilities:{catalog:true,search:true,details:true,episodes:true,servers:true,resolve:true,live:false},
   searchSpec:{method:'GET',pathTemplate:'/?s={query}',queryParam:'s',pagination:true},
 });
 const workHosts = () => effectiveProviderDomains(ID, domains.map(url => new URL(url).hostname));
@@ -239,6 +239,30 @@ export async function resolveStream(ref, options={}) {
   {ok:Boolean(first),providerId:ID,errorCode:first ? null : 'SERVER_EXTRACTION_FAILED'});
 }
 
-export async function scrapeCatalog() {
-  throw new ScraperError('UNSUPPORTED_CAPABILITY', 'SHOOF_CATALOG_NOT_IMPLEMENTED', {providerId:ID});
+export const SHOOF_CONFIG = Object.freeze({
+  categories:{latest:'/'},
+  categoryLabels:{latest:'الأحدث'},
+});
+
+export async function scrapeCatalog(category='latest', n=1, options={}) {
+  if (category !== 'latest' || !Number.isSafeInteger(n) || n < 1) {
+    throw new ScraperError('INVALID_INPUT', 'SHOOF_INVALID_CATALOG_REQUEST');
+  }
+  const meta = {ok:true,providerId:ID,next_page:null};
+  if (n > 1) return attachResultMeta([], meta);
+  const result = await page(ORIGIN + '/', options, workHosts());
+  const $ = cheerio.load(result.html);
+  const items = new Map();
+  $('main .block-post > a[href]').each((_, node) => {
+    const card = $(node);
+    const url = safe(card.attr('href'), result.url, workHosts());
+    if (!url || !isWork(url) || pathOf(url).startsWith('/episode/') || items.has(url)) return;
+    const image = card.find('img').first();
+    const title = clean(card.find('.title').first().text() || card.attr('title') || image.attr('alt'));
+    const item = normalizeCatalogItem({url,ref:reference(url),title,poster:poster(image,result.url),
+      type:pathOf(url).startsWith('/series/') ? 'series' : 'movie'}, context(result.url));
+    if (item) items.set(url,item);
+  });
+  if (!items.size) throw new ScraperError('STRUCTURE_CHANGED', 'SHOOF_CATALOG_STRUCTURE_CHANGED');
+  return attachResultMeta([...items.values()], meta);
 }

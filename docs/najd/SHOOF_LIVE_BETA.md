@@ -1,6 +1,6 @@
 # ShoofLive Beta
 
-The adapter lives in `server/browser/providers/sites/shoof-live.mjs` and is registered only in the Beta browser registry. It implements search, work details, source episode indexing, server discovery and direct media extraction. It uses guarded HTTPS requests and parses published HTML and inline media literals. It does not run the site's JavaScript, forward browser sessions or proxy video. The registry advertises no catalog or live-channel capability.
+The adapter lives in `server/browser/providers/sites/shoof-live.mjs` and is registered only in the Beta browser registry. It implements search, work details, source episode indexing, server discovery and direct media extraction. It uses guarded HTTPS requests and parses published HTML and inline media literals. It does not run the site's JavaScript, forward browser sessions or proxy video. The Beta browser lists this provider through its latest catalog, sourced from the public homepage. No live-channel capability is advertised.
 
 ## Routes observed on 2026-11-24
 
