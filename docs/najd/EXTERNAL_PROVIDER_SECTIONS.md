@@ -1,6 +1,6 @@
 # External provider sections
 
-The Beta directory lists public section links for all 16 sources. The browser directory API exposes the sections. The external-section API accepts a directory provider and section ID and returns public work or episode links where a listing parser is available. Opening a work delegates playback to the original site. Regional availability, account requirements, and playback resolution are determined there.
+The Beta directory lists 15 external sources, with ATV available separately through both integrated provider registries. The browser directory API exposes the sections. The external-section API accepts a directory provider and section ID and returns public work or episode links where a listing parser is available. Opening a work delegates playback to the original site. Regional availability, account requirements, and playback resolution are determined there.
 
 | Source | Public sections | Inspection outcome |
 | --- | --- | --- |
@@ -32,3 +32,9 @@ The guarded live fetch returned 13 ATV episodes, 30 Kanal D episodes and 18 Kana
 These are directory and catalog results. None of the 16 sources has passed independent end-to-end playback certification in both Core and Beta.
 
 The next inspection found 100 signed-out Plex VOD cards in the public on-demand HTML. Najd now exposes distinct movie and series previews, matching Plex's own VOD card marker and excluding discovery cards for other services. Parsing the captured response yielded 60 movie preview entries and 21 series entries. The guarded live request to Plex timed out in this run. Pluto's public navigation exposed dedicated US anime movies and anime series sections, which are available as official links in the directory.
+
+## ATV integration
+
+ATV now has separate Core and Beta modules. Live guarded tests of both modules returned three current series, a result for Hamal, and thirteen observed Kuruluş Osman episodes including episode 187. Both modules resolved the published MP4 for episode 187 and verified the CDN response using a bounded 1024-byte range request. The CDN returned HTTP 206 with an MP4 file signature. The observed URL carries a 1080p label. This check does not confirm playback on every Najd client or availability outside the tested network.
+
+The separate Kanal D work sample exposed an embed link but no direct media response was verified.

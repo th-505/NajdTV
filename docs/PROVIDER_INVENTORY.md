@@ -2,11 +2,11 @@
 
 هذا تقرير آلي ساكن؛ لا يرسل أي طلب للمزودين ولا يثبت نجاح التشغيل.
 
-- قواشط نجد: **28**؛ قواشط البيتا: **29**؛ مجموع وحدات التنفيذ المنفصلة: **57**.
-- المعروضة افتراضيًا: **25**؛ وحدات التوافق القديمة المخفية: **3**. لا يتم تحويل المراجع القديمة إلى مصدر آخر تلقائيًا.
-- وحدات مواقع ذات تعريف PROVIDER_META: **28**؛ المسجل منها: **28**.
-- مرآتان مصرح بهما في التعريف: **2**؛ الوحدات غير الموسومة كمرآة: **26**. هذا لا يثبت استقلال مالكي المواقع.
-- مصادر الواجهة المستنتجة من الشفرة: **0**؛ وحدات البحث المثبت المربوطة برمجيًا: **26**.
+- قواشط نجد: **29**؛ قواشط البيتا: **30**؛ مجموع وحدات التنفيذ المنفصلة: **59**.
+- المعروضة افتراضيًا: **26**؛ وحدات التوافق القديمة المخفية: **3**. لا يتم تحويل المراجع القديمة إلى مصدر آخر تلقائيًا.
+- وحدات مواقع ذات تعريف PROVIDER_META: **29**؛ المسجل منها: **29**.
+- مرآتان مصرح بهما في التعريف: **2**؛ الوحدات غير الموسومة كمرآة: **27**. هذا لا يثبت استقلال مالكي المواقع.
+- مصادر الواجهة المستنتجة من الشفرة: **0**؛ وحدات البحث المثبت المربوطة برمجيًا: **27**.
 - مصدر قائمة الواجهة مصفوفة ثابتة في index.html.
 - بذور فحص بلا وحدة مسجلة: **6**؛ ليست مزودين عاملين.
 
@@ -23,6 +23,7 @@
 | `anime4up_rest` | anime4up | catalog, search, details, episodes, servers, resolve | — | anime4up_rest | `server/scrapers/sites/anime4up_rest.mjs:21` |
 | `animezid` | — | catalog, search, details, episodes, servers, resolve | — | animezid | `server/scrapers/sites/animezid.mjs:3` |
 | `arabseed` | — | catalog, search, details, episodes, servers, resolve | — | arabseed | `server/scrapers/sites/arabseed.mjs:34` |
+| `atv-tr` | — | catalog, search, details, episodes, servers, resolve | — | atv-tr | `server/scrapers/sites/atv-tr.mjs:10` |
 | `brstej` | — | catalog, search, details, episodes, servers, resolve | — | brstej | `server/scrapers/sites/brstej.mjs:13` |
 | `cimanow` | — | catalog, search, details, episodes, servers, resolve | — | cimanow | `server/scrapers/sites/cimanow.mjs:32` |
 | `egybest` | — | catalog, search, details, episodes, servers, resolve | — | egybest | `server/scrapers/sites/egybest.mjs:3` |
@@ -58,6 +59,7 @@
 | `anime4up_rest` | anime4up | `server/browser/providers/sites/anime4up_rest.mjs` |
 | `animezid` | — | `server/browser/providers/sites/animezid.mjs` |
 | `arabseed` | — | `server/browser/providers/sites/arabseed.mjs` |
+| `atv-tr` | — | `server/browser/providers/sites/atv-tr.mjs` |
 | `brstej` | — | `server/browser/providers/sites/brstej.mjs` |
 | `cimanow` | — | `server/browser/providers/sites/cimanow.mjs` |
 | `egybest` | — | `server/browser/providers/sites/egybest.mjs` |

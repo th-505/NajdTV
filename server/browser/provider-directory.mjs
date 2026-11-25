@@ -11,7 +11,7 @@ const groupsById = {
   '3cktv':['turkish'], '3isk':['turkish'], anime4up:['anime'], anime4up_rest:['anime'],
   qfilm:['arabic','foreign','indian'], ristoanime:['anime'], arabseed:mixed,
   mewsry:['arabic'], witanime:['anime'], egydead_live:[], yallashoot:[],
-  alooy:['arabic','turkish'], laroza:['arabic','turkish'], fivetv:['asian'],
+  'atv-tr':['turkish'], alooy:['arabic','turkish'], laroza:['arabic','turkish'], fivetv:['asian'],
   animezid:['anime'], movizland:mixed, egybest:mixed,
   'shoof-live':[...mixed,'anime'],
 };
@@ -27,7 +27,6 @@ const external = [
   ['pluto','Pluto TV','https://pluto.tv/',['foreign','anime']],
   ['roku-channel','The Roku Channel','https://therokuchannel.roku.com/',['foreign']],
   ['turk-dizileri','Türk Dizileri İzle','https://www.youtube.com/channel/UCJgwSnUyW6Nx5Hjg9ymHa4Q',['turkish']],
-  ['atv-tr','ATV','https://www.atv.com.tr/kurulus-osman/bolumler',['turkish']],
   ['kanal-d','Kanal D','https://www.kanald.com.tr/kanit/bolumler',['turkish']],
   ['puhutv','puhutv','https://puhutv.com/',['turkish','asian']],
   ['muse-asia','Muse Asia','https://www.youtube.com/@MuseAsia/playlists',['anime']],

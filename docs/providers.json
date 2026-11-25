@@ -7,18 +7,18 @@
     "witanime": "animezid"
   },
   "counts": {
-    "site_modules_with_metadata": 28,
-    "registered_modules": 28,
-    "active_registered_modules": 25,
+    "site_modules_with_metadata": 29,
+    "registered_modules": 29,
+    "active_registered_modules": 26,
     "legacy_compatible_modules": 3,
-    "najd_scrapers": 28,
-    "beta_scrapers": 29,
-    "total_scraper_implementations": 57,
+    "najd_scrapers": 29,
+    "beta_scrapers": 30,
+    "total_scraper_implementations": 59,
     "explicit_mirrors": 2,
-    "not_marked_as_mirror": 26,
+    "not_marked_as_mirror": 27,
     "ui_spellings": 0,
     "static_ui_array_entries": 0,
-    "pinned_search_modules": 26,
+    "pinned_search_modules": 27,
     "seed_only_entries": 6
   },
   "ui_delivery": {
@@ -327,6 +327,39 @@
       "ui_spellings": [],
       "pinned_search_spellings": [
         "arabseed"
+      ],
+      "live_validation": "not_run"
+    },
+    {
+      "id": "atv-tr",
+      "name": "ATV Türkiye",
+      "code": "ATVT",
+      "mirror_of": null,
+      "path": "server/scrapers/sites/atv-tr.mjs",
+      "metadata_line": 10,
+      "source_sha256": "a62583d9af5e60dd399a4ff69f85ffc03e2114aa79e068a7d1c6aaa0b81e26f8",
+      "registered": true,
+      "declared_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "exported_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "ui_spellings": [],
+      "pinned_search_spellings": [
+        "atv-tr"
       ],
       "live_validation": "not_run"
     },
@@ -1033,6 +1066,15 @@
       "scope": "beta",
       "path": "server/browser/providers/sites/arabseed.mjs",
       "source_sha256": "4c16899e6a5d2064704c15bdeefc028eec2c5cb9f5f907c163dd144215dfa460",
+      "registered": true,
+      "mirror_of": null,
+      "live_validation": "not_run"
+    },
+    {
+      "id": "atv-tr",
+      "scope": "beta",
+      "path": "server/browser/providers/sites/atv-tr.mjs",
+      "source_sha256": "f5666e1c15930a900a133664046156a227e2bebf818981284ce063ee42be5f11",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"

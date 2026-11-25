@@ -32,6 +32,8 @@ import * as alooyMod from './sites/alooy.mjs';
 import * as larozaMod from './sites/laroza.mjs';
 import * as fivetvMod from './sites/fivetv.mjs';
 
+import * as atvTrMod from './sites/atv-tr.mjs';
+
 const PROVIDER_ENTRIES = [
   {meta:animezidMod.PROVIDER_META,module:animezidMod},
   {meta:movizlandMod.PROVIDER_META,module:movizlandMod},
@@ -61,7 +63,8 @@ const PROVIDER_ENTRIES = [
   { meta: threeIskMod.PROVIDER_META, module: threeIskMod },
   { meta: alooyMod.PROVIDER_META, module: alooyMod },
   { meta: larozaMod.PROVIDER_META, module: larozaMod },
-  { meta: fivetvMod.PROVIDER_META, module: fivetvMod }
+  { meta: fivetvMod.PROVIDER_META, module: fivetvMod },
+  {meta:atvTrMod.PROVIDER_META,module:atvTrMod}
 ];
 
 export const PROVIDERS_MAP = new Map();

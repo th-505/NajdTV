@@ -7,7 +7,7 @@ try {
   const response = await fetch(base + '/api/v1/explore/sources');
   assert.equal(response.status, 200);
   const body = await response.json();
-  assert.equal(body.data.length, 23);
+  assert.equal(body.data.length, 24);
   assert(!body.data.some(source => source.id === 'fivetv'));
   assert(body.data.some(source => source.id === 'movizland'));
   assert(body.data.some(source => source.id === 'brstej'));
