@@ -22,3 +22,11 @@ The Beta directory lists public section links for all 16 sources. The browser di
 | RetroCrush | Classic anime catalog, free-viewing details | The home page returned 200. Access can vary by title. |
 
 The Pluto, ATV and Kanal D HTML extractors use HTTPS-only hosts, site-specific path patterns, bounded HTML, and duplicate suppression. There is always a link to open the provider's section if the work listing is empty or the upstream is unreachable. The directory does not claim that a listing is a direct stream or that its available quality has been verified.
+
+## Follow-up verification
+
+Temporary network timeouts and HTTP 408/502/503/504 get one retry on the same approved URL. HTTP 403, access challenges and unsafe redirects retain their original failure path.
+
+The guarded live fetch returned 13 ATV episodes, 30 Kanal D episodes and 18 Kanal D series. ATV's current/archive index timed out through the guarded path. Pluto's guarded listing was empty despite featured shelves appearing in the captured public HTML. Weyyak returned 503 twice, ADtv redirected to an access-denied page, Tubi redirected to its regional information page, and Roku redirected to its app landing page. The three inspected YouTube channel connections remained unavailable on the inspection network. A candidate 1080p MP4 found on an ATV episode returned redirects without a verified media response. The Kanal D sample did not expose a direct media URL in its public HTML.
+
+These are directory and catalog results. None of the 16 sources has passed independent end-to-end playback certification in both Core and Beta.

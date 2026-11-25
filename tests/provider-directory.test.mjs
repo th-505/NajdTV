@@ -51,3 +51,22 @@ test('each external source has sections and integrated section cards stay on the
     '<a href="/diziler">Navigation</a>'});
   assert.deepEqual(rows,[{title:'Kuruluş Osman 187',url:'https://www.atv.com.tr/kurulus-osman/187-bolum/izle'}]);
 });
+
+test('official catalog fetch retries one temporary failure and never repeats a forbidden request', async()=>{
+  const {loadExternalSection}=await import('../server/browser/external-provider-sections.mjs');
+  let calls=0;
+  const filtered=await loadExternalSection('atv-tr','series',{
+    fetchImpl:async()=>{
+      calls++;
+      return calls===1 ? new Response('Service unavailable',{status:503}) :
+        new Response('<div class="category-classic-item"><a href="/hamal" title="Hamal"></a></div>');
+    },
+  });
+  assert.equal(calls,2);
+  assert.deepEqual(filtered,[{title:'Hamal',url:'https://www.atv.com.tr/hamal'}]);
+  calls=0;
+  await assert.rejects(loadExternalSection('kanal-d','series',{
+    fetchImpl:async()=>{calls++;return new Response('Forbidden',{status:403});},
+  }));
+  assert.equal(calls,1);
+});

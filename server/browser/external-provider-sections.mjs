@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import {setTimeout as delay} from 'node:timers/promises';
 import {fetchProviderHtml, resolveSafeUrl} from '../scrapers/shared/http.mjs';
 
 // Public pages discovered in provider navigation or official release notes.
@@ -33,12 +34,12 @@ const entries = {
     ['videos','أحدث الفيديوهات','https://www.youtube.com/channel/UCJgwSnUyW6Nx5Hjg9ymHa4Q/videos'],
   ],
   'atv-tr':[
-    ['series','المسلسلات الحالية','https://www.atv.com.tr/diziler'],
-    ['archive','أرشيف المسلسلات','https://www.atv.com.tr/eski-diziler'],
+    ['series','المسلسلات الحالية','https://www.atv.com.tr/diziler', /^\/[a-z0-9-]+\/?$/, '.category-classic-item > a[href]'],
+    ['archive','أرشيف المسلسلات','https://www.atv.com.tr/eski-diziler', /^\/[a-z0-9-]+\/?$/, '.category-classic-item > a[href]'],
     ['osman','حلقات المؤسس عثمان','https://www.atv.com.tr/kurulus-osman/bolumler', /^\/kurulus-osman\/\d+-bolum(?:\/izle)?\/?$/],
   ],
   'kanal-d':[
-    ['series','المسلسلات','https://www.kanald.com.tr/diziler'],
+    ['series','المسلسلات','https://www.kanald.com.tr/diziler', /^\/[a-z0-9-]+\/?$/, 'a.poster-card[href]'],
     ['shorts','الدراما القصيرة','https://www.kanald.com.tr/d-shorts-diziler/'],
     ['kanit','حلقات مسلسل Kanıt','https://www.kanald.com.tr/kanit/bolumler', /^\/kanit\/bolumler\/\d+-bolum(?:-izle)?\/?$/],
   ],
@@ -73,17 +74,28 @@ export function listExternalSections(provider) {
 export async function loadExternalSection(provider,id,options={}) {
   const definition = Object.hasOwn(entries,provider) && entries[provider].find(row=>row[0]===id);
   if (!definition?.[3]) throw Error('EXTERNAL_SECTION_UNSUPPORTED');
-  const [, , url, matcher] = definition;
+  const [, , url, matcher, selector = 'a[href]'] = definition;
   // Pluto's public home embeds the featured shelves, while its section pages load them on the client.
   const listingUrl = provider === 'pluto' ? new URL('/',url).href : url;
   const origin = new URL(url).origin;
   const allowedHosts = [new URL(url).hostname];
-  const result = await fetchProviderHtml(listingUrl,{...options,
-    allowHttp:false, allowedHosts, timeoutMs:6500, maxRetries:0, maxBytes:2*1024*1024});
+  const request = () => fetchProviderHtml(listingUrl,{...options,
+    allowHttp:false, allowedHosts, timeoutMs:5000, maxRetries:0,
+    maxBytes:2*1024*1024, returnHttpErrors:true});
+  let result;
+  try {
+    result = await request();
+  } catch (error) {
+    if (error.code !== 'NETWORK_TIMEOUT') throw error;
+  }
+  if (!result || [408,502,503,504].includes(result.status)) {
+    await delay(250);
+    result = await request();
+  }
   if (!result.ok) throw Error('EXTERNAL_SECTION_UNAVAILABLE');
   const $ = cheerio.load(result.html);
   const items = new Map();
-  $('a[href]').each((_, node) => {
+  $(selector).each((_, node) => {
     const anchor = $(node);
     const raw = resolveSafeUrl(anchor.attr('href'),result.url,{allowHttp:false,allowedHosts});
     if (!raw) return;
