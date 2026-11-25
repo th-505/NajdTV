@@ -8,3 +8,13 @@ test('media playlist has no invented quality; private targets and malformed reso
  assert.deepEqual(observedHlsQualities('#EXTM3U\n#EXTINF:6\nsegment.ts','https://cdn.example/media.m3u8'),[]);
  assert.deepEqual(observedHlsQualities('#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=1920x1080\nhttps://127.0.0.1/private.m3u8\n','https://cdn.example/master.m3u8'),[]);
 });
+
+test('a media playlist advertises a bounded same-origin initialization map',async()=>{
+ const {observedHlsInitialization}=await import('../server/harvest/hls-quality.mjs');
+ const root='https://cdn.example/video/index.m3u8';
+ assert.deepEqual(observedHlsInitialization('#EXTM3U\n#EXT-X-MAP:URI="parts.mp4",BYTERANGE="500@1024"\n',root),{
+  url:'https://cdn.example/video/parts.mp4',hostname:'cdn.example',start:1024,size:500,
+ });
+ assert.equal(observedHlsInitialization('#EXTM3U\n#EXT-X-MAP:URI="//other.example/init.mp4"\n',root),null);
+ assert.equal(observedHlsInitialization('#EXTM3U\n#EXT-X-MAP:URI="init.mp4",BYTERANGE="500"\n',root),null);
+});

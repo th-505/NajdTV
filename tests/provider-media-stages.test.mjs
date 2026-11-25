@@ -76,3 +76,10 @@ test('multiple resolutions on one named server retain one server identity',async
  assert.equal(rows[0].server_name,'Server A');
  assert.equal(rows[2].server_name,'other.example');
 });
+
+test('a public codec-demo file does not count as work playback',async()=>{
+ const {directCandidate}=await import('../server/scrapers/shared/direct-candidate.mjs');
+ assert.equal(directCandidate({url:'https://test-videos.co.uk/demo.mp4'}),false);
+ assert.equal(directCandidate({url:'https://www.test-videos.co.uk/demo.mp4'}),false);
+ assert.equal(directCandidate({url:'https://cdn.example/demo.mp4'}),true);
+});

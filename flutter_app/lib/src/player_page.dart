@@ -1959,7 +1959,8 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       title: 'جودة الفيديو',
       icon: Icons.high_quality_outlined,
       options: [
-        if (active?.adaptive == true || browser.isNotEmpty)
+        if (active?.adaptive == true ||
+            browser.where((row) => row['id'] != -1).length > 1)
           const NajdOption(
             'auto',
             'تلقائي حسب الشبكة',

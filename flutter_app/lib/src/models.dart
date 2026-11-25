@@ -303,6 +303,7 @@ class StreamSource {
     this.serverName = '',
     this.serverId = '',
     this.qualities = const [],
+    this.adaptivePlaylist,
   });
   final String mediaPath;
   final String mediaType;
@@ -318,7 +319,9 @@ class StreamSource {
       serverName.isNotEmpty ? serverName : Uri.tryParse(mediaPath)?.host ?? '';
   String get serverKey =>
       '${providerId.isEmpty ? provider : providerId}|${serverId.isEmpty ? serverLabel : serverId}';
-  bool get adaptive => mediaType == 'm3u8' || mediaType == 'hls';
+  final bool? adaptivePlaylist;
+  bool get adaptive =>
+      adaptivePlaylist ?? (mediaType == 'm3u8' || mediaType == 'hls');
   Iterable<ResolutionOption> get knownQualities => qualities.isNotEmpty
       ? qualities
       : resolution?.height != null
@@ -339,6 +342,9 @@ class StreamSource {
     serverName: _streamServerName(json),
     serverId: '${json['server_id'] ?? ''}',
     qualities: _streamQualities(json['quality_levels']),
+    adaptivePlaylist: json['adaptive'] is bool
+        ? json['adaptive'] as bool
+        : null,
     providerId: '${json['provider_id'] ?? ''}',
     edition: '${json['edition'] ?? ''}',
     timelineVerified: json['timeline_verified'] == true,

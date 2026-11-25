@@ -65,3 +65,22 @@ test('large movie metadata can be verified from its opening boxes without readin
   const movie=box('moov',track('vide',1280,720),box('free',Buffer.alloc(100000)));
   assert.deepEqual(observedMp4Dimensions(movie.subarray(0,65536)),expected);
 });
+
+test('a single HLS rendition exposes its initialization track resolution without offering auto',async()=>{
+  const data=Buffer.concat([ftyp,moov]);
+  const calls=[];
+  const result=await probeHarvestMedia({url:'https://cdn.example/media/index.m3u8',headers:{}},{
+    headProbe:async()=>({statusCode:200}),
+    fetchImpl:async(url,options)=>{
+      calls.push([url,options.headers.Range]);
+      if(calls.length===1)return {status:200,headers:new Headers(),bytes:Buffer.from(
+        `#EXTM3U\n#EXT-X-MAP:URI="fragment.mp4",BYTERANGE="${data.length}@64"\n#EXTINF:2\nnext.mp4\n`),
+      };
+      return {status:206,headers:new Headers({'content-range':`bytes 64-${63+data.length}/10000`}),bytes:data};
+    },
+  });
+  assert.equal(result.playable,true);
+  assert.equal(result.adaptive,false);
+  assert.deepEqual(result.quality_levels,expected);
+  assert.deepEqual(calls[1],['https://cdn.example/media/fragment.mp4',`bytes=64-${63+data.length}`]);
+});

@@ -16,3 +16,28 @@ export function observedHlsQualities(text,baseUrl){
  }
  return levels;
 }
+
+/** Match only a public, same-origin initialization map. Never fetch segments to guess quality. */
+export function observedHlsInitialization(text, playlistUrl) {
+ if(typeof text!=='string'||text.length>65536||!text.trimStart().startsWith('#EXTM3U'))return null;
+ try {
+  const base=new URL(playlistUrl);
+  const line=text.split(/\r?\n/).find(row=>row.startsWith('#EXT-X-MAP:'));
+  if(!line)return null;
+  const attributes=Object.fromEntries([...line.slice(11).matchAll(/([A-Z0-9-]+)=("[^"]*"|[^,]*)/g)]
+   .map(([,key,value])=>[key,value.replace(/^"|"$/g,'')]));
+  if(!attributes.URI)return null;
+  const url=assertSafeScraperUrl(new URL(attributes.URI,base).href,{allowHttp:false,
+   allowedHosts:[base.hostname]});
+  if(url.origin!==base.origin)return null;
+  const limit=65536;
+  let start=0,size=limit;
+  if(attributes.BYTERANGE!==undefined){
+   const match=/^(\d+)@(\d+)$/.exec(attributes.BYTERANGE);
+   if(!match)return null;
+   size=Number(match[1]);start=Number(match[2]);
+   if(!Number.isSafeInteger(size)||size<1||size>limit||!Number.isSafeInteger(start+size))return null;
+  }
+  return {url:url.href,hostname:url.hostname,start,size};
+ }catch{return null;}
+}

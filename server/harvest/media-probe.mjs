@@ -1,6 +1,6 @@
 import {observedMp4Dimensions,mp4MetadataOffset} from '../../shared/mp4-video-dimensions.mjs';
 import {observedContainer,mediaFormatFromUrl} from '../../shared/media-container.mjs';
-import {observedHlsQualities} from './hls-quality.mjs';
+import {observedHlsQualities,observedHlsInitialization} from './hls-quality.mjs';
 import {fetchSafeResponse} from '../scrapers/shared/http.mjs';
 import {probePinnedMedia} from '../pinned-playback.mjs';
 /** Header checks alone accept dead CDN placeholders. Require actual container bytes. */
@@ -16,7 +16,32 @@ export async function probeHarvestMedia(candidate,{platform='native',origin='htt
  // Some real CDNs omit Content-Type even on successful HEAD and GET. Their
  // actual container signature is stronger evidence than the absent MIME label.
  const container=observedContainer(bytes);
- let quality_levels=hls?observedHlsQualities(bytes.toString('utf8'),candidate.url):[];
+ const playlist=hls?bytes.toString('utf8'):'';
+ const playlistUrl=response.url || candidate.url;
+ let quality_levels=hls?observedHlsQualities(playlist,playlistUrl):[];
+ const adaptive=quality_levels.length>1;
+ if(hls&&!quality_levels.length&&[200,206].includes(response.status)){
+  const init=observedHlsInitialization(playlist,playlistUrl);
+  if(init){
+   const end=init.start+init.size-1;
+   try{
+    const result=await fetchImpl(init.url,{method:'GET',headers:{...headers,Range:`bytes=${init.start}-${end}`},
+     responseType:'bytes',maxBytes:init.size,prefixBytes:init.size,allowHttp:false,
+     allowedHosts:[init.hostname],maxRetries:0,maxRedirects:1,timeoutMs:4500,
+     validateUrl:target=>{
+      if(target.origin!==new URL(init.url).origin)throw Error('HLS_INIT_ORIGIN_CHANGED');
+     }});
+    const range=result.headers?.get?.('content-range')?.match(/^bytes (\d+)-(\d+)\/(?:\d+|\*)$/i);
+    const verifiedRange=result.status===206&&Number(range?.[1])===init.start&&
+     Number(range?.[2])===init.start+(result.bytes?.length||0)-1&&Number(range?.[2])<=end;
+    const byteCount=result.bytes?.length||0;
+    if(byteCount&&byteCount<=init.size&&
+       (verifiedRange || (result.status===200&&init.start===0))){
+     quality_levels=observedMp4Dimensions(result.bytes);
+    }
+   }catch{}
+  }
+ }
  if(container==='mp4'&&[200,206].includes(response.status)){
   quality_levels=observedMp4Dimensions(bytes);
   const length=Number(response.headers?.get?.('content-range')?.match(/^bytes 0-\d+\/(\d+)$/i)?.[1]);
@@ -43,5 +68,5 @@ export async function probeHarvestMedia(candidate,{platform='native',origin='htt
  // HTML video loads plain MP4/WebM/Ogg in no-cors mode. HLS fetched by a JS
  // player still needs CORS. Test with frontend Referer, never source cookies.
  const webPlayable=platform==='web'?playable&&!policyBlocked&&(plainVideo?['mp4','webm','ogg'].includes(container):['mp4','hls','webm','ogg'].includes(container)&&[browserOrigin,'*'].includes(allowedOrigin)):playable&&head.webPlayable===true;
- return {...head,container,quality_levels,adaptive:hls&&quality_levels.length>0,playable,statusCode:response.status,webPlayable,container_verified:playable,verification_basis:'bounded-container-bytes'};
+ return {...head,container,quality_levels,adaptive,playable,statusCode:response.status,webPlayable,container_verified:playable,verification_basis:'bounded-container-bytes'};
 }
