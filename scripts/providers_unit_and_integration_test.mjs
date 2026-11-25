@@ -101,7 +101,7 @@ try {
         assert.ok(fixture.REAL_TMDB_CATALOG_JSON, 'TMDB catalog fixture missing');
         options.fixtureTmdbJson = fixture.REAL_TMDB_CATALOG_JSON;
       }
-      const category = ['mewsry', 'yallashoot'].includes(id) ? 'today' : id === 'egydead_live' ? 'live' : id === 'shoof-live' ? 'latest' : id === 'atv-tr' ? 'series' : 'movies';
+      const category = ['mewsry', 'yallashoot'].includes(id) ? 'today' : id === 'egydead_live' ? 'live' : id === 'shoof-live' ? 'latest' : ['atv-tr','kanal-d'].includes(id) ? 'series' : 'movies';
       requireItems(await module.scrapeCatalog(category, 1, options));
     });
 

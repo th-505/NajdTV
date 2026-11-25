@@ -2,11 +2,11 @@
 
 هذا تقرير آلي ساكن؛ لا يرسل أي طلب للمزودين ولا يثبت نجاح التشغيل.
 
-- قواشط نجد: **29**؛ قواشط البيتا: **30**؛ مجموع وحدات التنفيذ المنفصلة: **59**.
-- المعروضة افتراضيًا: **26**؛ وحدات التوافق القديمة المخفية: **3**. لا يتم تحويل المراجع القديمة إلى مصدر آخر تلقائيًا.
-- وحدات مواقع ذات تعريف PROVIDER_META: **29**؛ المسجل منها: **29**.
-- مرآتان مصرح بهما في التعريف: **2**؛ الوحدات غير الموسومة كمرآة: **27**. هذا لا يثبت استقلال مالكي المواقع.
-- مصادر الواجهة المستنتجة من الشفرة: **0**؛ وحدات البحث المثبت المربوطة برمجيًا: **27**.
+- قواشط نجد: **30**؛ قواشط البيتا: **31**؛ مجموع وحدات التنفيذ المنفصلة: **61**.
+- المعروضة افتراضيًا: **27**؛ وحدات التوافق القديمة المخفية: **3**. لا يتم تحويل المراجع القديمة إلى مصدر آخر تلقائيًا.
+- وحدات مواقع ذات تعريف PROVIDER_META: **30**؛ المسجل منها: **30**.
+- مرآتان مصرح بهما في التعريف: **2**؛ الوحدات غير الموسومة كمرآة: **28**. هذا لا يثبت استقلال مالكي المواقع.
+- مصادر الواجهة المستنتجة من الشفرة: **0**؛ وحدات البحث المثبت المربوطة برمجيًا: **28**.
 - مصدر قائمة الواجهة مصفوفة ثابتة في index.html.
 - بذور فحص بلا وحدة مسجلة: **6**؛ ليست مزودين عاملين.
 
@@ -32,6 +32,7 @@
 | `fivetv` | — | catalog, search, details, episodes, servers, resolve | — | fivetv | `server/scrapers/sites/fivetv.mjs:18` |
 | `fosta` | — | catalog, search, details, episodes, servers, resolve | — | fosta | `server/scrapers/sites/fosta.mjs:15` |
 | `ipauniverse` | — | catalog, search, details, servers, resolve | — | ipauniverse | `server/scrapers/sites/ipauniverse.mjs:54` |
+| `kanal-d` | — | catalog, search, details, episodes, servers, resolve | — | kanal-d | `server/scrapers/sites/kanal-d.mjs:10` |
 | `laroza` | — | catalog, search, details, episodes, servers, resolve | — | laroza | `server/scrapers/sites/laroza.mjs:60` |
 | `mewsry` | — | catalog, search, details, servers, resolve, live | — | mewsry | `server/scrapers/sites/mewsry.mjs:51` |
 | `movizland` | — | catalog, search, details, episodes, servers, resolve | — | movizland | `server/scrapers/sites/movizland.mjs:3` |
@@ -68,6 +69,7 @@
 | `fivetv` | — | `server/browser/providers/sites/fivetv.mjs` |
 | `fosta` | — | `server/browser/providers/sites/fosta.mjs` |
 | `ipauniverse` | — | `server/browser/providers/sites/ipauniverse.mjs` |
+| `kanal-d` | — | `server/browser/providers/sites/kanal-d.mjs` |
 | `laroza` | — | `server/browser/providers/sites/laroza.mjs` |
 | `mewsry` | — | `server/browser/providers/sites/mewsry.mjs` |
 | `movizland` | — | `server/browser/providers/sites/movizland.mjs` |

@@ -13,10 +13,10 @@ import {workReference as najdReference} from '../server/harvest/work-reference.m
 import {scanEpisodeIndex as najdIndex} from '../server/harvest/episode-index.mjs';
 import {scanEpisodeIndex as betaIndex} from '../server/browser/episode-index.mjs';
 
-test('59 scraper implementations: 29 Najd and 30 beta, including three legacy handlers with different parser functions and metadata objects', () => {
-  assert.equal(najd.PROVIDERS_MAP.size, 29);
-  assert.equal(beta.PROVIDERS_MAP.size, 30);
-  assert.equal(najd.PROVIDERS_MAP.size + beta.PROVIDERS_MAP.size, 59);
+test('61 scraper implementations: 30 Najd and 31 beta, including three legacy handlers with different parser functions and metadata objects', () => {
+  assert.equal(najd.PROVIDERS_MAP.size, 30);
+  assert.equal(beta.PROVIDERS_MAP.size, 31);
+  assert.equal(najd.PROVIDERS_MAP.size + beta.PROVIDERS_MAP.size, 61);
   assert.notEqual(najdIndex, betaIndex, 'source-index parsing must also remain family-owned');
   assert.deepEqual([...najd.PROVIDERS_MAP.keys()], [...beta.PROVIDERS_MAP.keys()].filter(id => id !== 'shoof-live'));
   for (const [id, original] of najd.PROVIDERS_MAP) {
@@ -49,7 +49,7 @@ test('beta implementation imports cannot point back to Najd site parsers or prov
         `${relative(root,path)} imports Najd-specific code: ${target}`);
     }
   }
-  assert.equal(siteCount, 30);
+  assert.equal(siteCount, 31);
 });
 
 test('disabling or changing one family does not disable, redirect or swap the other family', async () => {

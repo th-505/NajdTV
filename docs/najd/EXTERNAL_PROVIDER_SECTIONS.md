@@ -1,6 +1,6 @@
 # External provider sections
 
-The Beta directory lists 15 external sources, with ATV available separately through both integrated provider registries. The browser directory API exposes the sections. The external-section API accepts a directory provider and section ID and returns public work or episode links where a listing parser is available. Opening a work delegates playback to the original site. Regional availability, account requirements, and playback resolution are determined there.
+The Beta directory lists 14 external sources, with ATV and Kanal D available separately through both integrated provider registries. The browser directory API exposes the sections. The external-section API accepts a directory provider and section ID and returns public work or episode links where a listing parser is available. Opening a work delegates playback to the original site. Regional availability, account requirements, and playback resolution are determined there.
 
 | Source | Public sections | Inspection outcome |
 | --- | --- | --- |
@@ -44,3 +44,9 @@ The separate Kanal D work sample exposed an embed link but no direct media respo
 Run the strict audit independently for Core and Beta using the audit script with scope najd or beta and the strict flag. To focus a diagnostic run on one provider, pass its ID using the provider option. The seven recorded stages verify specialization, one declared catalog section, catalog, positive and negative search, work name, image response, and direct media container. Image and media probes read a bounded prefix. A probe is distinct from playback on a physical device.
 
 The release flag checks that both families expose 39 active, independent providers with a catalog before starting the strict audit for the selected scope. Run it once per family. Any missing or failed stage causes a nonzero exit. Fixture passes are separate from live verification.
+
+## Kanal D integration and audit snapshot
+
+Kanal D has separate Core and Beta adapters. The current-series index returned 18 titles and the archive check returned 24 titles. The Kanıt index exposed 30 episode links on the sampled page. Older and newer episode URL formats preserve source numbering. For Kanıt, the public embed declares a relative HLS path and the CDN to resolve it against. For Daha 17, episode metadata directly publishes an HTTPS HLS manifest. Both paths are restricted to the observed CDN and checked for a valid manifest.
+
+The 2026-11-25 strict audit checked 24 previous Core and 25 previous Beta entries. Nine per family passed all seven stages. The new Kanal D adapters then passed all seven stages in separate live runs in each family, bringing the observed pass count to ten per family. These are server-side checks on representative samples.

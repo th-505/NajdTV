@@ -7,18 +7,18 @@
     "witanime": "animezid"
   },
   "counts": {
-    "site_modules_with_metadata": 29,
-    "registered_modules": 29,
-    "active_registered_modules": 26,
+    "site_modules_with_metadata": 30,
+    "registered_modules": 30,
+    "active_registered_modules": 27,
     "legacy_compatible_modules": 3,
-    "najd_scrapers": 29,
-    "beta_scrapers": 30,
-    "total_scraper_implementations": 59,
+    "najd_scrapers": 30,
+    "beta_scrapers": 31,
+    "total_scraper_implementations": 61,
     "explicit_mirrors": 2,
-    "not_marked_as_mirror": 27,
+    "not_marked_as_mirror": 28,
     "ui_spellings": 0,
     "static_ui_array_entries": 0,
-    "pinned_search_modules": 27,
+    "pinned_search_modules": 28,
     "seed_only_entries": 6
   },
   "ui_delivery": {
@@ -626,6 +626,39 @@
       "live_validation": "not_run"
     },
     {
+      "id": "kanal-d",
+      "name": "Kanal D",
+      "code": "KND",
+      "mirror_of": null,
+      "path": "server/scrapers/sites/kanal-d.mjs",
+      "metadata_line": 10,
+      "source_sha256": "7b1af6b7014aacfb11388eabe91e280fab2ca89da6f0a1b6d8b3352a604c3abf",
+      "registered": true,
+      "declared_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "exported_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "ui_spellings": [],
+      "pinned_search_spellings": [
+        "kanal-d"
+      ],
+      "live_validation": "not_run"
+    },
+    {
       "id": "laroza",
       "name": "لاروزا (Laroza)",
       "code": "LZ",
@@ -1147,6 +1180,15 @@
       "scope": "beta",
       "path": "server/browser/providers/sites/ipauniverse.mjs",
       "source_sha256": "6e24d8e828bcbfd8915d9c01929c119ee6f421545b1ace7c48433322796f5d6b",
+      "registered": true,
+      "mirror_of": null,
+      "live_validation": "not_run"
+    },
+    {
+      "id": "kanal-d",
+      "scope": "beta",
+      "path": "server/browser/providers/sites/kanal-d.mjs",
+      "source_sha256": "71b80ffbdff86ffc7e233c774d8919140ce41b216879e66f995460e38a333c44",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"

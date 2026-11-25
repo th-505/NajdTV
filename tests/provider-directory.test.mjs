@@ -5,8 +5,8 @@ import {externalProviderDirectory,providerGroups,searchProviderGroup} from '../s
 
 test('the directory categorizes both integrated and external providers without inventing playback capability',()=>{
   const directory=externalProviderDirectory();
-  assert.equal(directory.length,15);
-  assert.equal(new Set(directory.map(item=>item.id)).size,15);
+  assert.equal(directory.length,14);
+  assert.equal(new Set(directory.map(item=>item.id)).size,14);
   assert.ok(directory.every(item=>item.access==='external' && new URL(item.url).protocol==='https:' && item.groups.length));
   for (const [id,{meta}] of PROVIDERS_MAP) {
     if (meta.capabilities?.live && !meta.capabilities?.episodes) continue;

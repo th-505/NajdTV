@@ -37,6 +37,8 @@ import * as shoofLiveMod from './providers/sites/shoof-live.mjs';
 
 import * as atvTrMod from './providers/sites/atv-tr.mjs';
 
+import * as kanalDMod from './providers/sites/kanal-d.mjs';
+
 const PROVIDER_ENTRIES = [
   { meta: shoofLiveMod.PROVIDER_META, module: shoofLiveMod },
   {meta:animezidMod.PROVIDER_META,module:animezidMod},
@@ -68,7 +70,8 @@ const PROVIDER_ENTRIES = [
   { meta: alooyMod.PROVIDER_META, module: alooyMod },
   { meta: larozaMod.PROVIDER_META, module: larozaMod },
   { meta: fivetvMod.PROVIDER_META, module: fivetvMod },
-  {meta:atvTrMod.PROVIDER_META,module:atvTrMod}
+  {meta:atvTrMod.PROVIDER_META,module:atvTrMod},
+  {meta:kanalDMod.PROVIDER_META,module:kanalDMod}
 ];
 
 export const PROVIDERS_MAP = new Map();
