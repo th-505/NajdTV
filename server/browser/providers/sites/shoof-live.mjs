@@ -279,8 +279,10 @@ function parseSchedule($, base, category) {
       const episode = clean(card.find('.slcal-episode-number').text());
       const item = normalizeCatalogItem({url,ref:reference(url),title:clean(anchor.text()),
         poster:poster(card.find('.slcal-poster img').first(),base),type:'series'},context(base));
+      const episodeNumber = extractEpisodeNumber(episode);
       if (item) items.push({...item, schedule_date:date, schedule_day:scheduleDays[weekday],
-        scheduled_episode:extractEpisodeNumber(episode), genres:[scheduleDays[weekday],episode].filter(Boolean)});
+        scheduled_episode:episodeNumber,
+        genres:[...(episodeNumber ? [`الحلقة ${episodeNumber}`] : []), scheduleDays[weekday]]});
     });
     days.push({date,day:scheduleDays[weekday],items});
   });

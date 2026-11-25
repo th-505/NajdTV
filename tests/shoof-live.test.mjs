@@ -109,6 +109,7 @@ test('catalog pagination follows the observed next path and schedule days retain
   const all = await shoof.scrapeCatalog('schedule',1,{fixtureHtml:schedule});
   assert.deepEqual(all._meta.schedule_days.map(d=>d.day),['الأربعاء','الخميس']);
   assert.deepEqual(all.map(row=>row.scheduled_episode),[1215,1216]);
+  assert.deepEqual(all.map(row=>row.genres[0]),['الحلقة 1215','الحلقة 1216']);
   const thursday = await shoof.scrapeCatalog('schedule-thursday',1,{fixtureHtml:schedule});
   assert.deepEqual(thursday.map(row=>[row.schedule_date,row.scheduled_episode]),[['2026-11-26',1216]]);
   assert.equal(thursday._meta.next_page,null);

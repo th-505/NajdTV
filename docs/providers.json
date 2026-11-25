@@ -1194,7 +1194,7 @@
       "id": "shoof-live",
       "scope": "beta",
       "path": "server/browser/providers/sites/shoof-live.mjs",
-      "source_sha256": "224b074fe6b80f9ed12fe2dd42340b3b2d31f87c58bf060f74df7a8ae2059a49",
+      "source_sha256": "66ddc168347dab299486874ed467e5448b2cbd0b5093d708fa65d489c5734e59",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
