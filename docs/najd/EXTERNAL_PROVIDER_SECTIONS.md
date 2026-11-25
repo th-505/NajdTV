@@ -52,3 +52,7 @@ Kanal D has separate Core and Beta adapters. The current-series index returned 1
 The 2026-11-25 strict audit checked 24 previous Core and 25 previous Beta entries. Nine per family passed all seven stages. The new Kanal D adapters then passed all seven stages in separate live runs in each family, bringing the observed pass count to ten per family. These are server-side checks on representative samples.
 
 The playback response keeps provider, server identity and quality metadata separate. The server picker groups the available files on the same server, and the quality picker selects levels from that server. Web HLS uses its automatic level selection, and native HLS automatic mode makes a selection using the available bandwidth estimate. Fixed-file labels are published metadata and do not establish decoded pixel size.
+
+### New acceptance run, 2026-11-25
+
+With the server inventory and per-server quality checks enabled, the full live audit completed for 25 Core entries and 26 Beta entries. The same five IDs passed all nine checks in both families: 3cktv, qfilm, ristoanime, atv-tr and kanal-d. The most frequent failure was unconfirmed server quality metadata, with 13 Core and 14 Beta failures. These results supersede the earlier seven-stage pass counts for release qualification.
