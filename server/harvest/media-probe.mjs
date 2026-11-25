@@ -1,8 +1,56 @@
 import {observedMp4Dimensions,mp4MetadataOffset} from '../../shared/mp4-video-dimensions.mjs';
 import {observedContainer,mediaFormatFromUrl} from '../../shared/media-container.mjs';
-import {observedHlsQualities,observedHlsInitialization} from './hls-quality.mjs';
+import {observedHlsVariants,observedHlsInitialization} from './hls-quality.mjs';
 import {fetchSafeResponse} from '../scrapers/shared/http.mjs';
 import {probePinnedMedia} from '../pinned-playback.mjs';
+async function playlistRequest(url,origin,range,maxBytes,headers,fetchImpl) {
+ const target=new URL(url);
+ if(target.origin!==origin)return null;
+ try{
+  const response=await fetchImpl(url,{method:'GET',headers:{...headers,Range:range},responseType:'bytes',
+   maxBytes,prefixBytes:maxBytes,allowHttp:false,allowedHosts:[target.hostname],maxRetries:0,
+   maxRedirects:1,timeoutMs:3500,validateUrl:destination=>{
+    if(destination.origin!==origin)throw Error('HLS_ORIGIN_CHANGED');
+   }});
+  if([200,206].includes(response.status))return response;
+ }catch{}
+ return null;
+}
+
+async function initializationQualities(playlist,playlistUrl,headers,fetchImpl) {
+ const init=observedHlsInitialization(playlist,playlistUrl);
+ if(!init)return [];
+ const end=init.start+init.size-1;
+ const result=await playlistRequest(init.url,new URL(playlistUrl).origin,
+  `bytes=${init.start}-${end}`,init.size,headers,fetchImpl);
+ if(!result)return [];
+ const byteCount=result.bytes?.length||0;
+ const range=result.headers?.get?.('content-range')?.match(/^bytes (\d+)-(\d+)\/(?:\d+|\*)$/i);
+ const verifiedRange=result.status===206&&Number(range?.[1])===init.start&&
+  Number(range?.[2])===init.start+byteCount-1&&Number(range?.[2])<=end;
+ if(byteCount&&byteCount<=init.size&&(verifiedRange||(result.status===200&&init.start===0))){
+  return observedMp4Dimensions(result.bytes);
+ }
+ return [];
+}
+
+async function verifyPlaylistQualities(playlist,playlistUrl,headers,fetchImpl) {
+ const variants=observedHlsVariants(playlist,playlistUrl);
+ if(!variants.length)return {adaptive:false,levels:await initializationQualities(playlist,playlistUrl,headers,fetchImpl)};
+ const origin=new URL(playlistUrl).origin;
+ const unresolved=variants.filter(level=>!level.height&&new URL(level.url).origin===origin);
+ const targets=[...new Set(unresolved.map(level=>level.url))];
+ // Allow up to two parallel metadata checks to preserve the playback budget.
+ const selected=targets.length>1 ? [targets[0],targets.at(-1)] : targets;
+ const dimensions=new Map(await Promise.all(selected.map(async url=>{
+  const response=await playlistRequest(url,origin,'bytes=0-8191',8192,headers,fetchImpl);
+  if(!response?.bytes?.length)return [url,null];
+  const levels=await initializationQualities(Buffer.from(response.bytes).toString('utf8'),response.url||url,headers,fetchImpl);
+  return [url,levels[0]||null];
+ })));
+ return {adaptive:variants.length>1,levels:variants.map(({url,...level})=>({...level,...(dimensions.get(url)||{})}))};
+}
+
 /** Header checks alone accept dead CDN placeholders. Require actual container bytes. */
 export async function probeHarvestMedia(candidate,{platform='native',origin='https://th-505.github.io',fetchImpl=fetchSafeResponse,headProbe=probePinnedMedia}={}){
  const head=await headProbe(candidate,{platform,origin});
@@ -18,29 +66,12 @@ export async function probeHarvestMedia(candidate,{platform='native',origin='htt
  const container=observedContainer(bytes);
  const playlist=hls?bytes.toString('utf8'):'';
  const playlistUrl=response.url || candidate.url;
- let quality_levels=hls?observedHlsQualities(playlist,playlistUrl):[];
- const adaptive=quality_levels.length>1;
- if(hls&&!quality_levels.length&&[200,206].includes(response.status)){
-  const init=observedHlsInitialization(playlist,playlistUrl);
-  if(init){
-   const end=init.start+init.size-1;
-   try{
-    const result=await fetchImpl(init.url,{method:'GET',headers:{...headers,Range:`bytes=${init.start}-${end}`},
-     responseType:'bytes',maxBytes:init.size,prefixBytes:init.size,allowHttp:false,
-     allowedHosts:[init.hostname],maxRetries:0,maxRedirects:1,timeoutMs:4500,
-     validateUrl:target=>{
-      if(target.origin!==new URL(init.url).origin)throw Error('HLS_INIT_ORIGIN_CHANGED');
-     }});
-    const range=result.headers?.get?.('content-range')?.match(/^bytes (\d+)-(\d+)\/(?:\d+|\*)$/i);
-    const verifiedRange=result.status===206&&Number(range?.[1])===init.start&&
-     Number(range?.[2])===init.start+(result.bytes?.length||0)-1&&Number(range?.[2])<=end;
-    const byteCount=result.bytes?.length||0;
-    if(byteCount&&byteCount<=init.size&&
-       (verifiedRange || (result.status===200&&init.start===0))){
-     quality_levels=observedMp4Dimensions(result.bytes);
-    }
-   }catch{}
-  }
+ let quality_levels=[];
+ let adaptive=false;
+ if(hls&&[200,206].includes(response.status)){
+  const verified=await verifyPlaylistQualities(playlist,playlistUrl,headers,fetchImpl);
+  quality_levels=verified.levels;
+  adaptive=verified.adaptive;
  }
  if(container==='mp4'&&[200,206].includes(response.status)){
   quality_levels=observedMp4Dimensions(bytes);

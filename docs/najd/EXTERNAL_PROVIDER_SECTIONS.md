@@ -66,3 +66,5 @@ The next complete live audit returned 7 passing Core entries and 6 passing Beta 
 A follow-up probe uses the declared end of the MP4 media-data box to reach the start of movie metadata. The additional request stays capped at 64 KiB. The targeted Beta recheck passed all nine stages for ShoofLive and Alooy. A subsequent Core recheck also passed Alooy. Ahwak still lacked confirmed quality metadata on its sampled servers in both families.
 
 Single-rendition HLS playlists can now report the observed video track resolution from a bounded, same-origin initialization map. A known fixed rendition does not get an adaptive badge. The direct-candidate filter also rejects the observed public codec-demo host so a sample file cannot be counted as a playable work.
+
+The HLS probe can enrich a master playlist's bitrate-only entries with dimensions from the variant's public initialization map. It checks at most two same-origin variants in parallel, does not follow cross-origin metadata redirects, and keeps the advertised bitrate when dimensions cannot be verified. Variant URLs stay out of the quality response.

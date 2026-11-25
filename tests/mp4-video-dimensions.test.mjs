@@ -84,3 +84,23 @@ test('a single HLS rendition exposes its initialization track resolution without
   assert.deepEqual(result.quality_levels,expected);
   assert.deepEqual(calls[1],['https://cdn.example/media/fragment.mp4',`bytes=64-${63+data.length}`]);
 });
+
+test('master quality can use verified dimensions for a bitrate-only variant without exposing its URL',async()=>{
+  const base='https://cdn.example/master.m3u8';
+  const data=Buffer.concat([ftyp,moov]);
+  const requested=[];
+  const result=await probeHarvestMedia({url:base,headers:{}},{
+    headProbe:async()=>({statusCode:200}),
+    fetchImpl:async(url)=>{
+      requested.push(url);
+      const content=url===base
+        ? '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=500000\nmedia/index.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=1000000\nhttps://elsewhere.example/index.m3u8\n'
+        : url.endsWith('index.m3u8') ? '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n' : data;
+      return {status:200,headers:new Headers(),bytes:Buffer.from(content),url};
+    },
+  });
+  assert.equal(result.adaptive,true);
+  assert.deepEqual(result.quality_levels.map(({label})=>label),['720p','1000 kbps']);
+  assert.ok(result.quality_levels.every(item=>!Object.hasOwn(item,'url')));
+  assert.deepEqual(requested,[base,'https://cdn.example/media/index.m3u8','https://cdn.example/media/init.mp4']);
+});
