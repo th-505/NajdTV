@@ -1,4 +1,4 @@
-import {observedMp4Dimensions} from '../../shared/mp4-video-dimensions.mjs';
+import {observedMp4Dimensions,mp4MetadataOffset} from '../../shared/mp4-video-dimensions.mjs';
 import {observedContainer,mediaFormatFromUrl} from '../../shared/media-container.mjs';
 import {observedHlsQualities} from './hls-quality.mjs';
 import {fetchSafeResponse} from '../scrapers/shared/http.mjs';
@@ -21,14 +21,15 @@ export async function probeHarvestMedia(candidate,{platform='native',origin='htt
   quality_levels=observedMp4Dimensions(bytes);
   const length=Number(response.headers?.get?.('content-range')?.match(/^bytes 0-\d+\/(\d+)$/i)?.[1]);
   if(!quality_levels.length&&Number.isSafeInteger(length)&&length>bytes.length){
-   const limit=65536,start=Math.max(0,length-limit);
+   const limit=65536, metadataOffset=mp4MetadataOffset(bytes,length);
+   const start=metadataOffset??Math.max(0,length-limit),end=Math.min(start+limit,length)-1;
    try{
-    const tail=await fetchImpl(candidate.url,{method:'GET',headers:{...headers,Range:`bytes=${start}-${length-1}`},
+    const tail=await fetchImpl(candidate.url,{method:'GET',headers:{...headers,Range:`bytes=${start}-${end}`},
       omitOrigin:platform==='web'&&plainVideo,responseType:'bytes',maxBytes:limit,prefixBytes:limit,
       allowHttp:false,maxRetries:0,maxRedirects:2,timeoutMs:5000});
-    if(tail.status===206&&tail.bytes?.length===length-start&&
-      tail.headers?.get?.('content-range')===`bytes ${start}-${length-1}/${length}`){
-     quality_levels=observedMp4Dimensions(bytes,tail.bytes);
+    if(tail.status===206&&tail.bytes?.length===end-start+1&&
+      tail.headers?.get?.('content-range')===`bytes ${start}-${end}/${length}`){
+     quality_levels=metadataOffset===null ? observedMp4Dimensions(bytes,tail.bytes) : observedMp4Dimensions(tail.bytes);
     }
    }catch{}
   }

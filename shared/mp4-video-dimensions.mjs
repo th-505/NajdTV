@@ -10,12 +10,13 @@ function* boxes(bytes, start, end, allowTruncated = false) {
       size = Number(wide);
       headerLength = 16;
     }
-    if (!size) size = end - offset;
+    const extendsToEnd = size === 0;
+    if (extendsToEnd) size = end - offset;
     if (size < headerLength) return;
     const boxEnd = offset + size;
     if (boxEnd > end && !allowTruncated) return;
     yield {type:bytes.toString('ascii',offset+4,offset+8),start:offset+headerLength,
-      end:Math.min(boxEnd,end),complete:boxEnd<=end};
+      end:Math.min(boxEnd,end),declaredEnd:extendsToEnd?null:boxEnd};
     if (boxEnd > end) return;
     offset = boxEnd;
   }
@@ -42,13 +43,13 @@ function dimensionsInMovie(bytes, movie) {
   const dimensions = new Map();
   for (const track of boxes(bytes,movie.start,movie.end,true)) {
     if (track.type !== 'trak') continue;
-    const children = [...boxes(bytes,track.start,track.end)];
+    const children = [...boxes(bytes,track.start,track.end,true)];
     const header = children.find(box=>box.type==='tkhd');
     const media = children.find(box=>box.type==='mdia');
-    if (!header || !media) continue;
-    const mediaBoxes=[...boxes(bytes,media.start,media.end)];
+    if (!header || header.declaredEnd!==header.end || !media) continue;
+    const mediaBoxes=[...boxes(bytes,media.start,media.end,true)];
     const handler = mediaBoxes.find(box=>box.type==='hdlr');
-    if (!handler || handler.end-handler.start<12 ||
+    if (!handler || handler.declaredEnd!==handler.end || handler.end-handler.start<12 ||
       bytes.toString('ascii',handler.start+8,handler.start+12)!=='vide') continue;
     const sampleDimensions=videoSampleDimensions(bytes,mediaBoxes);
     if (sampleDimensions.length) {
@@ -69,6 +70,15 @@ function dimensionsInMovie(bytes, movie) {
     }
   }
   return [...dimensions.values()];
+}
+
+export function mp4MetadataOffset(prefix, length) {
+  const bytes=Buffer.from(prefix||[]);
+  for (const entry of boxes(bytes,0,bytes.length,true)) {
+    if (entry.type==='mdat' && Number.isSafeInteger(entry.declaredEnd) &&
+      entry.declaredEnd>=bytes.length && entry.declaredEnd+8<=length) return entry.declaredEnd;
+  }
+  return null;
 }
 
 export function observedMp4Dimensions(prefix, tail = null) {

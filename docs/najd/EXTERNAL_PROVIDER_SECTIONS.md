@@ -62,3 +62,5 @@ With the server inventory and per-server quality checks enabled, the full live a
 The MP4 probe now reads video track dimensions from bounded container metadata. It prefers the coded dimensions from the visual sample entry and falls back to the video track's declared display dimensions. When the movie metadata is not in the prefix, a verified byte-range response may supply it from the end of the file. The observed resolution stays on the same server and does not mark that server adaptive.
 
 The next complete live audit returned 7 passing Core entries and 6 passing Beta entries. Arabseed and Laroza passed both families in this run. Core passed 3cktv, qfilm, ristoanime, Arabseed, Laroza, ATV and Kanal D. Beta passed the same set except ristoanime. The release gate still requires 39 passing entries in each family.
+
+A follow-up probe uses the declared end of the MP4 media-data box to reach the start of movie metadata. The additional request stays capped at 64 KiB. The targeted Beta recheck passed all nine stages for ShoofLive and Alooy. Ahwak still lacked confirmed quality metadata on its sampled servers.

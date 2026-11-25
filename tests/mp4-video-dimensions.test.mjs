@@ -28,7 +28,7 @@ test('MP4 dimensions come from declared video tracks and not audio or media payl
   assert.deepEqual(observedMp4Dimensions(Buffer.concat([ftyp,moov.subarray(0,-12)])),[]);
 });
 
-test('a bounded suffix probe supplies fixed quality without marking the file adaptive',async()=>{
+test('a bounded probe skips the video payload and reads the metadata offset',async()=>{
   const data=Buffer.concat([ftyp,box('mdat',Buffer.alloc(70000)),moov]);
   const ranges=[];
   const result=await probeHarvestMedia({url:'https://cdn.example/video.mp4',headers:{}},{
@@ -43,7 +43,7 @@ test('a bounded suffix probe supplies fixed quality without marking the file ada
   assert.equal(result.playable,true);
   assert.equal(result.adaptive,false);
   assert.deepEqual(result.quality_levels,expected);
-  assert.deepEqual(ranges,['bytes=0-32767',`bytes=${data.length-65536}-${data.length-1}`]);
+  assert.deepEqual(ranges,['bytes=0-32767',`bytes=${data.length-moov.length}-${data.length-1}`]);
 });
 
 test('coded video size takes precedence over a different display size',()=>{
@@ -59,4 +59,9 @@ test('coded video size takes precedence over a different display size',()=>{
   assert.deepEqual(observedMp4Dimensions(Buffer.concat([ftyp,movie])),[
     {width:1920,height:1080,label:'1080p'},
   ]);
+});
+
+test('large movie metadata can be verified from its opening boxes without reading the full metadata box',()=>{
+  const movie=box('moov',track('vide',1280,720),box('free',Buffer.alloc(100000)));
+  assert.deepEqual(observedMp4Dimensions(movie.subarray(0,65536)),expected);
 });
