@@ -36,3 +36,18 @@ test('general search runs once after specialized errors or empty results', async
   assert.deepEqual(seen,['animezid','anime4up','كونان']);
   assert.deepEqual(result,{items:[{ref:'tmdb:tv:1'}],scope:'najd',fallback:true});
 });
+
+test('each external source has sections and integrated section cards stay on the official site', async()=>{
+  const {loadExternalSection}=await import('../server/browser/external-provider-sections.mjs');
+  for (const source of externalProviderDirectory()) {
+    assert.ok(source.sections.length,source.id);
+    assert.ok(source.sections.every(s=>new URL(s.url).protocol==='https:'));
+  }
+  await assert.rejects(loadExternalSection('ad-tv','catalog'),/EXTERNAL_SECTION_UNSUPPORTED/);
+  const rows=await loadExternalSection('atv-tr','osman',{fixtureHtml:
+    '<a href="/kurulus-osman/187-bolum/izle?tracking=1" title="Kuruluş Osman 187"></a>'+
+    '<a href="/kurulus-osman/187-bolum/izle">Duplicate</a>'+
+    '<a href="https://example.test/kurulus-osman/188-bolum/izle">Wrong host</a>'+
+    '<a href="/diziler">Navigation</a>'});
+  assert.deepEqual(rows,[{title:'Kuruluş Osman 187',url:'https://www.atv.com.tr/kurulus-osman/187-bolum/izle'}]);
+});

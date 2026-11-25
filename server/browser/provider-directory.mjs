@@ -1,3 +1,4 @@
+import {listExternalSections} from './external-provider-sections.mjs';
 export const PROVIDER_GROUPS = Object.freeze({
   arabic:'عربي', foreign:'أجنبي', turkish:'تركي', anime:'أنمي', asian:'آسيوي', indian:'هندي',
 });
@@ -28,14 +29,14 @@ const external = [
   ['turk-dizileri','Türk Dizileri İzle','https://www.youtube.com/channel/UCJgwSnUyW6Nx5Hjg9ymHa4Q',['turkish']],
   ['atv-tr','ATV','https://www.atv.com.tr/kurulus-osman/bolumler',['turkish']],
   ['kanal-d','Kanal D','https://www.kanald.com.tr/kanit/bolumler',['turkish']],
-  ['puhutv','puhutv','https://puhutv.com/',['turkish']],
+  ['puhutv','puhutv','https://puhutv.com/',['turkish','asian']],
   ['muse-asia','Muse Asia','https://www.youtube.com/@MuseAsia/playlists',['anime']],
   ['ani-one','Ani-One Asia','https://www.youtube.com/@AniOneAsia/playlists',['anime']],
   ['gundaminfo','GundamInfo','https://en.gundam.info/news/video-music/01_12737.html',['anime']],
   ['retrocrush','RetroCrush','https://www.retrocrush.tv/',['anime']],
 ];
 export function externalProviderDirectory() {
-  return external.map(([id,name,url,groups]) => ({id,name,url,groups:[...groups],access:'external'}));
+  return external.map(([id,name,url,groups]) => ({id,name,url,groups:[...groups],access:'external',sections:listExternalSections(id)}));
 }
 
 export async function searchProviderGroup({group,query,providers,search,globalSearch,preferred}) {

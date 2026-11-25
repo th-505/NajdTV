@@ -28,6 +28,7 @@ import { createSearchTraces, diagnosticsAuthorized } from './diagnostics/search-
 import { diagnosticsHtml, diagnosticsJs } from './diagnostics/dashboard.mjs';
 import { BROWSE_SECTIONS, browseCatalog } from './catalog-browser.mjs';
 import { createPinnedPlayback } from './pinned-playback.mjs';
+import {loadExternalSection} from './browser/external-provider-sections.mjs';
 import {externalProviderDirectory, searchProviderGroup} from './browser/provider-directory.mjs';
 import {listIndependentProviders as listBetaProviders} from './browser/registry.mjs';
 import { listIndependentProviders,getProvider } from './scrapers/registry.mjs';
@@ -878,6 +879,17 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
       if (url.pathname === '/api/v1/browser/directory') {
         if (req.method !== 'GET') return sendJson(req,res,405,{message:'METHOD_NOT_ALLOWED'});
         return sendJson(req,res,200,{status:'success',data:externalProviderDirectory()});
+      }
+      if (url.pathname === '/api/v1/browser/external-section') {
+        if (req.method !== 'GET') return sendJson(req,res,405,{message:'METHOD_NOT_ALLOWED'});
+        try {
+          const data = await loadExternalSection(url.searchParams.get('provider'),url.searchParams.get('section'));
+          return sendJson(req,res,200,{status:'success',data});
+        } catch (error) {
+          const unsupported = error.message === 'EXTERNAL_SECTION_UNSUPPORTED';
+          return sendJson(req,res,unsupported?400:503,{status:'error',
+            message:unsupported?'EXTERNAL_SECTION_UNSUPPORTED':'EXTERNAL_SECTION_UNAVAILABLE'});
+        }
       }
       if (url.pathname === '/api/v1/browser/group-search') {
         if (req.method !== 'GET') return sendJson(req,res,405,{message:'METHOD_NOT_ALLOWED'});

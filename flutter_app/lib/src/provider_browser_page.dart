@@ -67,6 +67,47 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
     }
   }
 
+  Future<void> _browseExternal(Map<String, dynamic> source) async {
+    final sections = (source['sections'] as List? ?? const [])
+        .whereType<Map>()
+        .toList();
+    if (sections.isEmpty) {
+      await _openExternal(source['url'] as String);
+      return;
+    }
+    final sectionId = await showNajdOptions<String>(
+      context,
+      title: source['name'] as String,
+      icon: Icons.open_in_new,
+      options: [
+        for (final section in sections)
+          NajdOption(section['id'] as String, section['label'] as String),
+      ],
+    );
+    if (!mounted || sectionId == null) return;
+    final section = sections.firstWhere((row) => row['id'] == sectionId);
+    final url = section['url'] as String;
+    if (section['browse'] != true) {
+      await _openExternal(url);
+      return;
+    }
+    final items = await _browserApi
+        .browserExternalSection(source['id'] as String, sectionId)
+        .catchError((_) => <Map<String, dynamic>>[]);
+    if (!mounted) return;
+    final selected = await showNajdOptions<String>(
+      context,
+      title: section['label'] as String,
+      icon: Icons.open_in_new,
+      options: [
+        NajdOption(url, 'فتح القسم على موقع المزود', icon: Icons.open_in_new),
+        for (final item in items)
+          NajdOption(item['url'] as String, item['title'] as String),
+      ],
+    );
+    if (mounted && selected != null) await _openExternal(selected);
+  }
+
   String? _provider, _error;
   String _category = '';
   bool _loading = true, _hasMore = false;
@@ -298,14 +339,18 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                     ),
                   for (final source in _external.where(_matchesGroup))
                     NajdOption(
-                      source['url'] as String,
+                      'external:${source['id']}',
                       '${source['name']} · موقع خارجي',
                       icon: Icons.open_in_new,
                     ),
                 ],
                 onSelected: (value) async {
-                  if (value.startsWith('https://')) {
-                    await _openExternal(value);
+                  if (value.startsWith('external:')) {
+                    await _browseExternal(
+                      _external.firstWhere(
+                        (source) => 'external:${source['id']}' == value,
+                      ),
+                    );
                     return;
                   }
                   setState(() {

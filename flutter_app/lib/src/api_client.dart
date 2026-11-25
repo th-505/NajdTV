@@ -825,6 +825,17 @@ class MitvApi implements MediaRepository {
     return _list(json['data']);
   }
 
+  Future<List<Map<String, dynamic>>> browserExternalSection(
+    String provider,
+    String section,
+  ) async {
+    final json = await _getJson('/api/v1/browser/external-section', {
+      'provider': provider,
+      'section': section,
+    });
+    return _list(json['data']);
+  }
+
   Future<({List<CatalogItem> items, bool fallback})> browserGroupSearch(
     String group,
     String query, {
