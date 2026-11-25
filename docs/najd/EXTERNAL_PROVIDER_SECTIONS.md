@@ -41,7 +41,7 @@ The separate Kanal D work sample exposed an embed link but no direct media respo
 
 ## Release acceptance
 
-Run the strict audit independently for Core and Beta using the audit script with scope najd or beta and the strict flag. To focus a diagnostic run on one provider, pass its ID using the provider option. The seven recorded stages verify specialization, one declared catalog section, catalog, positive and negative search, work name, image response, and direct media container. Image and media probes read a bounded prefix. A probe is distinct from playback on a physical device.
+Run the strict audit independently for Core and Beta using the audit script with scope najd or beta and the strict flag. To focus a diagnostic run on one provider, pass its ID using the provider option. The nine recorded stages verify specialization, one declared catalog section, catalog, positive and negative search, work name, image response, direct media container, complete server inventory, and quality metadata per playable server. Image and media probes read a bounded prefix. A probe is distinct from playback on a physical device.
 
 The release flag checks that both families expose 39 active, independent providers with a catalog before starting the strict audit for the selected scope. Run it once per family. Any missing or failed stage causes a nonzero exit. Fixture passes are separate from live verification.
 
@@ -50,3 +50,5 @@ The release flag checks that both families expose 39 active, independent provide
 Kanal D has separate Core and Beta adapters. The current-series index returned 18 titles and the archive check returned 24 titles. The Kanıt index exposed 30 episode links on the sampled page. Older and newer episode URL formats preserve source numbering. For Kanıt, the public embed declares a relative HLS path and the CDN to resolve it against. For Daha 17, episode metadata directly publishes an HTTPS HLS manifest. Both paths are restricted to the observed CDN and checked for a valid manifest.
 
 The 2026-11-25 strict audit checked 24 previous Core and 25 previous Beta entries. Nine per family passed all seven stages. The new Kanal D adapters then passed all seven stages in separate live runs in each family, bringing the observed pass count to ten per family. These are server-side checks on representative samples.
+
+The playback response keeps provider, server identity and quality metadata separate. The server picker groups the available files on the same server, and the quality picker selects levels from that server. Web HLS uses its automatic level selection, and native HLS automatic mode makes a selection using the available bandwidth estimate. Fixed-file labels are published metadata and do not establish decoded pixel size.

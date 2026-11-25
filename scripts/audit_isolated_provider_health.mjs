@@ -33,5 +33,5 @@ do{
 console.log(JSON.stringify({scope,state:report.state,finished:report.finished,total:report.total,checks:report.checks.map(row=>({id:row.id,state:row.state,reason:row.reason,stages:row.stages,duration_ms:row.duration_ms}))}));
 // A provider's internally bounded requests may still be settling at the audit deadline.
 const complete=report.state==='ready'&&report.total>0&&
-  (!strictChecklist||report.checks.every(row=>row.state==='passed'&&row.stages.length===7));
+  (!strictChecklist||report.checks.every(row=>row.state==='passed'&&row.stages.length===9));
 process.exit(complete?0:2);

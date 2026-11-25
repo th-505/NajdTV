@@ -1904,23 +1904,68 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
 
   Future<void> _qualityMenu(UniversalPlayer controller) async {
     final native = controller.extendedPlayer;
+    final active = _activeSource;
+    final decisions = <String, NajdOption<String>>{};
+    void add(String key, String label) {
+      decisions.putIfAbsent(label, () => NajdOption(key, label));
+    }
+
     final browser = kIsWeb ? browserQualityOptions() : <Map<String, dynamic>>[];
+    for (final row in browser) {
+      final id = (row['id'] as num?)?.toInt();
+      final height = (row['height'] as num?)?.toInt();
+      final bitrate = (row['bitrate'] as num?)?.toInt();
+      if (id == null || id < 0) continue;
+      if (height != null && height > 0) {
+        add('web:$id', '${height}p');
+      } else if (bitrate != null && bitrate > 0) {
+        add('web:$id', '${(bitrate / 1000).round()} kbps');
+      }
+    }
+    if (!kIsWeb && active?.adaptive == true) {
+      for (final quality in active!.qualities) {
+        if (quality.bandwidth case final bandwidth?) {
+          add('bandwidth:$bandwidth', quality.label);
+        }
+      }
+    }
+    final videoTracks = native?.state.tracks.video ?? <mk.VideoTrack>[];
+    if (!kIsWeb && (active?.adaptive != true || decisions.isEmpty)) {
+      for (var i = 0; i < videoTracks.length; i++) {
+        final track = videoTracks[i];
+        final height = track.h;
+        if (height != null &&
+            height > 0 &&
+            track.id != 'no' &&
+            track.id != 'auto') {
+          add('track:$i', '${height}p');
+        }
+      }
+    }
+    if (active != null) {
+      for (var i = 0; i < _sources.length; i++) {
+        final item = _sources[i];
+        final height = item.resolution?.height;
+        if ((i == _sourceIndex ||
+                (active.serverLabel.isNotEmpty &&
+                    item.serverKey == active.serverKey)) &&
+            height != null) {
+          add('file:$i', '${height}p');
+        }
+      }
+    }
     final selected = await showNajdOptions<String>(
       context,
       title: 'جودة الفيديو',
       icon: Icons.high_quality_outlined,
       options: [
-        const NajdOption(
-          'best',
-          'أفضل جودة متاحة',
-          icon: Icons.high_quality_outlined,
-        ),
-        const NajdOption(
-          'auto',
-          'الجودة المناسبة للإنترنت',
-          icon: Icons.auto_awesome,
-        ),
-        const NajdOption('low', 'أقل جودة متاحة', icon: Icons.data_saver_on),
+        if (active?.adaptive == true || browser.isNotEmpty)
+          const NajdOption(
+            'auto',
+            'تلقائي حسب الشبكة',
+            icon: Icons.auto_awesome,
+          ),
+        ...decisions.values,
         const NajdOption(
           'diagnostics',
           'الدقة الفعلية ومعلومات التشغيل',
@@ -1928,58 +1973,29 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         ),
       ],
     );
-    if (!mounted || selected == null) return;
+    if (!mounted || selected == null || controller != _controller) return;
     if (selected != 'diagnostics') {
-      if (kIsWeb && browser.isNotEmpty) {
-        final levels = browser.where((r) => r['id'] != -1).toList()
-          ..sort(
-            (a, b) => ((a['height'] as num?) ?? (a['bitrate'] as num?) ?? 0)
-                .compareTo(
-                  (b['height'] as num?) ?? (b['bitrate'] as num?) ?? 0,
-                ),
-          );
-        final id = selected == 'auto' || levels.isEmpty
-            ? -1
-            : (selected == 'best' ? levels.last : levels.first)['id'] as int;
-        if (!selectBrowserQuality(id)) {
-          _subtitleNotice('تعذر تغيير الجودة في هذا المتصفح.');
-        }
-      } else if (await controller.selectHlsQuality(selected)) {
-        // Actual master rendition selection, keeping its audio/subtitle groups.
-      } else if (!kIsWeb &&
-          native != null &&
-          native.state.tracks.video.any((t) => t.h != null)) {
-        final tracks =
-            native.state.tracks.video
-                .where((t) => t.id != 'no' && t.id != 'auto' && t.h != null)
-                .toList()
-              ..sort((a, b) => (a.h ?? 0).compareTo(b.h ?? 0));
-        if (selected == 'auto') {
-          await native.setVideoTrack(mk.VideoTrack.auto());
-        } else if (tracks.isNotEmpty) {
-          await native.setVideoTrack(
-            selected == 'best' ? tracks.last : tracks.first,
-          );
-        }
-      } else if (_sources.isNotEmpty) {
-        final indices = List.generate(_sources.length, (i) => i)
-          ..sort(
-            (a, b) => (_sources[a].resolution?.height ?? 0).compareTo(
-              _sources[b].resolution?.height ?? 0,
-            ),
-          );
-        final index = selected == 'auto'
-            ? _sourceIndex
-            : selected == 'best'
-            ? indices.last
-            : indices.first;
-        if (index != _sourceIndex) await _selectSource(index);
-        if (_sources.length == 1) {
-          _subtitleNotice(
-            'المصدر يوفر جودة واحدة؛ تُستخدم في الخيارات الثلاثة.',
-          );
-        }
+      final value = int.tryParse(selected.split(':').last);
+      var applied = false;
+      if (selected == 'auto') {
+        applied = kIsWeb
+            ? selectBrowserQuality(-1)
+            : await controller.selectHlsQuality('auto');
+      } else if (selected.startsWith('web:') && value != null) {
+        applied = selectBrowserQuality(value);
+      } else if (selected.startsWith('bandwidth:')) {
+        applied = await controller.selectHlsQuality(selected);
+      } else if (selected.startsWith('track:') &&
+          value != null &&
+          native != null) {
+        await native.setVideoTrack(videoTracks[value]);
+        applied = true;
+      } else if (selected.startsWith('file:') && value != null) {
+        if (value != _sourceIndex) await _selectSource(value);
+        applied = true;
       }
+      if (mounted && !applied)
+        _subtitleNotice('تعذر تطبيق الجودة على السيرفر الحالي.');
     } else if (selected == 'diagnostics') {
       final value = controller.value;
       final web = kIsWeb ? browserVideoDiagnostics() : <String, dynamic>{};
@@ -1990,7 +2006,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         builder: (context) => AlertDialog(
           title: const Text('معلومات التشغيل'),
           content: Text(
-            'دقة الفيديو الفعلية: $width × $height\nالمصدر: ${_activeSource?.displayLabel ?? _currentMediaType}\n${web['displayWidth'] == null ? '' : 'مساحة العرض بالبكسل: ${web['displayWidth']} × ${web['displayHeight']}\n'}${web['droppedFrames'] == null ? '' : 'إطارات ساقطة: ${web['droppedFrames']}\n'}نقل الفيديو لا يعيد ترميزه. تكبير صورة منخفضة الدقة لا يحولها إلى HD، والترجمة المحروقة جزء من الفيديو.',
+            'دقة الفيديو الفعلية: $width × $height\nالمصدر: ${_activeSource?.provider ?? ''}\nالسيرفر: ${_activeSource?.serverLabel ?? _currentMediaType}\n${web['displayWidth'] == null ? '' : 'مساحة العرض بالبكسل: ${web['displayWidth']} × ${web['displayHeight']}\n'}${web['droppedFrames'] == null ? '' : 'إطارات ساقطة: ${web['droppedFrames']}\n'}نقل الفيديو لا يعيد ترميزه. تكبير صورة منخفضة الدقة لا يحولها إلى HD، والترجمة المحروقة جزء من الفيديو.',
           ),
           actions: [
             TextButton(

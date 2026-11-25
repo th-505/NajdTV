@@ -52,11 +52,13 @@ void main() {
         mediaPath: 'https://cdn.example/a.mp4',
         mediaType: 'mp4',
         provider: 'الأول',
+        serverName: 'السيرفر الأول',
       ),
       const PlaybackSource(
         mediaPath: 'https://cdn.example/b.m3u8',
         mediaType: 'm3u8',
         provider: 'الثاني',
+        serverName: 'السيرفر الثاني',
       ),
     ];
     await tester.pumpWidget(
@@ -70,12 +72,12 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.byTooltip('السيرفر / الجودة'));
+    await tester.tap(find.byTooltip('سيرفرات التشغيل'));
     await tester.pumpAndSettle();
     final panel = tester.getRect(
       find
           .ancestor(
-            of: find.text('مصادر التشغيل'),
+            of: find.text('سيرفرات التشغيل'),
             matching: find.byType(Material),
           )
           .first,
@@ -83,10 +85,10 @@ void main() {
     expect(panel.width, lessThanOrEqualTo(390));
     expect(panel.left, greaterThanOrEqualTo(0));
     expect(panel.right, lessThanOrEqualTo(390));
-    expect(find.text(sources[1].displayLabel), findsOneWidget);
-    await tester.tap(find.text(sources[1].displayLabel));
+    expect(find.text(sources[1].serverLabel), findsOneWidget);
+    await tester.tap(find.text(sources[1].serverLabel));
     await tester.pumpAndSettle();
     expect(selected, 1);
-    expect(find.text('مصادر التشغيل'), findsNothing);
+    expect(find.text('سيرفرات التشغيل'), findsNothing);
   });
 }

@@ -6,21 +6,48 @@ import {assertSafeScraperUrl} from './http.mjs';
 export async function resolveProviderMedia(entry,source,{details={},network={},accept=async rows=>rows,maxResolverTargets=64,resolverConcurrency=2,resolverBudgetMs=40000,collectAll=true,resolveEmbed=null,now=Date.now}={}){
  const deadline=now()+Math.max(1000,Math.min(60000,resolverBudgetMs));
  const probes=createConcurrencyQueue({concurrency:Math.min(4,Math.max(1,resolverConcurrency)),maxQueued:256});let inspected=0,scheduled=0;
- const inventory=new Map();
- function observe(rows){for(const row of rows||[]){try{const url=assertSafeScraperUrl(row.url,{allowHttp:false});if(inventory.has(url.href)||inventory.size>=128)continue;const label=String(row.label||row.name||url.hostname);inventory.set(url.href,{id:createHash('sha256').update(url.href).digest('hex').slice(0,16),label:(label.includes('://')?url.hostname:label).replace(/[\x00-\x1f]/g,'').slice(0,80),state:'unverified'});}catch{}}}
- function mark(target,state){const row=inventory.get(target);if(row)row.state=state;}
+ const inventory=new Map(), observedTargets=new Map();
+ function observe(rows){
+  for(const row of rows||[]){
+   try{
+    const url=assertSafeScraperUrl(row.url,{allowHttp:false});
+    const label=serverName(row);
+    const identity=String(row.server_id||label).slice(0,160);
+    if(!inventory.has(identity)&&inventory.size<128){
+     inventory.set(identity,{id:createHash('sha256').update(identity).digest('hex').slice(0,16),label,state:'unverified'});
+    }
+    if(inventory.has(identity)&&!observedTargets.has(url.href))observedTargets.set(url.href,inventory.get(identity));
+   }catch{}
+  }
+ }
+ function serverName(candidate){
+  const explicit=[candidate.server_name,candidate.label,candidate.name].find(value=>{
+   if(typeof value!=='string')return false;
+   const label=value.trim();
+   return label&&!label.includes('://')&&!/^(?:\d{3,4}p|[248]k|hd|fhd|uhd|auto(?:-hls)?|تلقائي|مدبلج|مترجم)$/i.test(label);
+  });
+  return (explicit?.trim()||new URL(candidate.url).hostname).replace(/[\x00-\x1f]/g,'').slice(0,80);
+ }
+ function mark(target,state){const row=observedTargets.get(target);if(row&&row.state!=='playable')row.state=state;}
  const module=entry.module,seen=new Set(),raw=[...(details.media_sources||[]),...(details.servers||[])];let lastError=null,providerScanComplete=true;const collected=[];
  observe(raw);
  function keep(rows){collected.push(...rows);return rows;}
  function finish(observed=0,attempted=0){Object.defineProperty(collected,'_meta',{value:{resolver_targets:observed,resolver_attempted:attempted,server_scan_complete:providerScanComplete&&attempted===observed&&inspected===seen.size,observed_media_candidates:seen.size,inspected_media_candidates:inspected,server_inventory:[...inventory.values()],observed_servers:inventory.size,playable_servers:[...inventory.values()].filter(row=>row.state==='playable').length},enumerable:false});return collected;}
- async function attempt(rows){
+ async function attempt(rows,parent=null){
   const candidates=(Array.isArray(rows)?rows:[]).filter(directCandidate).filter(row=>{const key=JSON.stringify([row.url,Object.entries(row.headers||{}).map(([k,v])=>[k.toLowerCase(),v]).sort(([a],[b])=>a.localeCompare(b))]);if(seen.has(key))return false;seen.add(key);return true});
   if(!candidates.length)return[];
+  if(!parent)observe(candidates);
   const batch=candidates.slice(0,Math.max(0,256-scheduled));scheduled+=batch.length;
   const results=await Promise.all(batch.map(candidate=>probes.run(async()=>{
    if(now()>=deadline)return[];
    inspected++;
-   try{const result=await accept([candidate])||[];mark(candidate.url,result.length?'playable':'unavailable');return result;}catch(error){mark(candidate.url,'unavailable');lastError=error;return[]}
+   try{
+    const server=parent||observedTargets.get(candidate.url);
+    const result=await accept([{...candidate,server_name:server?.label||serverName(candidate),
+      ...(server?{server_id:server.id}:{})}])||[];
+    mark(candidate.url,result.length?'playable':'unavailable');
+    return result;
+   }catch(error){mark(candidate.url,'unavailable');lastError=error;return[]}
   })));
   return results.flat();
  }
@@ -55,7 +82,7 @@ export async function resolveProviderMedia(entry,source,{details={},network={},a
       :typeof module.resolveStream==='function'?await module.resolveStream(target,{...network,headers:contextHeaders(target),timeoutMs:Math.min(network.timeoutMs||8000,remaining)}):null;
     if(winning&&!collectAll)return;
     const rows=(Array.isArray(result)?result:[...(result?.servers||[]),...(result?.sources||[]),result]).filter(Boolean).map(row=>({...row,url:row.url||row.streamUrl}));
-    const accepted=keep(await attempt(rows));mark(target,accepted.length?'playable':'unavailable');if(accepted.length&&!winning)winning=accepted;
+    const accepted=keep(await attempt(rows,observedTargets.get(target)));mark(target,accepted.length?'playable':'unavailable');if(accepted.length&&!winning)winning=accepted;
    }catch(error){mark(target,'unavailable');if(target===source||error.code!=='UNSAFE_URL')lastError=error}
   }
   // Preserve the provider context. A supplied host resolver can use already-discovered servers directly.

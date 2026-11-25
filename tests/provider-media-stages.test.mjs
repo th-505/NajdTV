@@ -63,3 +63,16 @@ test('five observed host servers remain visible in diagnostics when only two con
  assert.equal(rows._meta.server_inventory.filter(s=>s.state==='unavailable').length,3);
  assert(!JSON.stringify(rows._meta).includes('private='));assert.equal(rows._meta.server_scan_complete,true);
 });
+
+test('multiple resolutions on one named server retain one server identity',async()=>{
+ const rows=await resolveProviderMedia({module:{}},'fixture:episode',{details:{media_sources:[
+  {url:'https://cdn.example/a.mp4',label:'Server A',quality:'720p'},
+  {url:'https://cdn.example/b.mp4',label:'Server A',quality:'1080p'},
+  {url:'https://other.example/c.mp4',label:'480p',quality:'480p'},
+ ]}});
+ assert.equal(rows.length,3);
+ assert.equal(rows._meta.observed_servers,2);
+ assert.equal(rows[0].server_id,rows[1].server_id);
+ assert.equal(rows[0].server_name,'Server A');
+ assert.equal(rows[2].server_name,'other.example');
+});

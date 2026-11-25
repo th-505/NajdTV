@@ -10,6 +10,11 @@ Future<bool> configureNativeHlsQuality(mk.Player player, String mode) async {
       bitrate = 'max';
     } else if (mode == 'low') {
       bitrate = 'min';
+    } else if (mode.startsWith('bandwidth:')) {
+      final requested = int.tryParse(mode.substring('bandwidth:'.length));
+      if (requested == null || requested < 1 || requested > 1000000000)
+        return false;
+      bitrate = requested.toString();
     } else {
       final bytes =
           double.tryParse(await platform.getProperty('cache-speed')) ?? 0;

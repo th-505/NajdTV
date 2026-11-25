@@ -53,7 +53,7 @@ export function createServiceChecks({
         const step = async (name, fn) => {
           try {
             const value = await fn();
-            stages.push({ stage: name, state: "passed", ...(name==='media'&&value?.verified_sources?{verified_sources:value.verified_sources,server_scan:value.server_scan}: {}) });
+            stages.push({ stage: name, state: "passed", ...(name==='media'&&value?.verified_sources?{verified_sources:value.verified_sources,server_scan:value.server_scan}: {}), ...(name==='qualities'?{by_server:value}: {}) });
             return value;
           } catch (e) {
             stages.push({ stage: name, state: "failed", reason: reason(e) });
@@ -114,28 +114,59 @@ export function createServiceChecks({
         });
         if (!details) return { state: "partial", stages };
         if (strictChecklist) await step("poster", async () => {
-          const poster = details.poster || details.image || sample.poster || sample.image;
-          let url;
-          try { url = new URL(poster); } catch { throw Error("SOURCE_POSTER_MISSING"); }
-          const result = await fetchResponse(url.href,{
-            allowHttp:false, allowedHosts:[url.hostname], timeoutMs:5000, maxRetries:0,
-            maxBytes:4096, prefixBytes:64, responseType:'bytes',
-            headers:{Range:'bytes=0-63'},
-          });
-          if (!result.ok || !result.bytes?.length || !/^image\//i.test(result.headers.get('content-type') || '')) {
-            throw Error("SOURCE_POSTER_UNCONFIRMED");
+          const candidates=[...new Set([details.poster,details.image,sample.poster,sample.image].filter(Boolean))];
+          let failure=Error(candidates.length?"SOURCE_POSTER_UNCONFIRMED":"SOURCE_POSTER_MISSING");
+          for (const poster of candidates) {
+            try {
+              const url=new URL(poster);
+              const result=await fetchResponse(url.href,{
+                allowHttp:false, allowedHosts:[url.hostname], timeoutMs:5000, maxRetries:1,
+                maxBytes:4096, prefixBytes:64, responseType:'bytes',headers:{Range:'bytes=0-63'},
+              });
+              if(result.ok&&result.bytes?.length&&/^image\//i.test(result.headers.get('content-type')||''))return;
+            } catch(error) { failure=error; }
           }
+          throw failure;
         });
-        await step("media", async () => {
+        const media = await step("media", async () => {
           const episode = details.episodes?.find((e) => e.ref || e.url),
             target = episode?.ref || episode?.url || source;
-          const accepted=await resolveProviderMedia(entry,target,{details:episode?{}:details,network:{...options,timeoutMs:30000},resolverBudgetMs:60000,collectAll:false,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
-           for(const candidate of candidates){const result=await probe(candidate,{platform:'native'});if(result.playable&&result.container_verified)return[candidate]}return[];
+          const accepted=await resolveProviderMedia(entry,target,{details:episode?{}:details,network:{...options,timeoutMs:30000},resolverBudgetMs:60000,collectAll:strictChecklist,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
+           for(const candidate of candidates){const result=await probe(candidate,{platform:'native'});if(result.playable&&result.container_verified)return[{...candidate,quality_levels:result.quality_levels,adaptive:result.adaptive===true}]}return[];
           }});
           if(!accepted.length)throw Error('DIRECT_MEDIA_NOT_FOUND');
-          return {verified_sources:accepted.length,server_scan:accepted._meta||null};
+          return {verified_sources:accepted.length,server_scan:accepted._meta||null,accepted};
 
         });
+        if (strictChecklist) {
+          await step("servers", () => {
+            if (!media?.server_scan?.server_inventory?.length) {
+              throw Error("SOURCE_SERVER_LIST_MISSING");
+            }
+            if (!media.server_scan.server_scan_complete) {
+              throw Error("SOURCE_SERVER_SCAN_INCOMPLETE");
+            }
+          });
+          await step("qualities", () => {
+            const rows=media?.accepted || [];
+            if (!rows.length) throw Error("SOURCE_SERVER_QUALITIES_UNCONFIRMED");
+            const byServer=new Map();
+            for (const source of rows) {
+              const server=source.server_name;
+              const names=(source.quality_levels || []).flatMap(level=>
+                Number(level.height)>0 ? [Number(level.height)+'p']
+                  : Number(level.bandwidth)>0 ? [Math.round(Number(level.bandwidth)/1000)+' kbps'] : []);
+              const fixed=/\b[1-9]\d{2,3}p\b/i.exec(source.quality || '')?.[0];
+              if (!server || (!names.length&&!fixed)) throw Error("SOURCE_SERVER_QUALITIES_UNCONFIRMED");
+              const key=source.server_id || server;
+              const item=byServer.get(key) || {name:server,automatic:false,qualities:new Set()};
+              if (source.adaptive) item.automatic=true;
+              for (const quality of names.length ? names : [fixed]) item.qualities.add(quality);
+              byServer.set(key,item);
+            }
+            return [...byServer.values()].map(item=>({...item,qualities:[...item.qualities]}));
+          });
+        }
         return {
           state: stages.every((s) => s.state === "passed")
             ? "passed"

@@ -300,6 +300,9 @@ class StreamSource {
     this.attachedSubtitles = const [],
     this.expiresAt,
     this.resolution,
+    this.serverName = '',
+    this.serverId = '',
+    this.qualities = const [],
   });
   final String mediaPath;
   final String mediaType;
@@ -309,6 +312,19 @@ class StreamSource {
   final int priority;
   final int? latencyMs;
   final ResolutionOption? resolution;
+  final String serverName, serverId;
+  final List<ResolutionOption> qualities;
+  String get serverLabel =>
+      serverName.isNotEmpty ? serverName : Uri.tryParse(mediaPath)?.host ?? '';
+  String get serverKey =>
+      '${providerId.isEmpty ? provider : providerId}|${serverId.isEmpty ? serverLabel : serverId}';
+  bool get adaptive => mediaType == 'm3u8' || mediaType == 'hls';
+  Iterable<ResolutionOption> get knownQualities => qualities.isNotEmpty
+      ? qualities
+      : resolution?.height != null
+      ? [resolution!]
+      : const [];
+
   final String provider;
   final String providerId;
   final String edition;
@@ -320,6 +336,9 @@ class StreamSource {
   String get displayLabel => provider.isEmpty ? label : '$provider • $label';
   factory StreamSource.fromJson(Map<String, dynamic> json) => PlaybackSource(
     provider: '${json['provider'] ?? ''}',
+    serverName: _streamServerName(json),
+    serverId: '${json['server_id'] ?? ''}',
+    qualities: _streamQualities(json['quality_levels']),
     providerId: '${json['provider_id'] ?? ''}',
     edition: '${json['edition'] ?? ''}',
     timelineVerified: json['timeline_verified'] == true,
@@ -862,10 +881,59 @@ class RuntimeEnvelope<T> {
   final T data;
 }
 
+String _streamServerName(Map<String, dynamic> json) {
+  final explicit = '${json['server_name'] ?? json['name'] ?? ''}'.trim();
+  if (explicit.isNotEmpty) {
+    return explicit.contains('://')
+        ? Uri.tryParse(explicit)?.host ?? ''
+        : explicit;
+  }
+  final label = '${json['label'] ?? ''}'.trim();
+  final quality = '${json['quality'] ?? ''}'.trim();
+  return label.isNotEmpty &&
+          label != quality &&
+          !label.contains('://') &&
+          ResolutionOption.fromLabel(label)?.height == null &&
+          label != 'AUTO-HLS' &&
+          label != 'تلقائي'
+      ? label
+      : '';
+}
+
+List<ResolutionOption> _streamQualities(dynamic raw) {
+  if (raw is! List) return const [];
+  final levels = <String, ResolutionOption>{};
+  for (final row in raw.whereType<Map>().take(64)) {
+    final height = int.tryParse('${row['height'] ?? ''}');
+    final bandwidth = int.tryParse('${row['bandwidth'] ?? ''}');
+    if (height != null && height > 0 && height <= 16384) {
+      final label = '${height}p';
+      levels.putIfAbsent(
+        label,
+        () => ResolutionOption(
+          label: label,
+          height: height,
+          bandwidth:
+              bandwidth != null && bandwidth > 0 && bandwidth <= 1000000000
+              ? bandwidth
+              : null,
+        ),
+      );
+    } else if (bandwidth != null && bandwidth > 0 && bandwidth <= 1000000000) {
+      final label = '${(bandwidth / 1000).round()} kbps';
+      levels.putIfAbsent(
+        label,
+        () => ResolutionOption(label: label, bandwidth: bandwidth),
+      );
+    }
+  }
+  return List.unmodifiable(levels.values);
+}
+
 class ResolutionOption {
-  const ResolutionOption({required this.label, this.height});
+  const ResolutionOption({required this.label, this.height, this.bandwidth});
   final String label;
-  final int? height;
+  final int? height, bandwidth;
   static ResolutionOption? fromLabel(String label) {
     final height = int.tryParse(
       RegExp(r'(\d{3,4})p').firstMatch(label)?.group(1) ?? '',

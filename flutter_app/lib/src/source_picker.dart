@@ -17,41 +17,55 @@ class SourcePickerButton extends StatelessWidget {
   final int selected;
   final Future<void> Function(int) onSelected;
   final VoidCallback? onOpened, onClosed;
-  Iterable<int> get _visibleSources sync* {
-    final count = sources.length < 4 ? sources.length : 4;
-    for (var i = 0; i < count; i++) {
-      yield i == 3 && selected >= count && selected < sources.length
-          ? selected
-          : i;
+  Map<String, List<int>> get _servers {
+    final groups = <String, List<int>>{};
+    for (var i = 0; i < sources.length; i++) {
+      final source = sources[i];
+      final key = source.serverLabel.isEmpty ? 'unknown:$i' : source.serverKey;
+      (groups[key] ??= []).add(i);
     }
+    return groups;
+  }
+
+  String _summary(List<int> indices) {
+    final rows = indices.map((i) => sources[i]);
+    final labels = <String>{
+      if (rows.any((source) => source.adaptive)) 'تلقائي حسب الشبكة',
+      for (final source in rows)
+        for (final quality in source.knownQualities) quality.label,
+    };
+    final provider = sources[indices.first].provider;
+    return [
+      if (provider.isNotEmpty) 'المصدر: $provider',
+      if (labels.isNotEmpty) labels.join('، ') else 'الجودة غير معلنة',
+    ].join(' · ');
   }
 
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: 'السيرفر / الجودة',
+    message: 'سيرفرات التشغيل',
     child: OutlinedButton.icon(
       icon: const Icon(Icons.dns_outlined, size: 20),
-      label: const Text('المصادر'),
+      label: const Text('السيرفرات'),
       onPressed: () async {
         onOpened?.call();
         try {
           final index = await showNajdOptions<int>(
             context,
-            title: 'مصادر التشغيل',
-            description: 'اختر المصدر المناسب. تظهر هنا المصادر المستخرجة فعلياً لهذا العمل.',
+            title: 'سيرفرات التشغيل',
             icon: Icons.dns_outlined,
             options: [
-              for (final i in _visibleSources)
+              for (final indices in _servers.values)
                 NajdOption(
-                  i,
-                  sources[i].displayLabel,
-                  selected: i == selected,
-                  icon: i == selected
+                  indices.contains(selected) ? selected : indices.first,
+                  sources[indices.first].serverLabel.isEmpty
+                      ? 'سيرفر ${indices.first + 1}'
+                      : sources[indices.first].serverLabel,
+                  selected: indices.contains(selected),
+                  icon: indices.contains(selected)
                       ? Icons.play_circle_outline
                       : Icons.dns_outlined,
-                  subtitle: i == selected
-                      ? 'قيد التشغيل'
-                      : 'التبديل إلى هذا المصدر',
+                  subtitle: _summary(indices),
                 ),
             ],
             empty: const NajdEmptyState(kind: NajdEmptyKind.source),

@@ -147,7 +147,7 @@ void main() {
           ),
           'source-button',
         );
-        await tester.tap(find.byTooltip('السيرفر / الجودة'));
+        await tester.tap(find.byTooltip('سيرفرات التشغيل'));
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('stitch-state-source')), findsOneWidget);
       },

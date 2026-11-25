@@ -105,13 +105,17 @@ void main() {
                     PlaybackSource(
                       mediaPath: 'https://cdn.example/one.mp4',
                       mediaType: 'mp4',
-                      label: 'المصدر الرئيسي',
+                      serverName: 'السيرفر الرئيسي',
                       provider: 'المزود الأول',
                     ),
                     PlaybackSource(
                       mediaPath: 'https://cdn.example/two.m3u8',
                       mediaType: 'm3u8',
-                      label: 'المصدر البديل',
+                      serverName: 'السيرفر البديل',
+                      qualities: [
+                        ResolutionOption(label: '720p', height: 720),
+                        ResolutionOption(label: '1080p', height: 1080),
+                      ],
                       provider: 'المزود الثاني',
                     ),
                   ],
@@ -120,10 +124,14 @@ void main() {
               ),
             ),
           );
-          await tester.tap(find.byTooltip('السيرفر / الجودة'));
+          await tester.tap(find.byTooltip('سيرفرات التشغيل'));
           await tester.pumpAndSettle();
           await capture('sources');
-          final alternative = find.text('المزود الثاني • المصدر البديل');
+          expect(
+            find.textContaining('تلقائي حسب الشبكة، 720p، 1080p'),
+            findsOneWidget,
+          );
+          final alternative = find.text('السيرفر البديل');
           await Scrollable.ensureVisible(
             tester.element(alternative),
             alignment: .5,

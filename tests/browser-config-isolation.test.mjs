@@ -126,7 +126,7 @@ test("strict provider checklist rejects a non-image response despite verified me
     settings:{categories:{series:"/diziler"}},
     scrapeCatalog:async()=>[row],
     scrapeSearch:async query=>query.startsWith("najd_probe_")?[]:[row],
-    scrapeDetails:async()=>({...row,type:"movie",media_sources:[{url:"https://cdn.example/film.mp4"}]}),
+    scrapeDetails:async()=>({...row,type:"movie",media_sources:[{url:"https://cdn.example/film.mp4",quality:"1080p"}]}),
   };
   const checks=createServiceChecks({
     strictChecklist:true,providers:()=>[provider],lookup:()=>({meta:provider,module}),
@@ -142,7 +142,7 @@ test("strict provider checklist rejects a non-image response despite verified me
   const rowResult=report.checks[0];
   assert.equal(rowResult.state,"partial");
   assert.deepEqual(rowResult.stages.map(stage=>stage.stage),[
-    "specialization","categories","catalog","search","name","poster","media",
+    "specialization","categories","catalog","search","name","poster","media","servers","qualities",
   ]);
   assert.deepEqual(rowResult.stages.filter(stage=>stage.state==="failed"),[
     {stage:"poster",state:"failed",reason:"SOURCE_POSTER_UNCONFIRMED"},
