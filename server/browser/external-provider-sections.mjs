@@ -19,13 +19,17 @@ const entries = {
     ['exclusives','أعمال Tubi الحصرية','https://tubitv.com/category/tubi_exclusive'],
   ],
   plex:[
-    ['on-demand','أفلام ومسلسلات عند الطلب','https://watch.plex.tv/on-demand'],
+    ['on-demand','أفلام ومسلسلات عند الطلب','https://watch.plex.tv/on-demand', /^\/(movie|show)\/[a-z0-9-]+\/?$/, 'a[data-id^="tv.plex.provider.vod-"][href]'],
+    ['movies','أفلام Plex','https://watch.plex.tv/on-demand', /^\/movie\/[a-z0-9-]+\/?$/, 'a[data-id^="tv.plex.provider.vod-"][href]'],
+    ['shows','مسلسلات Plex','https://watch.plex.tv/on-demand', /^\/show\/[a-z0-9-]+\/?$/, 'a[data-id^="tv.plex.provider.vod-"][href]'],
     ['a24','أفلام A24 المجانية','https://www.plex.tv/a24-movies/'],
     ['live','قنوات Plex','https://watch.plex.tv/live-tv'],
   ],
   pluto:[
     ['movies','أفلام','https://pluto.tv/us/movies/', /^\/us\/movies\/[a-f0-9]{24}\/?$/],
     ['shows','مسلسلات','https://pluto.tv/us/shows/', /^\/us\/shows\/[\w-]+\/?$/],
+    ['anime-movies','أفلام أنمي','https://pluto.tv/us/movies/category/anime/'],
+    ['anime-shows','مسلسلات أنمي','https://pluto.tv/us/shows/category/anime/'],
     ['live','قنوات مباشرة','https://pluto.tv/us/watch/live-tv/'],
   ],
   'roku-channel':[['catalog','دليل Roku','https://therokuchannel.roku.com/']],

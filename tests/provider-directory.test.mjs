@@ -70,3 +70,16 @@ test('official catalog fetch retries one temporary failure and never repeats a f
   }));
   assert.equal(calls,1);
 });
+
+test('Plex on-demand section only exposes links marked as Plex video on demand', async()=>{
+  const {loadExternalSection}=await import('../server/browser/external-provider-sections.mjs');
+  const rows=await loadExternalSection('plex','on-demand',{fixtureHtml:
+    '<a data-id="tv.plex.provider.vod-1" aria-label="Film (2026)" href="/movie/film"></a>'+
+    '<a data-id="tv.plex.provider.vod-2" aria-label="Series" href="/show/series"></a>'+
+    '<a data-id="discovery-1" aria-label="From another service" href="/movie/discovery-only"></a>'+
+    '<a data-id="tv.plex.provider.vod-3" href="https://example.test/movie/elsewhere">Other host</a>'});
+  assert.deepEqual(rows,[
+    {title:'Film (2026)',url:'https://watch.plex.tv/movie/film'},
+    {title:'Series',url:'https://watch.plex.tv/show/series'},
+  ]);
+});
