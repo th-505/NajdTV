@@ -5,6 +5,7 @@ import {runInBrowserLane} from '../browser/traffic.mjs';
 import {classifyNetworkError} from './shared/errors.mjs';
 import { getProvider, listIndependentProviders } from '../browser/registry.mjs';
 import { createConcurrencyQueue } from './shared/concurrency.mjs';
+import {providerGroups} from '../browser/provider-directory.mjs';
 
 // This route never mutates the canonical discovery or preferred-source state.
 export function createProviderBrowser({ lookup = getProvider, providers = listIndependentProviders,
@@ -128,7 +129,7 @@ export function createProviderBrowser({ lookup = getProvider, providers = listIn
     })),
     sources: () => runInBrowserLane(()=>providers().filter(meta => meta.enabled !== false && meta.capabilities?.catalog
       && typeof lookup(meta.id)?.module.scrapeCatalog === 'function')
-      .map(meta => ({ id: meta.id, name: meta.name, domain: new URL(meta.domains[0]).hostname,
+      .map(meta => ({ id: meta.id, name: meta.name, domain: new URL(meta.domains[0]).hostname, groups:providerGroups(meta.id),
         content_type:meta.capabilities?.live===true && meta.capabilities?.episodes!==true?'live':'vod',categories: categories(meta.id) }))),
     async search(id, query, page = 1) { return runInBrowserLane(async () => {
       const provider = entry(id);

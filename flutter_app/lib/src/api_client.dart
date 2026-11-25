@@ -820,6 +820,31 @@ class MitvApi implements MediaRepository {
     return _list(json['data']);
   }
 
+  Future<List<Map<String, dynamic>>> browserDirectory() async {
+    final json = await _getJson('/api/v1/browser/directory');
+    return _list(json['data']);
+  }
+
+  Future<({List<CatalogItem> items, bool fallback})> browserGroupSearch(
+    String group,
+    String query, {
+    String? provider,
+  }) async {
+    final json = await _getJson('/api/v1/browser/group-search', {
+      'group': group,
+      'q': query,
+      if (provider != null) 'provider': provider,
+    });
+    final fallback = json['fallback'] == true;
+    return (
+      items: _list(json['items'])
+          .map(_catalogItem)
+          .map((item) => fallback ? item.copyWith(discoveryScope: 'najd') : item)
+          .toList(),
+      fallback: fallback,
+    );
+  }
+
   Future<({List<CatalogItem> items, bool hasMore})> browserCatalog(
     String provider,
     String category,

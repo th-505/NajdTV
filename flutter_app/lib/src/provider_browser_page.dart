@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'source_editions_panel.dart' show sourceHarvestMessage;
 
@@ -34,6 +35,38 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
   late final MitvApi _browserApi;
   List<Map<String, dynamic>> _sources = [];
   List<CatalogItem> _items = [];
+  List<Map<String, dynamic>> _external = [];
+  String _group = '';
+  bool _usedGlobalSearch = false;
+
+  static const _groups = {
+    '': 'كل التصنيفات',
+    'arabic': 'عربي',
+    'foreign': 'أجنبي',
+    'turkish': 'تركي',
+    'anime': 'أنمي',
+    'asian': 'آسيوي',
+    'indian': 'هندي',
+  };
+
+  bool _matchesGroup(Map source) =>
+      _group.isEmpty || (source['groups'] as List?)?.contains(_group) == true;
+
+  Future<void> _openExternal(String value) async {
+    final uri = Uri.tryParse(value);
+    final opened =
+        uri != null &&
+        uri.scheme == 'https' &&
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        ).catchError((_) => false);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('تعذر فتح موقع المزود')));
+    }
+  }
+
   String? _provider, _error;
   String _category = '';
   bool _loading = true, _hasMore = false;
@@ -67,6 +100,11 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                 : s['content_type'] != 'live',
           )
           .toList();
+      final external = widget.liveOnly
+          ? <Map<String, dynamic>>[]
+          : await _browserApi.browserDirectory().catchError(
+              (_) => <Map<String, dynamic>>[],
+            );
       final prefs = await SharedPreferences.getInstance();
       Map saved = const {};
       try {
@@ -83,6 +121,7 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
       if (!mounted) return;
       setState(() {
         _sources = sources;
+        _external = external;
         if (_provider == null) {
           final savedId = saved['provider'];
           if (sources.any((s) => s['id'] == savedId)) {
@@ -134,21 +173,44 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
 
   Future<void> _load({bool more = false}) async {
     final provider = _provider;
-    if (provider == null) return;
+    final query = _query.text.trim();
+    final preferredGroups = _sources
+        .where((s) => s['id'] == provider)
+        .firstOrNull?['groups'];
+    final group = _group.isNotEmpty
+        ? _group
+        : preferredGroups is List
+        ? preferredGroups.whereType<String>().firstOrNull ?? ''
+        : '';
+    if (provider == null && (query.isEmpty || widget.liveOnly)) return;
     final request = ++_generation;
     final page = more ? _page + 1 : 1;
     setState(() {
       _loading = true;
       _error = null;
+      _usedGlobalSearch = false;
       if (!more) _items = [];
     });
     try {
-      final query = _query.text.trim();
-      final result = query.isNotEmpty
-          ? (items: await _browserApi.explore(query, provider), hasMore: false)
-          : await _browserApi.browserCatalog(provider, _category, page);
+      final grouped = query.isNotEmpty && !widget.liveOnly
+          ? group.isNotEmpty
+                ? await _browserApi.browserGroupSearch(
+                    group,
+                    query,
+                    provider: provider,
+                  )
+                : provider == null
+                ? (items: await widget.api.search(query), fallback: true)
+                : null
+          : null;
+      final result = grouped != null
+          ? (items: grouped.items, hasMore: false)
+          : query.isNotEmpty
+          ? (items: await _browserApi.explore(query, provider!), hasMore: false)
+          : await _browserApi.browserCatalog(provider!, _category, page);
       if (!mounted || request != _generation) return;
       setState(() {
+        _usedGlobalSearch = grouped?.fallback == true;
         final previousCount = _items.length;
         final seen = <String>{};
         _items = [
@@ -187,6 +249,38 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
           padding: const EdgeInsets.all(12),
           child: Column(
             children: [
+              if (!widget.liveOnly)
+                NajdChoiceButton<String>(
+                  label: _groups[_group]!,
+                  icon: Icons.category_outlined,
+                  options: [
+                    for (final entry in _groups.entries)
+                      NajdOption(
+                        entry.key,
+                        entry.value,
+                        selected: entry.key == _group,
+                      ),
+                  ],
+                  onSelected: (value) async {
+                    if (value == _group) return;
+                    setState(() {
+                      ++_generation;
+                      _group = value;
+                      _items = [];
+                      _error = null;
+                      _hasMore = false;
+                      _usedGlobalSearch = false;
+                      _loading = false;
+                      if (!_sources.any(
+                        (s) => s['id'] == _provider && _matchesGroup(s),
+                      )) {
+                        _provider = null;
+                        _category = '';
+                      }
+                    });
+                    _load();
+                  },
+                ),
               NajdChoiceButton<String>(
                 label:
                     _sources
@@ -196,14 +290,24 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                     'اختر المزود',
                 icon: Icons.travel_explore,
                 options: [
-                  for (final source in _sources)
+                  for (final source in _sources.where(_matchesGroup))
                     NajdOption(
                       source['id'] as String,
                       source['name'] as String,
                       selected: source['id'] == _provider,
                     ),
+                  for (final source in _external.where(_matchesGroup))
+                    NajdOption(
+                      source['url'] as String,
+                      '${source['name']} · موقع خارجي',
+                      icon: Icons.open_in_new,
+                    ),
                 ],
                 onSelected: (value) async {
+                  if (value.startsWith('https://')) {
+                    await _openExternal(value);
+                    return;
+                  }
                   setState(() {
                     ++_generation;
                     _items = [];
@@ -226,6 +330,7 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                 ),
                 onSubmitted: (_) => _load(),
               ),
+              if (_usedGlobalSearch) const Text('نتائج البحث الشامل'),
               if (_categories.isNotEmpty)
                 SizedBox(
                   height: 56,
@@ -271,7 +376,7 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                     }
                   },
                 )
-              : _provider == null && !_loading
+              : _provider == null && !_loading && _query.text.trim().isEmpty
               ? const Center(
                   child: Padding(
                     padding: EdgeInsets.all(24),
@@ -322,9 +427,11 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => DetailsPage(
-                            api: _browserApi,
+                            api: item.discoveryScope == 'beta'
+                                ? _browserApi
+                                : widget.api,
                             store: widget.store,
-                            item: _items[index],
+                            item: item,
                           ),
                         ),
                       );

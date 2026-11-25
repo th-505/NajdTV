@@ -28,6 +28,8 @@ import { createSearchTraces, diagnosticsAuthorized } from './diagnostics/search-
 import { diagnosticsHtml, diagnosticsJs } from './diagnostics/dashboard.mjs';
 import { BROWSE_SECTIONS, browseCatalog } from './catalog-browser.mjs';
 import { createPinnedPlayback } from './pinned-playback.mjs';
+import {externalProviderDirectory, searchProviderGroup} from './browser/provider-directory.mjs';
+import {listIndependentProviders as listBetaProviders} from './browser/registry.mjs';
 import { listIndependentProviders,getProvider } from './scrapers/registry.mjs';
 import { createTmdbRuntime } from './tmdb-runtime.mjs';
 import { createMediaAuditor } from './media-audit.mjs';
@@ -872,6 +874,24 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
         if (!diagnosticsAuthorized(req)) return sendJson(req, res, 401, {message: 'DIAGNOSTICS_AUTH_REQUIRED'});
         if (req.method !== 'GET') return sendJson(req, res, 405, {message: 'METHOD_NOT_ALLOWED'});
         return sendJson(req, res, 200, {status: 'success', data: providerBrowser.health()});
+      }
+      if (url.pathname === '/api/v1/browser/directory') {
+        if (req.method !== 'GET') return sendJson(req,res,405,{message:'METHOD_NOT_ALLOWED'});
+        return sendJson(req,res,200,{status:'success',data:externalProviderDirectory()});
+      }
+      if (url.pathname === '/api/v1/browser/group-search') {
+        if (req.method !== 'GET') return sendJson(req,res,405,{message:'METHOD_NOT_ALLOWED'});
+        const query=(url.searchParams.get('q') || '').trim();
+        try {
+          const result=await searchProviderGroup({group:url.searchParams.get('group'),query,
+            preferred:url.searchParams.get('provider'),providers:listBetaProviders(),
+            search:(id,q)=>providerBrowser.search(id,q),
+            globalSearch:q=>runtimeService.search(q)});
+          return sendJson(req,res,200,{status:'success',...result});
+        } catch (error) {
+          const bad=error.message==='BROWSER_BAD_QUERY';
+          return sendJson(req,res,bad?400:503,{status:'error',message:bad?'BROWSER_BAD_QUERY':'BROWSER_SOURCE_UNAVAILABLE'});
+        }
       }
       if (url.pathname === '/api/v1/browser/sources') {
         await browserConfiguration.refresh();
