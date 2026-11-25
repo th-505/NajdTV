@@ -56,3 +56,9 @@ The playback response keeps provider, server identity and quality metadata separ
 ### New acceptance run, 2026-11-25
 
 With the server inventory and per-server quality checks enabled, the full live audit completed for 25 Core entries and 26 Beta entries. The same five IDs passed all nine checks in both families: 3cktv, qfilm, ristoanime, atv-tr and kanal-d. The most frequent failure was unconfirmed server quality metadata, with 13 Core and 14 Beta failures. These results supersede the earlier seven-stage pass counts for release qualification.
+
+### Fixed-file quality verification
+
+The MP4 probe now reads video track dimensions from bounded container metadata. It prefers the coded dimensions from the visual sample entry and falls back to the video track's declared display dimensions. When the movie metadata is not in the prefix, a verified byte-range response may supply it from the end of the file. The observed resolution stays on the same server and does not mark that server adaptive.
+
+The next complete live audit returned 7 passing Core entries and 6 passing Beta entries. Arabseed and Laroza passed both families in this run. Core passed 3cktv, qfilm, ristoanime, Arabseed, Laroza, ATV and Kanal D. Beta passed the same set except ristoanime. The release gate still requires 39 passing entries in each family.

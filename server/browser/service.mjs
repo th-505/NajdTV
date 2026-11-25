@@ -677,7 +677,7 @@ export function createBrowserWorkService({
                     headers[k] = v;
                 accepted.push({
                   ...candidate,
-                  ...(checked.adaptive ? {adaptive:true,quality:'AUTO-HLS',quality_levels:checked.quality_levels} : {}),
+                  ...(checked.adaptive ? {adaptive:true,quality:'AUTO-HLS',quality_levels:checked.quality_levels} : checked.quality_levels?.length ? {quality:checked.quality_levels[0].label,quality_levels:checked.quality_levels} : {}),
                   kind: "direct",
                   headers,
                   provider: w.provider,

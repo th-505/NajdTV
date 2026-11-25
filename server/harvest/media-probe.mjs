@@ -1,3 +1,4 @@
+import {observedMp4Dimensions} from '../../shared/mp4-video-dimensions.mjs';
 import {observedContainer,mediaFormatFromUrl} from '../../shared/media-container.mjs';
 import {observedHlsQualities} from './hls-quality.mjs';
 import {fetchSafeResponse} from '../scrapers/shared/http.mjs';
@@ -15,7 +16,23 @@ export async function probeHarvestMedia(candidate,{platform='native',origin='htt
  // Some real CDNs omit Content-Type even on successful HEAD and GET. Their
  // actual container signature is stronger evidence than the absent MIME label.
  const container=observedContainer(bytes);
- const quality_levels=hls?observedHlsQualities(bytes.toString('utf8'),candidate.url):[];
+ let quality_levels=hls?observedHlsQualities(bytes.toString('utf8'),candidate.url):[];
+ if(container==='mp4'&&[200,206].includes(response.status)){
+  quality_levels=observedMp4Dimensions(bytes);
+  const length=Number(response.headers?.get?.('content-range')?.match(/^bytes 0-\d+\/(\d+)$/i)?.[1]);
+  if(!quality_levels.length&&Number.isSafeInteger(length)&&length>bytes.length){
+   const limit=65536,start=Math.max(0,length-limit);
+   try{
+    const tail=await fetchImpl(candidate.url,{method:'GET',headers:{...headers,Range:`bytes=${start}-${length-1}`},
+      omitOrigin:platform==='web'&&plainVideo,responseType:'bytes',maxBytes:limit,prefixBytes:limit,
+      allowHttp:false,maxRetries:0,maxRedirects:2,timeoutMs:5000});
+    if(tail.status===206&&tail.bytes?.length===length-start&&
+      tail.headers?.get?.('content-range')===`bytes ${start}-${length-1}/${length}`){
+     quality_levels=observedMp4Dimensions(bytes,tail.bytes);
+    }
+   }catch{}
+  }
+ }
  const playable=[200,206].includes(response.status)&&Boolean(container);
  const allowedOrigin=response.headers?.get?.('access-control-allow-origin');
  const resourcePolicy=response.headers?.get?.('cross-origin-resource-policy')?.toLowerCase();
@@ -25,5 +42,5 @@ export async function probeHarvestMedia(candidate,{platform='native',origin='htt
  // HTML video loads plain MP4/WebM/Ogg in no-cors mode. HLS fetched by a JS
  // player still needs CORS. Test with frontend Referer, never source cookies.
  const webPlayable=platform==='web'?playable&&!policyBlocked&&(plainVideo?['mp4','webm','ogg'].includes(container):['mp4','hls','webm','ogg'].includes(container)&&[browserOrigin,'*'].includes(allowedOrigin)):playable&&head.webPlayable===true;
- return {...head,container,quality_levels,adaptive:quality_levels.length>0,playable,statusCode:response.status,webPlayable,container_verified:playable,verification_basis:'bounded-container-bytes'};
+ return {...head,container,quality_levels,adaptive:hls&&quality_levels.length>0,playable,statusCode:response.status,webPlayable,container_verified:playable,verification_basis:'bounded-container-bytes'};
 }
