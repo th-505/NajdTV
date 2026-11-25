@@ -1994,8 +1994,9 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         if (value != _sourceIndex) await _selectSource(value);
         applied = true;
       }
-      if (mounted && !applied)
+      if (mounted && !applied) {
         _subtitleNotice('تعذر تطبيق الجودة على السيرفر الحالي.');
+      }
     } else if (selected == 'diagnostics') {
       final value = controller.value;
       final web = kIsWeb ? browserVideoDiagnostics() : <String, dynamic>{};

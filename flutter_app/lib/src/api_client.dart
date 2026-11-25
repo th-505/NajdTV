@@ -844,13 +844,15 @@ class MitvApi implements MediaRepository {
     final json = await _getJson('/api/v1/browser/group-search', {
       'group': group,
       'q': query,
-      if (provider != null) 'provider': provider,
+      'provider': ?provider,
     });
     final fallback = json['fallback'] == true;
     return (
       items: _list(json['items'])
           .map(_catalogItem)
-          .map((item) => fallback ? item.copyWith(discoveryScope: 'najd') : item)
+          .map(
+            (item) => fallback ? item.copyWith(discoveryScope: 'najd') : item,
+          )
           .toList(),
       fallback: fallback,
     );
