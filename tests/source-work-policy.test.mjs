@@ -181,3 +181,33 @@ test('source continuation reuses guarded provider HTML and retains the root titl
  assert.equal(store.works.get(ref).title,'Root title');assert.equal(store.works.get(ref).year,2019);
  assert.equal([...store.episodeRows.values()][0].season,2);
 });
+
+test('cached playback keeps separate server choices and their measured qualities', async () => {
+  const store = memoryStore();
+  const api = createSourceApi({ store, worker: { wake() {} }, now: () => 20000 });
+  const ref = workReference('3cktv:cached-servers');
+  store.works.set(ref, { ref, type: 'series', metadata: { edition: '3cktv:cut' } });
+  const media = {
+    url: 'https://cdn.example/shared.m3u8',
+    kind: 'direct',
+    expires_at: new Date(200000).toISOString(),
+    identity_verified: true,
+    observed_identity: { season: 5, episode: 2 },
+    quality_levels: [{ height: 360 }, { height: 720 }],
+    adaptive: true,
+  };
+  const alice = { ...media, server_id: 'a', server_name: 'Server A' };
+  const bob = { ...media, server_id: 'b', server_name: 'Server B' };
+  await store.putEpisodes([{
+    work_ref: ref, provider: '3cktv', source_ref: '3cktv:e2', season: 5,
+    episode: 2, state: 'playable', media: [alice, alice, bob],
+  }]);
+  const result = await api.sourcePlayback(ref, { season: 5, episode: 2 });
+  assert.equal(result.cache_hit, true);
+  assert.deepEqual(result.servers.map(server => [
+    server.provider_id, server.server_name, server.quality_levels, server.adaptive,
+  ]), [
+    ['3cktv', 'Server A', media.quality_levels, true],
+    ['3cktv', 'Server B', media.quality_levels, true],
+  ]);
+});

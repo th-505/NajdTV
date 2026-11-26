@@ -82,8 +82,10 @@ export function createSourceApi({store,worker,now=Date.now,resolvePlayback=null}
   if(forcing){worker.wake({jobs:[{job_key:forcing.job_key,stage:'episode'}]});return{state:forcing.status,poll_after_ms:1500};}
   const servers=[],seen=new Set();
   for(const row of rows)for(const media of row.media||[]){
-   if(refresh||row.state!=='playable'||!directCandidate(media)||media.identity_verified!==true||!(Date.parse(media.expires_at)>now()+30000)||(platform==='web'&&media.web_playable!==true)||Number(media.observed_identity?.season)!==season||Number(media.observed_identity?.episode)!==episode||seen.has(media.url))continue;
-   seen.add(media.url);servers.push({...media,provider_id:row.provider,source_ref:row.source_ref,edition:work.metadata.edition,label:work.metadata.source_edition==='dubbed'?'مدبلج':work.metadata.source_edition==='subtitled'?'مترجم':media.quality||'المصدر'});
+   if(refresh||row.state!=='playable'||!directCandidate(media)||media.identity_verified!==true||!(Date.parse(media.expires_at)>now()+30000)||(platform==='web'&&media.web_playable!==true)||Number(media.observed_identity?.season)!==season||Number(media.observed_identity?.episode)!==episode)continue;
+   const candidateKey=JSON.stringify([row.provider,media.server_id||media.server_name||null,media.url]);
+   if(seen.has(candidateKey))continue;
+   seen.add(candidateKey);servers.push({...media,provider_id:row.provider,source_ref:row.source_ref,edition:work.metadata.edition,label:work.metadata.source_edition==='dubbed'?'مدبلج':work.metadata.source_edition==='subtitled'?'مترجم':media.quality||'المصدر'});
   }
   if(servers.length)return{state:'ready',servers,server_scan:rows.find(r=>r.server_scan)?.server_scan||null,cache_hit:true,source:'najd-source-edition-cache'};
   // A native-only cached link is a web cache miss. Try the source extractor
