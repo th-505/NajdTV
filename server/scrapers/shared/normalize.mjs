@@ -223,8 +223,11 @@ export function normalizeServerList(rawServers = [], context = {}) {
     if (!srv) continue;
     const rawUrl = srv.url || srv.embedUrl || srv.src || '';
     const url = resolveSafeUrl(rawUrl, baseUrl, { allowHttp });
-    if (!url || seen.has(url)) continue;
-    seen.add(url);
+    if (!url) continue;
+    const identity = srv.server_id || srv.server_name || '';
+    const key = JSON.stringify([identity, url]);
+    if (seen.has(key)) continue;
+    seen.add(key);
 
     const idx = normalized.length + 1;
     const code = srv.code || srv.serverCode || `${codePrefix}-${idx}`;
@@ -244,7 +247,11 @@ export function normalizeServerList(rawServers = [], context = {}) {
       name: srv.name || srv.label || `${providerName || codePrefix} #${idx}`,
       label: srv.label || srv.name || `${code}`,
       url,
-      quality: srv.quality || (streamType === 'm3u8' ? 'AUTO-HLS' : 'HD'),
+      ...(srv.server_id ? { server_id: srv.server_id } : {}),
+      ...(srv.server_name ? { server_name: srv.server_name } : {}),
+      quality: srv.quality || null,
+      ...(Array.isArray(srv.quality_levels) ? { quality_levels: srv.quality_levels } : {}),
+      ...(typeof srv.adaptive === 'boolean' ? { adaptive: srv.adaptive } : {}),
       type: streamType,
       streamType,
       source: srv.source || providerId,

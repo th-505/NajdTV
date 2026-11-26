@@ -120,3 +120,21 @@ test('a completed scan retains observed server names when none can play', async 
     ['Server Two', 'unavailable'],
   ]);
 });
+
+test('server normalization preserves declared identity and does not infer quality from the container', async () => {
+  const { normalizeServerList } = await import('../server/scrapers/shared/normalize.mjs');
+  const url = 'https://cdn.example/shared.m3u8';
+  const levels = [{ height: 360 }, { height: 720 }];
+  const rows = normalizeServerList([
+    { url, server_id: 'a', server_name: 'Server A', quality_levels: levels, adaptive: true },
+    { url, server_id: 'b', server_name: 'Server B', adaptive: false },
+    { url, server_id: 'b', server_name: 'Server B', adaptive: false },
+    { url: 'https://cdn.example/fixed.mp4' },
+  ]);
+  assert.deepEqual(rows.map(row => [row.server_id, row.quality, row.adaptive]), [
+    ['a', null, true], ['b', null, false], [undefined, null, undefined],
+  ]);
+  assert.deepEqual(rows[0].quality_levels, levels);
+  assert.equal(rows[0].server_name, 'Server A');
+  assert.equal(rows[1].quality_levels, undefined);
+});
