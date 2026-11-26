@@ -104,3 +104,20 @@ test('master quality can use verified dimensions for a bitrate-only variant with
   assert.ok(result.quality_levels.every(item=>!Object.hasOwn(item,'url')));
   assert.deepEqual(requested,[base,'https://cdn.example/media/index.m3u8','https://cdn.example/media/init.mp4']);
 });
+
+test('complete video sample descriptions survive deeply nested boxes truncated at the probe limit',()=>{
+  const header=Buffer.alloc(84),handler=Buffer.alloc(12),visual=Buffer.alloc(78);
+  handler.write('vide',8);
+  // The intended display width is fractional, so it cannot verify coded resolution.
+  header.writeUInt32BE((952*65536)+32768,76);
+  header.writeUInt32BE(536*65536,80);
+  visual.writeUInt16BE(960,24);
+  visual.writeUInt16BE(536,26);
+  const description=box('stsd',Buffer.from([0,0,0,0,0,0,0,1]),box('avc1',visual));
+  const table=box('stbl',description,box('ctts',Buffer.alloc(200000)));
+  const movie=box('moov',box('trak',box('tkhd',header),box('mdia',box('hdlr',handler),
+    box('minf',table))));
+  assert.deepEqual(observedMp4Dimensions(Buffer.concat([ftyp,movie]).subarray(0,32768)),[
+    {width:960,height:536,label:'536p'},
+  ]);
+});

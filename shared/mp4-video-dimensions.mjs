@@ -27,9 +27,9 @@ const visualEntries = new Set(['avc1','avc3','hvc1','hev1','av01','vp08','vp09',
 function videoSampleDimensions(bytes, mediaBoxes) {
   const mediaInfo = mediaBoxes.find(box=>box.type==='minf');
   if (!mediaInfo) return [];
-  const table = [...boxes(bytes,mediaInfo.start,mediaInfo.end)].find(box=>box.type==='stbl');
+  const table = [...boxes(bytes,mediaInfo.start,mediaInfo.end,true)].find(box=>box.type==='stbl');
   if (!table) return [];
-  const descriptions = [...boxes(bytes,table.start,table.end)].find(box=>box.type==='stsd');
+  const descriptions = [...boxes(bytes,table.start,table.end,true)].find(box=>box.type==='stsd');
   if (!descriptions || descriptions.end-descriptions.start<8) return [];
   const found = [];
   for (const sample of boxes(bytes,descriptions.start+8,descriptions.end)) {
