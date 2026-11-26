@@ -107,3 +107,37 @@ test('diagnostics dispatch to the selected registry and installed source referen
   const ref='fivetv:'+Buffer.from('https://new61.5tv.lol/series/fixture/').toString('base64url');
   assert.equal(betaReference(ref), najdReference(ref));
 });
+
+test('diagnostics checks the catalog episode itself rather than switching to episode one', async () => {
+  const calls = [];
+  const provider = { id: 'fivetv', name: '5TV', capabilities: { catalog: true } };
+  const source = 'fivetv:episode-1215';
+  const entry = {
+    meta: provider,
+    module: {
+      scrapeCatalog: async () => [{ ref: source, title: 'المحقق كونان الحلقة 1215' }],
+      scrapeDetails: async () => ({
+        title: 'المحقق كونان',
+        type: 'series',
+        episodes: [{ ref: 'fivetv:episode-1', episode_number: 1 }],
+      }),
+      scrapeServers: async target => {
+        calls.push(target);
+        return [{ url: 'https://cdn.example/episode-1215.mp4' }];
+      },
+    },
+  };
+  const checks = createServiceChecks({
+    providers: () => [provider],
+    lookup: () => entry,
+    probe: async () => ({ playable: true, container_verified: true }),
+  });
+  for (const scope of ['najd', 'beta']) {
+    const job = checks.start(scope);
+    while (checks.status(job.id).state !== 'ready') {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.equal(checks.status(job.id).checks[0].state, 'passed');
+  }
+  assert.deepEqual(calls, [source, source]);
+});

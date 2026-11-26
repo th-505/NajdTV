@@ -15,6 +15,7 @@ import {
 import { probeHarvestMedia, verifiedQualityMetadata } from "../harvest/media-probe.mjs";
 import { runInBrowserLane, runInDiagnosticLane } from "../browser/traffic.mjs";
 import {getProvider as getBetaProvider, listIndependentProviders as listBetaProviders} from '../browser/registry.mjs';
+import {contentIdentity} from '../../shared/content-identity.js';
 import {providerGroups} from '../browser/provider-directory.mjs';
 
 export function createServiceChecks({
@@ -130,9 +131,13 @@ export function createServiceChecks({
         });
         let serverScan;
         const media = await step("media", async () => {
-          const episode = details.episodes?.find((e) => e.ref || e.url),
-            target = episode?.ref || episode?.url || source;
-          const accepted=await resolveProviderMedia(entry,target,{details:episode?{}:details,network:{...options,timeoutMs:30000},resolverBudgetMs:60000,collectAll:strictChecklist,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
+          const indexedEpisodes = details.episodes || [];
+          const isEpisodeSample = contentIdentity(sample).episode_number !== null ||
+            indexedEpisodes.some(episode => (episode.ref || episode.url) === source);
+          const episode = isEpisodeSample ? null : indexedEpisodes.find(e => e.ref || e.url);
+          const target = episode?.ref || episode?.url || source;
+          const mediaDetails = episode || details.observed_parent_ref ? {} : details;
+          const accepted=await resolveProviderMedia(entry,target,{details:mediaDetails,network:{...options,timeoutMs:30000},resolverBudgetMs:60000,collectAll:strictChecklist,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
            for(const candidate of candidates){const result=await probe(candidate,{platform:'native'});if(result.playable&&result.container_verified)return[{...candidate,...verifiedQualityMetadata(result)}]}return[];
           }});
           serverScan=accepted._meta;
