@@ -118,59 +118,89 @@ void main() {
     },
   );
 
-  for (final automatic in [true, false]) {
-    testWidgets(
-      '${automatic ? 'automatic fallback stays guarded; ' : ''}explicit source selection preserves the requested 23-second clock',
-      (tester) async {
-        SharedPreferences.setMockInitialValues({});
-        final store = await LocalLibraryStore.create();
-        final api = TimelineApi([
+  for (final mode in ['automatic', 'paused', 'manual-quality', 'data-saver']) {
+    final automatic = mode == 'automatic';
+    final qualitySwitch = mode == 'manual-quality' || mode == 'data-saver';
+    testWidgets('$mode switch preserves the requested 23-second clock', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final store = await LocalLibraryStore.create();
+      final api = TimelineApi([
+        if (qualitySwitch) ...[
+          for (final height in [1080, 360])
+            StreamSource(
+              mediaPath: 'https://media.test/$height.mp4',
+              mediaType: 'mp4',
+              playbackMode: 'edge_direct',
+              providerId: '3isk',
+              serverId: 'shared-server',
+              resolution: ResolutionOption(label: '${height}p', height: height),
+            ),
+        ] else ...[
           source('primary', '3isk'),
           source('unverified', 'laroza'),
-        ]);
-        final engines = <FakeEngine>[];
-        await tester.pumpWidget(
-          MaterialApp(
-            home: PlayerPage(
-              api: api,
-              store: store,
-              item: const MediaItem(
-                id: 'work',
-                ref: '3isk:work',
-                title: 'Work',
-                poster: '',
-                type: 'movie',
-              ),
+        ],
+      ]);
+      final engines = <FakeEngine>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlayerPage(
+            api: api,
+            store: store,
+            item: const MediaItem(
+              id: 'work',
+              ref: '3isk:work',
               title: 'Work',
-              sourceRef: '3isk:work',
-              playerFactory: (uri, type, headers, software) {
-                final engine = FakeEngine(
-                  uri,
-                  mediaType: type,
-                  headers: headers,
-                  software: software,
-                  fail: false,
-                );
-                engines.add(engine);
-                return engine;
-              },
+              poster: '',
+              type: 'movie',
             ),
+            title: 'Work',
+            sourceRef: '3isk:work',
+            playerFactory: (uri, type, headers, software) {
+              final engine = FakeEngine(
+                uri,
+                mediaType: type,
+                headers: headers,
+                software: software,
+                fail: false,
+              );
+              engines.add(engine);
+              return engine;
+            },
           ),
-        );
+        ),
+      );
+      await settle(tester);
+      await engines.first.seekTo(const Duration(seconds: 23));
+      if (automatic) {
+        engines.first.state.value = VideoPlayerValue.erroneous('HTTP 403');
         await settle(tester);
-        await engines.first.seekTo(const Duration(seconds: 23));
-        if (automatic) {
-          engines.first.state.value = VideoPlayerValue.erroneous('HTTP 403');
-          await settle(tester);
-          expect(
-            engines.every((e) => e.uri.path == '/primary.mp4'),
-            true,
-            reason: 'refresh must not silently select an unverified edition after an error',
-          );
-        }
-        // A blocked automatic handoff still leaves a manual source choice.
-        await tester.tap(find.byKey(const Key('player-more')));
+        expect(
+          engines.every((e) => e.uri.path == '/primary.mp4'),
+          true,
+          reason: 'refresh must not silently select an unverified edition after an error',
+        );
+      }
+      if (mode == 'paused') {
+        await tester.tap(find.byKey(const Key('player-play-toggle')));
+        await tester.pump();
+        expect(engines.last.value.isPlaying, false);
+      }
+      // A blocked automatic handoff still leaves a manual source choice.
+      await tester.tap(find.byKey(const Key('player-more')));
+      await tester.pumpAndSettle();
+      if (qualitySwitch) {
+        await tester.tap(find.text('جودة الفيديو'));
         await tester.pumpAndSettle();
+        if (mode == 'manual-quality') {
+          await tester.tap(find.text('إعدادات متقدمة'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('360p'));
+        } else {
+          await tester.tap(find.text('توفير البيانات'));
+        }
+      } else {
         final menu = tester.widget<SourcePickerButton>(
           find.byType(SourcePickerButton),
         );
@@ -178,17 +208,21 @@ void main() {
           (source) => source.displayLabel.startsWith('laroza'),
         );
         menu.onSelected(alternative);
-        await settle(tester);
-        expect(engines.last.uri.path, '/unverified.mp4');
-        expect(engines.last.seeks, [const Duration(seconds: 23)]);
-        expect(
-          find.text('نسخة هذا المصدر غير متطابقة؛ يبدأ التشغيل من البداية.'),
-          findsNothing,
-        );
-        await tester.pumpWidget(const SizedBox());
-        api.close();
-      },
-    );
+      }
+      await settle(tester);
+      expect(
+        engines.last.uri.path,
+        qualitySwitch ? '/360.mp4' : '/unverified.mp4',
+      );
+      expect(engines.last.value.isPlaying, mode != 'paused');
+      expect(engines.last.seeks, [const Duration(seconds: 23)]);
+      expect(
+        find.text('نسخة هذا المصدر غير متطابقة؛ يبدأ التشغيل من البداية.'),
+        findsNothing,
+      );
+      await tester.pumpWidget(const SizedBox());
+      api.close();
+    });
   }
 
   testWidgets(

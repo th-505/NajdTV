@@ -625,6 +625,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
     bool software = false,
   }) async {
     final generation = _generation.next();
+    final shouldPlay = _requestedPlaying;
     if (!_cloudPrepared) {
       _cloudPrepared = true;
       await CloudLibrarySync.refreshForPlayback(
@@ -857,7 +858,6 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       _progressTimer?.cancel();
       final initialPosition = controller.value.position;
       _bufferedTicks = 0;
-      _requestedPlaying = true;
       _progressTimer = Timer.periodic(const Duration(seconds: 5), (_) {
         final value = controller.value;
         if (value.position > initialPosition + const Duration(seconds: 5)) {
@@ -879,7 +879,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         success: true,
         latencyMs: startup.elapsedMilliseconds,
       );
-      await controller.play();
+      if (shouldPlay) await controller.play();
       unawaited(_restoreCaption(controller));
       _revealControls();
       _nativeStartupTimer = Timer(const Duration(seconds: 12), () {
@@ -887,6 +887,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         final value = controller.value;
         final neverStarted =
             value.position < const Duration(milliseconds: 500) &&
+            _requestedPlaying &&
             !value.isPlaying;
         if (value.hasError || neverStarted) {
           unawaited(_fallbackFromNative('تعذر بدء التشغيل بالمشغل الأصلي'));
@@ -1942,6 +1943,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         }
       }
     }
+    final files = <int, int>{};
     if (active != null) {
       for (var i = 0; i < _sources.length; i++) {
         final item = _sources[i];
@@ -1950,23 +1952,54 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
                 (active.serverLabel.isNotEmpty &&
                     item.serverKey == active.serverKey)) &&
             height != null) {
+          files[i] = height;
           add('file:$i', '${height}p');
         }
       }
     }
-    final selected = await showNajdOptions<String>(
+    final browserLevels =
+        browser
+            .where((row) => row['id'] is num && (row['id'] as num) >= 0)
+            .toList()
+          ..sort((a, b) {
+            final height = ((a['height'] as num?) ?? 0).compareTo(
+              (b['height'] as num?) ?? 0,
+            );
+            return height == 0
+                ? ((a['bitrate'] as num?) ?? 0).compareTo(
+                    (b['bitrate'] as num?) ?? 0,
+                  )
+                : height;
+          });
+    final adaptive = kIsWeb
+        ? browserLevels.length > 1
+        : active?.adaptive == true;
+    final fixedFiles = files.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    var selected = await showNajdOptions<String>(
       context,
       title: 'جودة الفيديو',
       icon: Icons.high_quality_outlined,
       options: [
-        if (active?.adaptive == true ||
-            browser.where((row) => row['id'] != -1).length > 1)
+        if (adaptive)
           const NajdOption(
             'auto',
             'تلقائي حسب الشبكة',
             icon: Icons.auto_awesome,
           ),
-        ...decisions.values,
+        if (adaptive || files.values.toSet().length > 1)
+          const NajdOption(
+            'low',
+            'توفير البيانات',
+            icon: Icons.data_saver_on_outlined,
+          ),
+        if (decisions.isNotEmpty)
+          const NajdOption(
+            'advanced',
+            'إعدادات متقدمة',
+            subtitle: 'اختيار الدقة يدوياً',
+            icon: Icons.tune,
+          ),
         const NajdOption(
           'diagnostics',
           'الدقة الفعلية ومعلومات التشغيل',
@@ -1974,6 +2007,15 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         ),
       ],
     );
+    if (!mounted || controller != _controller) return;
+    if (selected == 'advanced') {
+      selected = await showNajdOptions<String>(
+        context,
+        title: 'اختيار الدقة يدوياً',
+        icon: Icons.tune,
+        options: decisions.values.toList(),
+      );
+    }
     if (!mounted || selected == null || controller != _controller) return;
     if (selected != 'diagnostics') {
       final value = int.tryParse(selected.split(':').last);
@@ -1982,6 +2024,17 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         applied = kIsWeb
             ? selectBrowserQuality(-1)
             : await controller.selectHlsQuality('auto');
+      } else if (selected == 'low') {
+        if (kIsWeb && browserLevels.length > 1) {
+          applied = selectBrowserQuality(
+            (browserLevels.first['id'] as num).toInt(),
+          );
+        } else if (!kIsWeb && active?.adaptive == true) {
+          applied = await controller.selectHlsQuality('low');
+        } else if (fixedFiles.isNotEmpty) {
+          await _selectSource(fixedFiles.first.key);
+          applied = true;
+        }
       } else if (selected.startsWith('web:') && value != null) {
         applied = selectBrowserQuality(value);
       } else if (selected.startsWith('bandwidth:')) {
