@@ -42,3 +42,26 @@ for (const [family, provider] of [['Core', main], ['Beta', beta]]) {
     assert.equal((await provider.resolveStream('https://cdn.example/test.mp4')).quality, null);
   });
 }
+
+for (const [family, provider] of [['Core', main], ['Beta', beta]]) {
+  test(`${family} Akwam resolves a relative watch action against the final work URL`, async () => {
+    const finalUrl = 'https://ak.sv/movie/42/observed/';
+    const watchUrl = 'https://ak.sv/movie/42/observed/watch/primary';
+    const requests = [];
+    const rows = await provider.scrapeServers(root, {
+      maxRetries: 0,
+      fetchImpl: async value => {
+        const url = new URL(value).href;
+        requests.push(url);
+        if (url === root) return new Response(null, { status: 302, headers: { location: finalUrl } });
+        if (url === finalUrl) return new Response('<a href="./watch/primary">مشاهدة</a>');
+        assert.equal(url, watchUrl);
+        return new Response('<video><source src="https://cdn.example/observed.mp4" size="720"></video>');
+      },
+    });
+    assert.deepEqual(requests, [root, finalUrl, watchUrl]);
+    assert.equal(rows[0].url, 'https://cdn.example/observed.mp4');
+    assert.equal(rows[0].quality, '720p');
+    assert.equal(rows[0].headers.Referer, watchUrl);
+  });
+}

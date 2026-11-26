@@ -403,7 +403,10 @@ function extractBridgeLinks(html = '', baseUrl = AKWAM_CONFIG.baseUrl) {
  * Resolves an Akwam bridge URL (.downet.net) to direct playable MP4 streams.
  */
 export async function resolveAkwamBridgeToDirectMp4(bridgeLinkUrl, refererUrl = AKWAM_CONFIG.baseUrl, options = {}) {
-  const cleanUrl = resolveAkwamTargetUrl(bridgeLinkUrl, AKWAM_CONFIG.baseUrl);
+  const baseUrl = URL.canParse(refererUrl) && AKWAM_CONFIG.domains.includes(new URL(refererUrl).origin)
+    ? refererUrl
+    : AKWAM_CONFIG.baseUrl;
+  const cleanUrl = resolveAkwamTargetUrl(bridgeLinkUrl, baseUrl);
   if (!cleanUrl) return [];
 
   const streams = [];
@@ -806,6 +809,7 @@ export async function scrapeServers(urlOrRef, options = {}) {
         );
       }
 
+      const pageUrl = res.url || cleanUrl;
       // Check if page already has direct media tags
       const $page = cheerio.load(res.html);
       $page('video source, source[src*=".mp4"], source[src*=".m3u8"]').each((_, el) => {
@@ -820,7 +824,7 @@ export async function scrapeServers(urlOrRef, options = {}) {
             type: streamType,
             streamType,
             quality: /^[1-9]\d{2,3}$/.test(size) ? `${size}p` : null,
-            headers: { Referer: cleanUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
+            headers: { Referer: pageUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
           });
         }
       });
@@ -838,13 +842,13 @@ export async function scrapeServers(urlOrRef, options = {}) {
             type: 'mp4',
             streamType: 'mp4',
             quality: qLabel,
-            headers: { Referer: cleanUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
+            headers: { Referer: pageUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
           });
         }
       });
 
       // Extract watch and download bridge links
-      const bridgeLinks = extractBridgeLinks(res.html, AKWAM_CONFIG.baseUrl);
+      const bridgeLinks = extractBridgeLinks(res.html, pageUrl);
 
       // Direct links may belong to a dead CDN. Collect the other observed
       // qualities as well; a first result must never hide later source links.
@@ -855,7 +859,7 @@ export async function scrapeServers(urlOrRef, options = {}) {
         for (const bridge of bridgeLinks.slice(0, targetLimit)) {
           if(Date.now()>=deadline)break;
           bridgeAttempted++;
-          const streams = await resolveAkwamBridgeToDirectMp4(bridge.url, cleanUrl, {...options,deadlineMs:deadline,timeoutMs:Math.min(options.timeoutMs||10000,Math.max(250,deadline-Date.now()))});
+          const streams = await resolveAkwamBridgeToDirectMp4(bridge.url, pageUrl, {...options,deadlineMs:deadline,timeoutMs:Math.min(options.timeoutMs||10000,Math.max(250,deadline-Date.now()))});
           for (const s of streams) {
             rawServers.push({
               name: 'أكوام مباشر',
@@ -876,7 +880,7 @@ export async function scrapeServers(urlOrRef, options = {}) {
               type: 'embed',
               streamType: 'embed',
               quality: bridge.quality,
-              headers: { Referer: cleanUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
+              headers: { Referer: pageUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
             });
           }
         }

@@ -138,7 +138,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/akwam.mjs",
       "metadata_line": 34,
-      "source_sha256": "9ba3664ed7a8d20d4d25ded48f19de69bd091dd26deec032e813afadfaff6816",
+      "source_sha256": "6738486f1c96116a3773da0671739d32218675ca13eed488f4cbc8d5cb407d22",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -1086,7 +1086,7 @@
       "id": "akwam",
       "scope": "beta",
       "path": "server/browser/providers/sites/akwam.mjs",
-      "source_sha256": "17d924e8d389bb0708437e5ad014ebdd1a42a8147cfba4f88287bc533199f0d5",
+      "source_sha256": "b0f1422ca3653ae5861f80491c058cbf108e667f6fbb48208726693b2facdf20",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
