@@ -65,3 +65,24 @@ for (const [family, provider] of [['Core', main], ['Beta', beta]]) {
     assert.equal(rows[0].headers.Referer, watchUrl);
   });
 }
+
+for (const [family, provider] of [['Core', main], ['Beta', beta]]) {
+  test(`${family} Akwam groups qualities by delivery host within the source`, async () => {
+    const rows = await resolveProviderMedia({
+      module: {
+        scrapeServers: () => provider.scrapeServers(root, { fixtures: {
+          [root]: '<video>' +
+            '<source src="https://one.example/low.mp4" size="360">' +
+            '<source src="https://one.example/high.mp4" size="720">' +
+            '<source src="https://two.example/high.mp4" size="720"></video>',
+        } }),
+      },
+    }, root);
+    assert.deepEqual(rows.map(row => [row.server_name, row.quality]), [
+      ['one.example', '360p'], ['one.example', '720p'], ['two.example', '720p'],
+    ]);
+    assert.equal(rows[0].server_id, rows[1].server_id);
+    assert.notEqual(rows[0].server_id, rows[2].server_id);
+    assert.equal(rows._meta.playable_servers, 2);
+  });
+}

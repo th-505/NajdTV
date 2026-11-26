@@ -894,6 +894,7 @@ export async function scrapeServers(urlOrRef, options = {}) {
     }).map((srv, i) => ({
       ...srv,
       provider: PROVIDER_META.id,
+      server_name: new URL(srv.url).hostname,
       code: `${PROVIDER_META.code}-${i + 1}`,
       serverCode: `${PROVIDER_META.code}-${i + 1}`,
       verified: srv.type === 'mp4' || srv.type === 'm3u8'
