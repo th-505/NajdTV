@@ -7,18 +7,18 @@
     "witanime": "animezid"
   },
   "counts": {
-    "site_modules_with_metadata": 30,
-    "registered_modules": 30,
-    "active_registered_modules": 27,
+    "site_modules_with_metadata": 31,
+    "registered_modules": 31,
+    "active_registered_modules": 28,
     "legacy_compatible_modules": 3,
-    "najd_scrapers": 30,
+    "najd_scrapers": 31,
     "beta_scrapers": 31,
-    "total_scraper_implementations": 61,
+    "total_scraper_implementations": 62,
     "explicit_mirrors": 2,
-    "not_marked_as_mirror": 28,
+    "not_marked_as_mirror": 29,
     "ui_spellings": 0,
     "static_ui_array_entries": 0,
-    "pinned_search_modules": 28,
+    "pinned_search_modules": 29,
     "seed_only_entries": 6
   },
   "ui_delivery": {
@@ -953,6 +953,39 @@
       "ui_spellings": [],
       "pinned_search_spellings": [
         "shii4u"
+      ],
+      "live_validation": "not_run"
+    },
+    {
+      "id": "shoof-live",
+      "name": "شوف لايف",
+      "code": "SHFL",
+      "mirror_of": null,
+      "path": "server/scrapers/sites/shoof-live.mjs",
+      "metadata_line": 21,
+      "source_sha256": "24fe60d08a04b7a93ba772d6f197a1ed6952c4a39b813312e25302347aa7ccf7",
+      "registered": true,
+      "declared_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "exported_capabilities": {
+        "catalog": true,
+        "search": true,
+        "details": true,
+        "episodes": true,
+        "servers": true,
+        "resolve": true,
+        "live": false
+      },
+      "ui_spellings": [],
+      "pinned_search_spellings": [
+        "shoof-live"
       ],
       "live_validation": "not_run"
     },

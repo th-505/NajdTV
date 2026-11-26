@@ -13,12 +13,12 @@ import {workReference as najdReference} from '../server/harvest/work-reference.m
 import {scanEpisodeIndex as najdIndex} from '../server/harvest/episode-index.mjs';
 import {scanEpisodeIndex as betaIndex} from '../server/browser/episode-index.mjs';
 
-test('61 scraper implementations: 30 Najd and 31 beta, including three legacy handlers with different parser functions and metadata objects', () => {
-  assert.equal(najd.PROVIDERS_MAP.size, 30);
+test('62 scraper implementations: 31 Najd and 31 beta, including three legacy handlers with different parser functions and metadata objects', () => {
+  assert.equal(najd.PROVIDERS_MAP.size, 31);
   assert.equal(beta.PROVIDERS_MAP.size, 31);
-  assert.equal(najd.PROVIDERS_MAP.size + beta.PROVIDERS_MAP.size, 61);
+  assert.equal(najd.PROVIDERS_MAP.size + beta.PROVIDERS_MAP.size, 62);
   assert.notEqual(najdIndex, betaIndex, 'source-index parsing must also remain family-owned');
-  assert.deepEqual([...najd.PROVIDERS_MAP.keys()], [...beta.PROVIDERS_MAP.keys()].filter(id => id !== 'shoof-live'));
+  assert.deepEqual([...najd.PROVIDERS_MAP.keys()], [...beta.PROVIDERS_MAP.keys()]);
   for (const [id, original] of najd.PROVIDERS_MAP) {
     const independent = beta.PROVIDERS_MAP.get(id);
     assert.notEqual(original.module, independent.module, id);

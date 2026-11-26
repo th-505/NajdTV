@@ -9,9 +9,10 @@ import {CATALOG_HTML} from '../scripts/fixtures/providers/shoof-live.fixture.mjs
 const site = 'https://m1.shooflive.buzz';
 const player = 'https://shooof.online';
 const html = (text, status=200) => new Response(text,{status,headers:{'content-type':'text/html'}});
-test('Shoof is registered only in Beta and follows observed Arabic search pagination', async () => {
+test('Shoof has isolated adapters and follows observed Arabic search pagination', async () => {
   assert.equal(beta('shoof-live').meta.id,'shoof-live');
-  assert.equal(core('shoof-live'),null);
+  assert.equal(core('shoof-live').meta.id,'shoof-live');
+  assert.notEqual(core('shoof-live').module.scrapeSearch,beta('shoof-live').module.scrapeSearch);
   const search = await shoof.scrapeSearch('مسلسل',1,{fetchImpl:async raw => {
     assert.equal(new URL(raw).searchParams.get('s'),'مسلسل');
     return html('<main id="shooflive-smart-search"><div class="slv2-grid"><a class="slv2-card" href="/series/work/"><span class="slv2-name">مسلسل</span><div class="slv2-poster"><img data-src="/art.webp" src="placeholder.gif"></div></a></div><div class="slv2-pages"><a href="/search/%D9%85%D8%B3%D9%84%D8%B3%D9%84/?sp=2">2</a></div></main>');
@@ -114,4 +115,12 @@ test('catalog pagination follows the observed next path and schedule days retain
   assert.deepEqual(thursday.map(row=>[row.schedule_date,row.scheduled_episode]),[['2026-11-26',1216]]);
   assert.equal(thursday._meta.next_page,null);
   assert.equal(createProviderBrowser().sources().find(x=>x.id==='shoof-live').categories.filter(x=>x.id.startsWith('schedule-')).length,7);
+});
+
+test('the Core Shoof catalog and search use the same source identity without Beta routing',async()=>{
+  const module=core('shoof-live').module;
+  const catalog=await module.scrapeCatalog('latest',1,{fixtureHtml:CATALOG_HTML});
+  const search=await module.scrapeSearch('أسد',1,{fixtureHtml:'<div id="shooflive-smart-search"><div class="slv2-grid"><a class="slv2-card" href="/movies/film/"><span class="slv2-name">فيلم أسد 2026</span></a></div></div>'});
+  assert.equal(search[0].ref,catalog[0].ref);
+  assert.equal(module.decodeProviderRef(search[0].ref),site+'/movies/film/');
 });

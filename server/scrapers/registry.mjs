@@ -36,7 +36,10 @@ import * as atvTrMod from './sites/atv-tr.mjs';
 
 import * as kanalDMod from './sites/kanal-d.mjs';
 
+import * as shoofLiveMod from './sites/shoof-live.mjs';
+
 const PROVIDER_ENTRIES = [
+  {meta:shoofLiveMod.PROVIDER_META,module:shoofLiveMod},
   {meta:animezidMod.PROVIDER_META,module:animezidMod},
   {meta:movizlandMod.PROVIDER_META,module:movizlandMod},
   {meta:egybestMod.PROVIDER_META,module:egybestMod},

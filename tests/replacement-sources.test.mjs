@@ -9,7 +9,7 @@ const fixtures={
 };
 for(const [scope,family]of [['najd',najd],['beta',beta]]){
  test(scope+' explicitly replaces unavailable sources and preserves original stored reference handlers',()=>{
-  const active=family.listProviders();assert.equal(active.length,scope === "beta" ? 28 : 27);
+  const active=family.listProviders();assert.equal(active.length,28);
   for(const [old,replacement]of Object.entries(PROVIDER_REPLACEMENTS)){
    assert(!active.some(p=>p.id===old));assert(active.some(p=>p.id===replacement));assert(family.getProvider(old));
   }

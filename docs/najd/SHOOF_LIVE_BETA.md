@@ -21,3 +21,9 @@ The adapter exposes process-local diagnostic snapshots through `getShoofDiagnost
 The Beta provider menu includes Latest, the seven series and six film categories observed in the upstream navigation, and News. Category pages expose a next page only when the upstream HTML links to it. The Latest feed lists work pages so that a visit opens a movie or a series, without confusing a recently added episode for a separate series.
 
 The Series Schedule page exposes an overview and a tab for each weekday. Each weekday tab lists that day's work links. Catalog responses also include the date and scheduled episode where provided by ShoofLive. Dates are read from the site's published schedule, independently of the device time zone. The inspected markup did not publish a time of day for individual works.
+
+## Core adapter
+
+The review branch also registers a separately owned Core adapter. It preserves public source references, catalog categories and source episode numbers, while allowing Core-only host configuration through NAJD_SHOOF_LIVE_PLAYER_HOSTS and NAJD_SHOOF_LIVE_EMBED_HOSTS. Beta continues to use its own adapter and configuration.
+
+The strict nine-stage audit passed for both adapters on representative samples. It verified catalog and search, title and image, declared categories and specialization, playback container, server inventory and per-server quality metadata.

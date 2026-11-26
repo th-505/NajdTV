@@ -2,11 +2,11 @@
 
 هذا تقرير آلي ساكن؛ لا يرسل أي طلب للمزودين ولا يثبت نجاح التشغيل.
 
-- قواشط نجد: **30**؛ قواشط البيتا: **31**؛ مجموع وحدات التنفيذ المنفصلة: **61**.
-- المعروضة افتراضيًا: **27**؛ وحدات التوافق القديمة المخفية: **3**. لا يتم تحويل المراجع القديمة إلى مصدر آخر تلقائيًا.
-- وحدات مواقع ذات تعريف PROVIDER_META: **30**؛ المسجل منها: **30**.
-- مرآتان مصرح بهما في التعريف: **2**؛ الوحدات غير الموسومة كمرآة: **28**. هذا لا يثبت استقلال مالكي المواقع.
-- مصادر الواجهة المستنتجة من الشفرة: **0**؛ وحدات البحث المثبت المربوطة برمجيًا: **28**.
+- قواشط نجد: **31**؛ قواشط البيتا: **31**؛ مجموع وحدات التنفيذ المنفصلة: **62**.
+- المعروضة افتراضيًا: **28**؛ وحدات التوافق القديمة المخفية: **3**. لا يتم تحويل المراجع القديمة إلى مصدر آخر تلقائيًا.
+- وحدات مواقع ذات تعريف PROVIDER_META: **31**؛ المسجل منها: **31**.
+- مرآتان مصرح بهما في التعريف: **2**؛ الوحدات غير الموسومة كمرآة: **29**. هذا لا يثبت استقلال مالكي المواقع.
+- مصادر الواجهة المستنتجة من الشفرة: **0**؛ وحدات البحث المثبت المربوطة برمجيًا: **29**.
 - مصدر قائمة الواجهة مصفوفة ثابتة في index.html.
 - بذور فحص بلا وحدة مسجلة: **6**؛ ليست مزودين عاملين.
 
@@ -42,6 +42,7 @@
 | `ristoanime` | — | catalog, search, details, episodes, servers, resolve | — | ristoanime | `server/scrapers/sites/ristoanime.mjs:24` |
 | `shahid4u` | — | catalog, search, details, episodes, servers, resolve | — | shahid4u | `server/scrapers/sites/shahid4u.mjs:49` |
 | `shii4u` | shahid4u | catalog, search, details, episodes, servers, resolve | — | shii4u | `server/scrapers/sites/shii4u.mjs:23` |
+| `shoof-live` | — | catalog, search, details, episodes, servers, resolve | — | shoof-live | `server/scrapers/sites/shoof-live.mjs:21` |
 | `witanime` | — | catalog, search, details, episodes, servers, resolve | — | witanime | `server/scrapers/sites/witanime.mjs:52` |
 | `yallashoot` | — | catalog, details, servers, resolve, live | — | — | `server/scrapers/sites/yallashoot.mjs:30` |
 
