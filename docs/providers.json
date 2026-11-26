@@ -370,7 +370,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/brstej.mjs",
       "metadata_line": 13,
-      "source_sha256": "2605fed3b7f886dc07ef876e4baedb37957ba0b11616ea645577959f6eee4cfb",
+      "source_sha256": "245a3921332e496a5584ef5e51b69aa3242eb0f0fecd2f1e3edbd94081aaf6f1",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -566,7 +566,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/fosta.mjs",
       "metadata_line": 15,
-      "source_sha256": "a7927945b76cfb6659faff1fa8e69ea96d06397964d6b5db52509a2c0639ee0d",
+      "source_sha256": "ec57b808b3bb12d22bfacebd2e6be27211742ace243b94a9fb1251f41bd1cc58",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -1203,7 +1203,7 @@
       "id": "fosta",
       "scope": "beta",
       "path": "server/browser/providers/sites/fosta.mjs",
-      "source_sha256": "05d81452e583c5d5adf78d27c271db7867b295caddb3a63101850eef12d44029",
+      "source_sha256": "aaad4966fed32e15b16ce7ab967c65ad352cd59594e2b822f03150a784bd63b0",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"

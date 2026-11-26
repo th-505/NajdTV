@@ -33,3 +33,25 @@ test('Fosta rejects non-source details and private address references', () => {
   assert.throws(() => decodeProviderRef('https://other.example/watch.php?vid=a'));
   assert.throws(() => decodeProviderRef('https://ffosta-tv.autos/account.php'));
 });
+
+for (const family of ['core', 'beta']) {
+  test(`Fosta ${family} catalog accepts only the observed HTTPS destination`, async () => {
+    const { scrapeCatalog } = family === 'core'
+      ? await import('../server/scrapers/sites/fosta.mjs')
+      : await import('../server/browser/providers/sites/fosta.mjs');
+    const calls = [];
+    const catalog = host => scrapeCatalog('latest', 1, {
+      fetchImpl: async url => {
+        calls.push(new URL(url).hostname);
+        return calls.length === 1
+          ? new Response(null, { status: 301, headers: { location: `https://${host}/` } })
+          : new Response(SEARCH_HTML);
+      },
+    });
+    assert.ok((await catalog('ffosta-tv.onl')).length > 0);
+    assert.deepEqual(calls, ['ffosta-tv.baby', 'ffosta-tv.onl']);
+    calls.length = 0;
+    await assert.rejects(catalog('unapproved.example'), { code: 'UNSAFE_URL' });
+    assert.deepEqual(calls, ['ffosta-tv.baby']);
+  });
+}

@@ -11,10 +11,10 @@ import { FOSTA_CATEGORIES, FOSTA_CATEGORY_LABELS } from './fosta-categories.mjs'
 
 // Search redirects observed and validated over guarded HTTPS on 2026-11-07.
 const ORIGIN = 'https://ffosta-tv.baby';
-const HOSTS = ['ffosta-tv.baby', 'ffosta-tv.lat', 'ffosta-tv.autos'];
+const HOSTS = ['ffosta-tv.baby', 'ffosta-tv.lat', 'ffosta-tv.autos', 'ffosta-tv.onl'];
 const allowedHosts = () => effectiveProviderDomains('fosta', HOSTS);
 export const PROVIDER_META = Object.freeze({ id: 'fosta', name: 'فوستا', code: 'FO',
-  domains: [ORIGIN, 'https://ffosta-tv.lat', 'https://ffosta-tv.autos'], mirrorOf: null, resolveOnDetails: true,
+  domains: [ORIGIN, 'https://ffosta-tv.lat', 'https://ffosta-tv.autos', 'https://ffosta-tv.onl'], mirrorOf: null, resolveOnDetails: true,
   capabilities: { catalog: true, search: true, details: true, episodes: true, servers: true, resolve: true, live: false },
   searchSpec: { method: 'GET', pathTemplate: '/search.php?keywords={query}', queryParam: 'keywords', encoding: 'utf-8', pagination: true },
   notImplemented: {},
