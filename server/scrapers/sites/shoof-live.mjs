@@ -58,10 +58,10 @@ export function decodeProviderRef(input) {
   if (!url || (!isWork(url) && !/^\/news\/[^/]+\/?$/.test(pathOf(url)))) throw new ScraperError('INVALID_INPUT', 'SHOOF_INVALID_REFERENCE', {providerId:ID});
   return url;
 }
-async function page(url, options, allowedHosts, referer) {
+async function page(url, options, allowedHosts, referer, retries = 0) {
   const result = await fetchProviderHtml(url, {
     ...options, searchPageUrl:undefined, providerId:ID, allowHttp:false, allowedHosts, referer,
-    timeoutMs:Math.min(6000, options.timeoutMs || 6000), maxRetries:0, maxBytes:2*1024*1024,
+    timeoutMs:Math.min(6000, options.timeoutMs || 6000), maxRetries:retries, maxBytes:2*1024*1024,
   });
   if (!result.ok) throw new ScraperError('UPSTREAM_UNAVAILABLE', 'SHOOF_UPSTREAM_HTTP', {providerId:ID,status:result.status});
   return result;
@@ -299,7 +299,7 @@ export async function scrapeCatalog(category='latest', n=1, options={}) {
   if (n > 1 && (schedule || category === 'latest')) return attachResultMeta([], meta);
   const path = SHOOF_CONFIG.categories[category];
   const target = new URL(n === 1 ? path : path+'page/'+n+'/', ORIGIN);
-  const result = await page(target.href, options, workHosts());
+  const result = await page(target.href, options, workHosts(), undefined, 1);
   const $ = cheerio.load(result.html);
   if (schedule) {
     const {items,days} = parseSchedule($,result.url,category);

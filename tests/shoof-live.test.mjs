@@ -124,3 +124,26 @@ test('the Core Shoof catalog and search use the same source identity without Bet
   assert.equal(search[0].ref,catalog[0].ref);
   assert.equal(module.decodeProviderRef(search[0].ref),site+'/movies/film/');
 });
+
+for (const [family, registry] of [['Core', core], ['Beta', beta]]) {
+  test(`${family} Shoof catalog retries one timeout and respects an upstream denial`, async () => {
+    const provider = registry('shoof-live').module;
+    let calls = 0;
+    const rows = await provider.scrapeCatalog('latest', 1, {
+      fetchImpl: async () => {
+        if (++calls === 1) throw Error('ETIMEDOUT');
+        return html(CATALOG_HTML);
+      },
+    });
+    assert.equal(calls, 2);
+    assert.ok(rows.length > 0);
+    calls = 0;
+    await assert.rejects(provider.scrapeCatalog('latest', 1, {
+      fetchImpl: async () => {
+        calls++;
+        return html('Forbidden', 403);
+      },
+    }), { code: 'ACCESS_BLOCKED' });
+    assert.equal(calls, 1);
+  });
+}

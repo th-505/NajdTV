@@ -963,7 +963,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/shoof-live.mjs",
       "metadata_line": 21,
-      "source_sha256": "24fe60d08a04b7a93ba772d6f197a1ed6952c4a39b813312e25302347aa7ccf7",
+      "source_sha256": "da1f0658ce52b1386474c2eb4577a58bfa837e0f9f960cf217d653510c0c0820",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -1311,7 +1311,7 @@
       "id": "shoof-live",
       "scope": "beta",
       "path": "server/browser/providers/sites/shoof-live.mjs",
-      "source_sha256": "66ddc168347dab299486874ed467e5448b2cbd0b5093d708fa65d489c5734e59",
+      "source_sha256": "8cbda6a14fcb2906d0293d7cf5f48bcd2cd06733b5d43a71cb58650f9b84b9a9",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
