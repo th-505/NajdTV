@@ -389,7 +389,7 @@ function extractBridgeLinks(html = '', baseUrl = AKWAM_CONFIG.baseUrl) {
       links.push({
         url: resolved,
         label: text || 'رابط المشاهدة والتحميل',
-        quality: qualityMatch ? qualityMatch[1].toUpperCase() : 'HD',
+        quality: qualityMatch ? qualityMatch[1].toUpperCase() : null,
         isWatch: resolved.includes('/watch/'),
         isDownload: resolved.includes('/download/')
       });
@@ -427,7 +427,7 @@ export async function resolveAkwamBridgeToDirectMp4(bridgeLinkUrl, refererUrl = 
           url: src,
           type: streamType,
           streamType,
-          quality: size ? `${size}p` : '1080p',
+          quality: /^[1-9]\d{2,3}$/.test(size) ? `${size}p` : null,
           headers: {
             Referer: cleanUrl,
             'User-Agent': AKWAM_CONFIG.userAgent
@@ -446,7 +446,7 @@ export async function resolveAkwamBridgeToDirectMp4(bridgeLinkUrl, refererUrl = 
           url: href,
           type: isHls ? 'm3u8' : 'mp4',
           streamType: isHls ? 'm3u8' : 'mp4',
-          quality: qMatch ? qMatch[1].toUpperCase() : 'Direct-MP4',
+          quality: qMatch ? qMatch[1].toUpperCase() : null,
           headers: {
             Referer: cleanUrl,
             'User-Agent': AKWAM_CONFIG.userAgent
@@ -465,7 +465,7 @@ export async function resolveAkwamBridgeToDirectMp4(bridgeLinkUrl, refererUrl = 
           url: cleanStreamUrl,
           type: isHls ? 'm3u8' : 'mp4',
           streamType: isHls ? 'm3u8' : 'mp4',
-          quality: isHls ? 'AUTO-HLS' : '1080p',
+          quality: null,
           headers: {
             Referer: cleanUrl,
             'User-Agent': AKWAM_CONFIG.userAgent
@@ -786,12 +786,12 @@ export async function scrapeServers(urlOrRef, options = {}) {
     if (isValidDirectMediaUrl(cleanUrl) || cleanUrl.includes('.downet.net/media/')) {
       const isHls = cleanUrl.includes('.m3u8');
       rawServers.push({
-        name: `سيرفر أكوام مباشر (1080p)`,
-        label: `أكوام مباشر (1080p)`,
+        name: 'أكوام مباشر',
+        label: 'أكوام مباشر',
         url: cleanUrl,
         type: isHls ? 'm3u8' : 'mp4',
         streamType: isHls ? 'm3u8' : 'mp4',
-        quality: isHls ? 'AUTO-HLS' : '1080p',
+        quality: null,
         headers: { Referer: AKWAM_CONFIG.baseUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
       });
     } else {
@@ -810,16 +810,16 @@ export async function scrapeServers(urlOrRef, options = {}) {
       const $page = cheerio.load(res.html);
       $page('video source, source[src*=".mp4"], source[src*=".m3u8"]').each((_, el) => {
         const src = $page(el).attr('src') || '';
-        const size = $page(el).attr('size') || '1080';
+        const size = $page(el).attr('size') || '';
         if (src && src.startsWith('http')) {
           const streamType = src.includes('.m3u8') ? 'm3u8' : 'mp4';
           rawServers.push({
-            name: `أكوام مباشر (${size}p)`,
-            label: `أكوام مباشر (${size}p)`,
+            name: 'أكوام مباشر',
+            label: 'أكوام مباشر',
             url: src,
             type: streamType,
             streamType,
-            quality: `${size}p`,
+            quality: /^[1-9]\d{2,3}$/.test(size) ? `${size}p` : null,
             headers: { Referer: cleanUrl, 'User-Agent': AKWAM_CONFIG.userAgent }
           });
         }
@@ -830,10 +830,10 @@ export async function scrapeServers(urlOrRef, options = {}) {
         const href = $page(el).attr('href') || '';
         if (href && href.startsWith('http')) {
           const qMatch = ($page(el).text() + ' ' + href).match(/(1080p|720p|480p|4k|360p)/i);
-          const qLabel = qMatch ? qMatch[1].toUpperCase() : '1080p';
+          const qLabel = qMatch ? qMatch[1].toUpperCase() : null;
           rawServers.push({
-            name: `أكوام تحميل مباشر (${qLabel})`,
-            label: `أكوام تحميل مباشر (${qLabel})`,
+            name: 'أكوام تحميل مباشر',
+            label: 'أكوام تحميل مباشر',
             url: href,
             type: 'mp4',
             streamType: 'mp4',
@@ -858,8 +858,8 @@ export async function scrapeServers(urlOrRef, options = {}) {
           const streams = await resolveAkwamBridgeToDirectMp4(bridge.url, cleanUrl, {...options,deadlineMs:deadline,timeoutMs:Math.min(options.timeoutMs||10000,Math.max(250,deadline-Date.now()))});
           for (const s of streams) {
             rawServers.push({
-              name: `أكوام مباشر (${s.quality || bridge.quality})`,
-              label: `أكوام مباشر (${s.quality || bridge.quality})`,
+              name: 'أكوام مباشر',
+              label: 'أكوام مباشر',
               url: s.url,
               type: s.type,
               streamType: s.streamType,
@@ -870,8 +870,8 @@ export async function scrapeServers(urlOrRef, options = {}) {
           // If bridge link didn't unwrap, retain it as an embed/bridge server
           if (streams.length === 0) {
             rawServers.push({
-              name: `مشاهدة أكوام (${bridge.quality})`,
-              label: `مشاهدة أكوام (${bridge.quality})`,
+              name: 'مشاهدة أكوام',
+              label: 'مشاهدة أكوام',
               url: bridge.url,
               type: 'embed',
               streamType: 'embed',
@@ -941,7 +941,7 @@ export async function resolveStream(urlOrRef, options = {}) {
       url: cleanUrl,
       type: streamType,
       streamType,
-      quality: streamType === 'm3u8' ? 'AUTO-HLS' : '1080p',
+      quality: null,
       headers: options.headers || { Referer: `${AKWAM_CONFIG.baseUrl}/`, 'User-Agent': AKWAM_CONFIG.userAgent }
     };
   }

@@ -29,3 +29,16 @@ for(const [name,provider]of [['main',main],['beta',beta]]){
   assert(resolved.servers.some(s=>s.url==='https://cdn.example/quality-7.mp4'));
  });
 }
+
+for (const [family, provider] of [['Core', main], ['Beta', beta]]) {
+  test(`${family} Akwam does not advertise invented resolutions or auto quality`, async () => {
+    const [first, second] = await provider.scrapeServers(root, { fixtures: {
+      [root]: '<video><source src="https://cdn.example/unknown.m3u8"><source src="https://cdn.example/known.mp4" size="720"></video>',
+    } });
+    assert.equal(first.quality, null);
+    assert.equal(first.adaptive, undefined);
+    assert.equal(second.quality, '720p');
+    assert.equal(first.name, second.name);
+    assert.equal((await provider.resolveStream('https://cdn.example/test.mp4')).quality, null);
+  });
+}
