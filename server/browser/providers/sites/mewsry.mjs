@@ -188,7 +188,7 @@ export function parseMatchesFromHtml(html, baseUrl = MEWSRY_CONFIG.baseUrl, day 
 
     items.push({
       id: matchId,
-      ref: matchId,
+      ref: day === 'today' ? matchId : `${matchId}:${day}`,
       title,
       homeTeam: { name: homeName, logo: homeLogo },
       awayTeam: { name: awayName, logo: awayLogo },
@@ -410,7 +410,17 @@ export async function scrapeSearch(query, page = 1, options = {}) {
  * Scrapes detailed information for a match or video URL/reference.
  */
 export async function scrapeDetails(urlOrRef, options = {}) {
-  const targetUrl = resolveTargetUrl(urlOrRef);
+  const reference = typeof urlOrRef === 'object'
+    ? urlOrRef?.ref || urlOrRef?.id
+    : urlOrRef;
+  const matchRef = typeof reference === 'string' && reference.startsWith('mewsry:match:')
+    ? reference
+    : null;
+  const archivedDay = matchRef?.match(/:(yesterday|tomorrow)$/)?.[1];
+  const matchId = archivedDay ? matchRef.slice(0, -archivedDay.length - 1) : matchRef;
+  const targetUrl = matchRef
+    ? resolveSafeUrl(`/?match_day=${archivedDay || 'today'}`, MEWSRY_CONFIG.baseUrl, { allowHttp: true })
+    : resolveTargetUrl(urlOrRef);
 
   try {
     const fetchRes = await fetchProviderHtml(targetUrl, {
@@ -422,28 +432,21 @@ export async function scrapeDetails(urlOrRef, options = {}) {
     const $ = cheerio.load(fetchRes.html || '');
     const pageTitle = cleanTitleText($('title').text().trim());
 
-    // Check if URL represents a match card on the schedule page
-    const matches = parseMatchesFromHtml(fetchRes.html, MEWSRY_CONFIG.baseUrl);
-    const decodedUrl = decodeURIComponent(targetUrl);
-    let matchedItem = null;
-
-    if (matches.length > 0) {
-      for (const m of matches) {
-        if (decodedUrl.includes(m.homeTeam.name) || decodedUrl.includes(m.awayTeam.name)) {
-          matchedItem = m;
-          break;
-        }
-      }
-      if (!matchedItem && targetUrl.includes('#')) {
-        const hash = targetUrl.split('#')[1];
-        matchedItem = matches.find((m) => m.id.includes(hash) || m.url.includes(hash)) || matches[0];
-      }
+    const target = new URL(targetUrl);
+    const day = target.searchParams.get('match_day');
+    const isSchedule = ['today', 'yesterday', 'tomorrow'].includes(day);
+    const matches = isSchedule ? parseMatchesFromHtml(fetchRes.html, targetUrl, day) : [];
+    const matchedItem = matches.find(match => matchRef
+      ? match.id === matchId
+      : target.hash && new URL(match.url).hash === target.hash);
+    if (!matchedItem && (matchRef || (isSchedule && target.hash))) {
+      throw Error('MEWSRY_MATCH_NOT_FOUND');
     }
 
     if (matchedItem) {
       const detailsResult = {
         id: matchedItem.id,
-        ref: matchedItem.id,
+        ref: matchedItem.ref,
         title: matchedItem.title,
         description: `بث مباشر لمباراة ${matchedItem.title} ضمن منافسات ${matchedItem.competition || 'كرة القدم'}. النتيجة: ${matchedItem.score}`,
         poster: matchedItem.poster,
