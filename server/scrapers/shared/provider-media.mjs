@@ -97,9 +97,9 @@ export async function resolveProviderMedia(entry,source,{details={},network={},a
   if(targets.length){cursor=1;await resolve(targets[0]);}
   async function worker(){while((collectAll||!winning)&&cursor<targets.length&&now()<deadline){const target=targets[cursor++];await resolve(target);}}
   if(collectAll||!winning)await Promise.all(Array.from({length:Math.min(4,Math.max(1,resolverConcurrency))},()=>worker()));
-  if(collected.length)return finish(observed.length,attempted);
+  if(collected.length||(!lastError&&providerScanComplete&&attempted===observed.length&&inspected===seen.size))return finish(observed.length,attempted);
   if(attempted<observed.length||inspected<seen.size)throw Object.assign(Error('MEDIA_SERVER_SCAN_PARTIAL'),{code:'MEDIA_SERVER_SCAN_PARTIAL',observed_targets:observed.length,attempted_targets:attempted});
 
  }
- if(collected.length)return finish();if(!providerScanComplete||inspected<seen.size)throw Object.assign(Error('MEDIA_SERVER_SCAN_PARTIAL'),{code:'MEDIA_SERVER_SCAN_PARTIAL'});if(lastError)throw lastError;return[];
+ if(collected.length)return finish();if(!providerScanComplete||inspected<seen.size)throw Object.assign(Error('MEDIA_SERVER_SCAN_PARTIAL'),{code:'MEDIA_SERVER_SCAN_PARTIAL'});if(lastError)throw lastError;return finish();
 }

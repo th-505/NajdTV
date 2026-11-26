@@ -99,3 +99,24 @@ test('separate server choices sharing one CDN URL retain their own inventory and
   assert.equal(rows._meta.playable_servers, 2);
   assert.equal(rows._meta.inspected_media_candidates, 2);
 });
+
+test('a completed scan retains observed server names when none can play', async () => {
+  const entry = {
+    module: {
+      scrapeServers: async () => [
+        { url: 'https://player.example/one', type: 'embed', label: 'Server One' },
+        { url: 'https://player.example/two', type: 'embed', label: 'Server Two' },
+      ],
+    },
+  };
+  const rows = await resolveProviderMedia(entry, 'https://source.example/episode', {
+    resolveEmbed: async () => [],
+  });
+  assert.equal(rows.length, 0);
+  assert.equal(rows._meta.server_scan_complete, true);
+  assert.equal(rows._meta.playable_servers, 0);
+  assert.deepEqual(rows._meta.server_inventory.map(server => [server.label, server.state]), [
+    ['Server One', 'unavailable'],
+    ['Server Two', 'unavailable'],
+  ]);
+});

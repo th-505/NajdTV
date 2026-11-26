@@ -53,7 +53,7 @@ export function createServiceChecks({
         const step = async (name, fn) => {
           try {
             const value = await fn();
-            stages.push({ stage: name, state: "passed", ...(name==='media'&&value?.verified_sources?{verified_sources:value.verified_sources,server_scan:value.server_scan}: {}), ...(name==='qualities'?{by_server:value}: {}) });
+            stages.push({ stage: name, state: "passed", ...(name==='media'&&value?.verified_sources?{verified_sources:value.verified_sources,server_scan:value.server_scan}: {}), ...(name==='servers'?{server_scan:value}: {}), ...(name==='qualities'?{by_server:value}: {}) });
             return value;
           } catch (e) {
             stages.push({ stage: name, state: "failed", reason: reason(e) });
@@ -128,24 +128,27 @@ export function createServiceChecks({
           }
           throw failure;
         });
+        let serverScan;
         const media = await step("media", async () => {
           const episode = details.episodes?.find((e) => e.ref || e.url),
             target = episode?.ref || episode?.url || source;
           const accepted=await resolveProviderMedia(entry,target,{details:episode?{}:details,network:{...options,timeoutMs:30000},resolverBudgetMs:60000,collectAll:strictChecklist,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
            for(const candidate of candidates){const result=await probe(candidate,{platform:'native'});if(result.playable&&result.container_verified)return[{...candidate,quality_levels:result.quality_levels,adaptive:result.adaptive===true}]}return[];
           }});
+          serverScan=accepted._meta;
           if(!accepted.length)throw Error('DIRECT_MEDIA_NOT_FOUND');
           return {verified_sources:accepted.length,server_scan:accepted._meta||null,accepted};
 
         });
         if (strictChecklist) {
           await step("servers", () => {
-            if (!media?.server_scan?.server_inventory?.length) {
+            if (!serverScan?.server_inventory?.length) {
               throw Error("SOURCE_SERVER_LIST_MISSING");
             }
-            if (!media.server_scan.server_scan_complete) {
+            if (!serverScan.server_scan_complete) {
               throw Error("SOURCE_SERVER_SCAN_INCOMPLETE");
             }
+            return serverScan;
           });
           await step("qualities", () => {
             const rows=media?.accepted || [];
