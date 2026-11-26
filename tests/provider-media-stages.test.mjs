@@ -5,7 +5,7 @@ test('provider resolves its observed embedded server rather than treating an epi
  const streams=await resolveProviderMedia(entry,'mycima:episode19');assert.equal(streams[0].url,'https://cdn.example/19.mp4');assert.deepEqual(calls,['mycima:episode19','https://player.example/embed/19']);
 });
 test('failed container evidence tries another server of the same provider and never publishes an iframe',async()=>{
- const entry={module:{scrapeServers:async()=>[{url:'https://cdn.example/dead.mp4'},{url:'https://player.example/working',type:'embed'}],resolveStream:async()=>({url:'https://cdn.example/good.m3u8'})}};
+ const entry={module:{scrapeServers:async()=>[{url:'https://cdn.example/dead.mp4'},{url:'https://player.example/working',type:'embed'}],resolveStream:async target=>target==='https://player.example/working'?{url:'https://cdn.example/good.m3u8'}:null}};
  const inspected=[];const result=await resolveProviderMedia(entry,'provider:episode',{accept:async rows=>{inspected.push(...rows.map(r=>r.url));return rows.filter(r=>r.url.endsWith('good.m3u8'))}});
  assert.deepEqual(result.map(r=>r.url),['https://cdn.example/good.m3u8']);assert(inspected.includes('https://cdn.example/dead.mp4'));assert(!inspected.some(url=>url.includes('player.example')));
 });
@@ -82,4 +82,20 @@ test('a public codec-demo file does not count as work playback',async()=>{
  assert.equal(directCandidate({url:'https://test-videos.co.uk/demo.mp4'}),false);
  assert.equal(directCandidate({url:'https://www.test-videos.co.uk/demo.mp4'}),false);
  assert.equal(directCandidate({url:'https://cdn.example/demo.mp4'}),true);
+});
+
+test('separate server choices sharing one CDN URL retain their own inventory and quality', async () => {
+  const url = 'https://cdn.example/shared.mp4';
+  const serverA = { url, server_id: 'a', server_name: 'Server A', quality: '720p' };
+  const serverB = { url, server_id: 'b', server_name: 'Server B', quality: '720p' };
+  const rows = await resolveProviderMedia({ module: {} }, 'fixture:episode', {
+    details: { media_sources: [serverA, serverA, serverB] },
+  });
+  assert.deepEqual(rows.map(row => [row.server_name, row.quality]), [
+    ['Server A', '720p'],
+    ['Server B', '720p'],
+  ]);
+  assert.notEqual(rows[0].server_id, rows[1].server_id);
+  assert.equal(rows._meta.playable_servers, 2);
+  assert.equal(rows._meta.inspected_media_candidates, 2);
 });
