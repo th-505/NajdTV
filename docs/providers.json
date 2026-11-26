@@ -698,7 +698,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/mewsry.mjs",
       "metadata_line": 51,
-      "source_sha256": "566238f297dbbbc415817c66c063963b0412a16d04e667f93e240868940685cc",
+      "source_sha256": "1b8dc94e434f88d732564688096b4e2fd85ece57e9f4407df64e176f439d0383",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -1239,7 +1239,7 @@
       "id": "mewsry",
       "scope": "beta",
       "path": "server/browser/providers/sites/mewsry.mjs",
-      "source_sha256": "d0e6cdcaa9325db89952a74135aa07cb79936b55ab3ab72ec00aa52328c948c3",
+      "source_sha256": "b4cf5c77abd2f020140be00389aa49c49c95207cc5c4d1e2a39c02e851543d95",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"

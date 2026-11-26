@@ -57,7 +57,12 @@ class SourcePickerButton extends StatelessWidget {
             options: [
               for (final indices in _servers.values)
                 NajdOption(
-                  indices.contains(selected) ? selected : indices.first,
+                  indices.contains(selected)
+                      ? selected
+                      : indices.firstWhere(
+                          (i) => sources[i].adaptive,
+                          orElse: () => indices.first,
+                        ),
                   sources[indices.first].serverLabel.isEmpty
                       ? 'سيرفر ${indices.first + 1}'
                       : sources[indices.first].serverLabel,
