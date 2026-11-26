@@ -101,3 +101,16 @@ export async function probeHarvestMedia(candidate,{platform='native',origin='htt
  const webPlayable=platform==='web'?playable&&!policyBlocked&&(plainVideo?['mp4','webm','ogg'].includes(container):['mp4','hls','webm','ogg'].includes(container)&&[browserOrigin,'*'].includes(allowedOrigin)):playable&&head.webPlayable===true;
  return {...head,container,quality_levels,adaptive,playable,statusCode:response.status,webPlayable,container_verified:playable,verification_basis:'bounded-container-bytes'};
 }
+
+// Playback metadata must reflect the media probe, even when a provider
+// guessed a resolution or called a fixed HLS playlist adaptive.
+export function verifiedQualityMetadata(result) {
+ const quality_levels=Array.isArray(result.quality_levels)?result.quality_levels:[];
+ const adaptive=result.adaptive===true;
+ const first=quality_levels[0];
+ return {
+  adaptive,
+  quality_levels,
+  quality:adaptive?'AUTO-HLS':first?.label||(first?.height?`${first.height}p`:null),
+ };
+}

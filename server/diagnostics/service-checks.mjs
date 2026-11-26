@@ -12,7 +12,7 @@ import {
   identityTitle,
   titleIdentityMatches,
 } from "../scrapers/content-discovery.mjs";
-import { probeHarvestMedia } from "../harvest/media-probe.mjs";
+import { probeHarvestMedia, verifiedQualityMetadata } from "../harvest/media-probe.mjs";
 import { runInBrowserLane, runInDiagnosticLane } from "../browser/traffic.mjs";
 import {getProvider as getBetaProvider, listIndependentProviders as listBetaProviders} from '../browser/registry.mjs';
 import {providerGroups} from '../browser/provider-directory.mjs';
@@ -133,7 +133,7 @@ export function createServiceChecks({
           const episode = details.episodes?.find((e) => e.ref || e.url),
             target = episode?.ref || episode?.url || source;
           const accepted=await resolveProviderMedia(entry,target,{details:episode?{}:details,network:{...options,timeoutMs:30000},resolverBudgetMs:60000,collectAll:strictChecklist,resolveEmbed:(target,parent,deadline)=>cascadeResolveStream(target,parent,0,new Set(),deadline),accept:async candidates=>{
-           for(const candidate of candidates){const result=await probe(candidate,{platform:'native'});if(result.playable&&result.container_verified)return[{...candidate,quality_levels:result.quality_levels,adaptive:result.adaptive===true}]}return[];
+           for(const candidate of candidates){const result=await probe(candidate,{platform:'native'});if(result.playable&&result.container_verified)return[{...candidate,...verifiedQualityMetadata(result)}]}return[];
           }});
           serverScan=accepted._meta;
           if(!accepted.length)throw Error('DIRECT_MEDIA_NOT_FOUND');

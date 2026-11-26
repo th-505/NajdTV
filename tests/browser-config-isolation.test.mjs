@@ -131,7 +131,7 @@ test("strict provider checklist rejects a non-image response despite verified me
   const checks=createServiceChecks({
     strictChecklist:true,providers:()=>[provider],lookup:()=>({meta:provider,module}),
     fetchResponse:async()=>({ok:true,bytes:new Uint8Array([1]),headers:new Headers({"content-type":"text/html"})}),
-    probe:async()=>({playable:true,container_verified:true}),
+    probe:async()=>({playable:true,container_verified:true,quality_levels:[{height:1080,label:"1080p"}]}),
   });
   const job=checks.start("najd");
   let report;

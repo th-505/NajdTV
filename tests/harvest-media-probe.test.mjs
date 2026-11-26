@@ -59,3 +59,12 @@ test('guarded plain-video requests omit generated Origin on every redirect while
   assert.equal(options.headers.Origin,'https://th-505.github.io');return new Response(null,{status:200});
  }});
 });
+
+test('a playable container with no measured renditions clears the provider quality guess', async () => {
+ const {verifiedQualityMetadata}=await import('../server/harvest/media-probe.mjs');
+ const candidate={quality:'1080p',adaptive:true,quality_levels:[{height:1080}]};
+ assert.deepEqual({...candidate,...verifiedQualityMetadata({playable:true})},{
+  quality:null,adaptive:false,quality_levels:[],
+ });
+ assert.equal(verifiedQualityMetadata({quality_levels:[{height:720}]}).quality,'720p');
+});

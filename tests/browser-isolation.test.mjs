@@ -285,7 +285,13 @@ test('Beta shows one card per observed episode while retaining alternative sourc
 });
 
 test('beta retains every verified quality/server from an observed episode instead of returning inside the first probe',async()=>{
- const {service}=fixture({fixtureServers:[720,1080,1440].map(height=>({url:`https://cdn.example/episode19-${height}.mp4`,quality:`${height}p`}))});
+ const {service}=fixture({
+  fixtureServers:[720,1080,1440].map(height=>({url:`https://cdn.example/episode19-${height}.mp4`,quality:'2160p'})),
+  probe:async candidate=>({
+   playable:true,container_verified:true,webPlayable:true,
+   quality_levels:[{height:Number(/-(\d+)\.mp4$/.exec(candidate.url)[1])}],
+  }),
+ });
  const admitted=await service.request(ref(seed));await service.settle();
  await service.playback(admitted.ref,{season:1,episode:19});await service.settle();
  const result=await service.playback(admitted.ref,{season:1,episode:19});

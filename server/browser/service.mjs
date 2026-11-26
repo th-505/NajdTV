@@ -17,7 +17,7 @@ import {
   directCandidate,
   identityTitle,
 } from "../scrapers/content-discovery.mjs";
-import { probeHarvestMedia } from "../harvest/media-probe.mjs";
+import { probeHarvestMedia, verifiedQualityMetadata } from "../harvest/media-probe.mjs";
 import { mediaExpiry } from "../harvest/identity.mjs";
 import {
   explicitEpisode,
@@ -677,7 +677,7 @@ export function createBrowserWorkService({
                     headers[k] = v;
                 accepted.push({
                   ...candidate,
-                  ...(checked.adaptive ? {adaptive:true,quality:'AUTO-HLS',quality_levels:checked.quality_levels} : checked.quality_levels?.length ? {adaptive:false,quality:checked.quality_levels[0].label,quality_levels:checked.quality_levels} : {}),
+                  ...verifiedQualityMetadata(checked),
                   kind: "direct",
                   headers,
                   provider: w.provider,
