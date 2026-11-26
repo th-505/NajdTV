@@ -85,11 +85,15 @@ export async function resolveProviderMedia(entry,source,{details={},network={},a
    attempted++;
    try{
     const remaining=Math.max(250,deadline-now());
-    const result=target!==source&&resolveEmbed
-      ?await resolveEmbed(target,details.sourceUrl||sourceOrigin+'/',deadline)
-      :typeof module.resolveStream==='function'?await module.resolveStream(target,{...network,headers:contextHeaders(target),timeoutMs:Math.min(network.timeoutMs||8000,remaining)}):null;
+    const embeddedTarget=target!==source;
+    const providerOwned=embeddedTarget&&sourceOrigin===new URL(target).origin;
+    const useProvider=typeof module.resolveStream==='function'&&(!embeddedTarget||providerOwned||!resolveEmbed);
+    const rowsFrom=result=>(Array.isArray(result)?result:[...(result?.servers||[]),...(result?.sources||[]),result]).filter(Boolean).map(row=>({...row,url:row.url||row.streamUrl}));
+    let rows=useProvider?rowsFrom(await module.resolveStream(target,{...network,headers:contextHeaders(target),timeoutMs:Math.min(network.timeoutMs||8000,remaining)})):[];
+    if(embeddedTarget&&resolveEmbed&&!rows.some(directCandidate)&&now()<deadline){
+     rows.push(...rowsFrom(await resolveEmbed(target,details.sourceUrl||(sourceOrigin?sourceOrigin+'/':null),deadline)));
+    }
     if(winning&&!collectAll)return;
-    const rows=(Array.isArray(result)?result:[...(result?.servers||[]),...(result?.sources||[]),result]).filter(Boolean).map(row=>({...row,url:row.url||row.streamUrl}));
     const accepted=keep(await attempt(rows,observedTargets.get(target)));mark(target,accepted.length?'playable':'unavailable');if(accepted.length&&!winning)winning=accepted;
    }catch(error){mark(target,'unavailable');if(target===source||error.code!=='UNSAFE_URL')lastError=error}
   }

@@ -138,3 +138,27 @@ test('server normalization preserves declared identity and does not infer qualit
   assert.equal(rows[0].server_name, 'Server A');
   assert.equal(rows[1].quality_levels, undefined);
 });
+
+test('provider-owned player routes use their adapter, while third-party players use the host resolver', async () => {
+  const source = 'https://source.example/episode';
+  const internal = 'https://source.example/player/one';
+  const external = 'https://player.example/two';
+  const handled = [];
+  const rows = await resolveProviderMedia({
+    module: {
+      scrapeServers: async () => [internal, external].map(url => ({ url, type: 'embed' })),
+      resolveStream: async target => {
+        handled.push(['provider', target]);
+        return { streamUrl: 'https://cdn.example/one.mp4' };
+      },
+    },
+  }, source, {
+    resolveEmbed: async target => {
+      handled.push(['host', target]);
+      return [{ url: 'https://cdn.example/two.mp4' }];
+    },
+  });
+  assert.deepEqual(handled, [['provider', internal], ['host', external]]);
+  assert.equal(rows._meta.playable_servers, 2);
+  assert.equal(rows.length, 2);
+});
