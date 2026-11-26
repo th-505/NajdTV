@@ -47,3 +47,9 @@ test('queue transfers reserved slot, bounds pressure, releases on failure', asyn
   release(); await first; await assert.rejects(second,/task failure/);
   await queue.run(async()=>{});assert.deepEqual(queue.metrics(),{active:0,queued:0});
 });
+
+test('matches work titles when an episode number is repeated as an Arabic ordinal', () => {
+  const hit = { title: 'مسلسل Nine to Six الحلقة ٢ الثانية مترجمة' };
+  assert.equal(matchesIdentity(hit, 'مسلسل Nine to Six مترجم'), true);
+  assert.equal(matchesIdentity({ title: 'Nine to Six الثانية' }, 'Nine to Six'), false);
+});
