@@ -53,3 +53,12 @@ test('matches work titles when an episode number is repeated as an Arabic ordina
   assert.equal(matchesIdentity(hit, 'مسلسل Nine to Six مترجم'), true);
   assert.equal(matchesIdentity({ title: 'Nine to Six الثانية' }, 'Nine to Six'), false);
 });
+
+test('discovery preserves distinct servers from one provider on the same CDN URL', async () => {
+  const provider = entry('a', { episodes: [{ season: 1, number: 1, url: 'episode' }] });
+  provider.module.scrapeDetails = async target => target === 'show'
+    ? { type: 'series', episodes: [{ season: 1, number: 1, url: 'episode' }] }
+    : { servers: ['A', 'B'].map(server_name => ({ server_name, url: 'https://media.example/same.mp4' })) };
+  const result = await createContentDiscovery({ entries: [provider] }).discover('Example', 1, 1, { year: 2025 });
+  assert.deepEqual(result.map(row => [row.provider, row.server_name]), [['a', 'A'], ['a', 'B']]);
+});

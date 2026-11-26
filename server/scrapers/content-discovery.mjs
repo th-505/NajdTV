@@ -105,7 +105,7 @@ export function createContentDiscovery({ entries, concurrency = 20, maxQueued = 
     }));
     const seen = new Set();
     return settled.flatMap(result => result.status === 'fulfilled' ? result.value : []).filter(item => {
-      const key = `${item.provider}:${item.url}`;
+      const key = JSON.stringify([item.provider, item.server_id, item.url]);
       if (seen.has(key)) return false;
       seen.add(key); return true;
     });
