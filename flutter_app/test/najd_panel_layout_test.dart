@@ -111,6 +111,7 @@ void main() {
                     PlaybackSource(
                       mediaPath: 'https://cdn.example/two.m3u8',
                       mediaType: 'm3u8',
+                      adaptivePlaylist: true,
                       serverName: 'السيرفر البديل',
                       qualities: [
                         ResolutionOption(label: '720p', height: 720),

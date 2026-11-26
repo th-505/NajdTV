@@ -320,8 +320,7 @@ class StreamSource {
   String get serverKey =>
       '${providerId.isEmpty ? provider : providerId}|${serverId.isEmpty ? serverLabel : serverId}';
   final bool? adaptivePlaylist;
-  bool get adaptive =>
-      adaptivePlaylist ?? (mediaType == 'm3u8' || mediaType == 'hls');
+  bool get adaptive => adaptivePlaylist == true;
   Iterable<ResolutionOption> get knownQualities => qualities.isNotEmpty
       ? qualities
       : resolution?.height != null

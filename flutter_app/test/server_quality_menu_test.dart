@@ -4,6 +4,18 @@ import 'package:mitv/src/models.dart';
 import 'package:mitv/src/source_picker.dart';
 
 void main() {
+  test('an HLS container alone does not enable automatic quality', () {
+    final playlist = StreamSource.fromJson({
+      'url': 'https://cdn.example/fixed.m3u8',
+      'format': 'hls',
+      'quality_levels': [
+        {'height': 720},
+      ],
+    });
+    expect(playlist.adaptive, isFalse);
+    expect(playlist.knownQualities.single.label, '720p');
+  });
+
   testWidgets(
     'each server lists its own qualities and a fifth server remains selectable',
     (tester) async {
@@ -15,6 +27,7 @@ void main() {
             'server_name': 'سيرفر $i',
             'url': 'https://cdn.example/$i.m3u8',
             'format': 'hls',
+            'adaptive': true,
             'quality_levels': [
               {'height': 360, 'bandwidth': 500000},
               {'height': 720, 'bandwidth': 2500000},
@@ -34,6 +47,7 @@ void main() {
           'server_name': 'سيرفر 5',
           'url': 'https://cdn.example/5.m3u8',
           'format': 'hls',
+          'adaptive': true,
           'quality_levels': [
             {'height': 360, 'bandwidth': 500000},
             {'height': 720, 'bandwidth': 2500000},
