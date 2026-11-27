@@ -59,6 +59,24 @@ class TimelineApi extends MitvApi {
   }) => Uri.parse(path);
 }
 
+class DelayedSeekEngine extends FakeEngine {
+  DelayedSeekEngine(
+    super.uri, {
+    required super.mediaType,
+    required super.headers,
+    required super.software,
+  }) : super(fail: false);
+
+  @override
+  Future<void> seekTo(Duration position) async {
+    seeks.add(position);
+  }
+
+  void confirmSeek() {
+    state.value = value.copyWith(position: seeks.last);
+  }
+}
+
 Future<void> settle(WidgetTester tester) async {
   for (var i = 0; i < 12; i++) {
     await tester.pump(const Duration(milliseconds: 100));
@@ -118,7 +136,13 @@ void main() {
     },
   );
 
-  for (final mode in ['automatic', 'paused', 'manual-quality', 'data-saver']) {
+  for (final mode in [
+    'automatic',
+    'paused',
+    'delayed-seek',
+    'manual-quality',
+    'data-saver',
+  ]) {
     final automatic = mode == 'automatic';
     final qualitySwitch = mode == 'manual-quality' || mode == 'data-saver';
     testWidgets('$mode switch preserves the requested 23-second clock', (
@@ -158,13 +182,20 @@ void main() {
             title: 'Work',
             sourceRef: '3isk:work',
             playerFactory: (uri, type, headers, software) {
-              final engine = FakeEngine(
-                uri,
-                mediaType: type,
-                headers: headers,
-                software: software,
-                fail: false,
-              );
+              final engine = mode == 'delayed-seek' && engines.isNotEmpty
+                  ? DelayedSeekEngine(
+                      uri,
+                      mediaType: type,
+                      headers: headers,
+                      software: software,
+                    )
+                  : FakeEngine(
+                      uri,
+                      mediaType: type,
+                      headers: headers,
+                      software: software,
+                      fail: false,
+                    );
               engines.add(engine);
               return engine;
             },
@@ -210,12 +241,21 @@ void main() {
         menu.onSelected(alternative);
       }
       await settle(tester);
+      if (mode == 'delayed-seek') {
+        final delayed = engines.last as DelayedSeekEngine;
+        expect(delayed.value.position, Duration.zero);
+        expect(delayed.value.isPlaying, false);
+        delayed.confirmSeek();
+        await tester.pump();
+        expect(delayed.value.isPlaying, true);
+      }
       expect(
         engines.last.uri.path,
         qualitySwitch ? '/360.mp4' : '/unverified.mp4',
       );
       expect(engines.last.value.isPlaying, mode != 'paused');
-      expect(engines.last.seeks, [const Duration(seconds: 23)]);
+      expect(engines.last.seeks, everyElement(const Duration(seconds: 23)));
+      expect(engines.last.seeks, isNotEmpty);
       expect(
         find.text('نسخة هذا المصدر غير متطابقة؛ يبدأ التشغيل من البداية.'),
         findsNothing,

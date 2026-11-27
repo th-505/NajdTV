@@ -169,7 +169,18 @@ class UniversalPlayer implements ValueListenable<VideoPlayerValue> {
         play: false,
       );
       if (_closed) return false;
-      if (position > Duration.zero) await player.seek(position);
+      if (position > Duration.zero) {
+        await player.seek(position);
+        bool reached(Duration actual) =>
+            (actual - position).abs() <= const Duration(seconds: 2);
+        if (!reached(player.state.position)) {
+          await player.stream.position
+              .where(reached)
+              .timeout(const Duration(seconds: 8))
+              .first;
+        }
+      }
+      if (_closed) return false;
       if (playing) await player.play();
       return true;
     } catch (_) {

@@ -260,6 +260,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   bool _progressReady = false;
   bool _cloudPrepared = false;
   Duration? _pendingResumeTarget;
+  bool _playWhenResumeConfirmed = false;
   Timer? _resumeSeekTimer;
   bool _resumeSeekInFlight = false;
   int _resumeSeekAttempts = 0;
@@ -626,6 +627,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
   }) async {
     final generation = _generation.next();
     final shouldPlay = _requestedPlaying;
+    _playWhenResumeConfirmed = false;
     if (!_cloudPrepared) {
       _cloudPrepared = true;
       await CloudLibrarySync.refreshForPlayback(
@@ -879,7 +881,13 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         success: true,
         latencyMs: startup.elapsedMilliseconds,
       );
-      if (shouldPlay) await controller.play();
+      if (shouldPlay) {
+        if (_pendingResumeTarget == null) {
+          await controller.play();
+        } else {
+          _playWhenResumeConfirmed = true;
+        }
+      }
       unawaited(_restoreCaption(controller));
       _revealControls();
       _nativeStartupTimer = Timer(const Duration(seconds: 12), () {
@@ -888,6 +896,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
         final neverStarted =
             value.position < const Duration(milliseconds: 500) &&
             _requestedPlaying &&
+            _pendingResumeTarget == null &&
             !value.isPlaying;
         if (value.hasError || neverStarted) {
           unawaited(_fallbackFromNative('تعذر بدء التشغيل بالمشغل الأصلي'));
@@ -906,6 +915,16 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       _pendingResumeTarget = null;
       _progressReady = true;
       _resumeSeekTimer?.cancel();
+      if (_playWhenResumeConfirmed) {
+        _playWhenResumeConfirmed = false;
+        unawaited(
+          player.play().catchError((Object _) async {
+            if (mounted && player == _controller) {
+              await _fallbackFromNative('تعذر استئناف التشغيل');
+            }
+          }),
+        );
+      }
     }
   }
 
@@ -925,6 +944,7 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
       if (target == null) return;
       if (DateTime.now().isAfter(deadline)) {
         timer.cancel();
+        _playWhenResumeConfirmed = false;
         await player.pause();
         if (mounted) {
           setState(() {
@@ -1734,6 +1754,10 @@ class _PlayerPageState extends State<PlayerPage> with WidgetsBindingObserver {
 
   Future<void> _togglePlay(UniversalPlayer controller) async {
     _revealControls();
+    if (_pendingResumeTarget != null) {
+      _subtitleNotice('انتظر اكتمال استئناف التشغيل أولًا.');
+      return;
+    }
     _requestedPlaying = !controller.value.isPlaying;
     if (controller.value.isPlaying) {
       await controller.pause();
