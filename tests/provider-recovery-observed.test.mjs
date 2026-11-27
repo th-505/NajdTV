@@ -120,12 +120,14 @@ for (const [family, modulePath] of [
 ]) {
   test(`${family} 3ckTV uses the observed latest-episodes route`, async () => {
     const { scrapeCatalog } = await import(modulePath);
+    const paths = [];
     await scrapeCatalog('turkish_latest', 1, {
       fetchImpl: async url => {
-        assert.equal(new URL(url).pathname, '/qeseh/');
+        paths.push(new URL(url).pathname);
         return new Response('<main>empty listing fixture</main>');
       },
     });
+    assert.deepEqual(paths, ['/qeseh/']);
   });
 
   test(`${family} 3ckTV excludes reCAPTCHA and ad verification frames`, async () => {
