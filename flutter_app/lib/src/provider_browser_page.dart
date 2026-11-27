@@ -170,17 +170,23 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
       if (!more) _items = [];
     });
     try {
-      final grouped = query.isNotEmpty && !widget.liveOnly
-          ? group.isNotEmpty
-                ? await _browserApi.browserGroupSearch(
-                    group,
-                    query,
-                    provider: provider,
-                  )
-                : provider == null
-                ? (items: await widget.api.search(query), fallback: true)
-                : null
-          : null;
+      ({List<CatalogItem> items, bool fallback})? grouped;
+      if (query.isNotEmpty && !widget.liveOnly) {
+        if (group.isNotEmpty) {
+          try {
+            grouped = await _browserApi.browserGroupSearch(
+              group,
+              query,
+              provider: provider,
+            );
+          } on ApiException {
+            if (!mounted || request != _generation) return;
+          }
+        }
+        if (group.isNotEmpty || provider == null) {
+          grouped ??= (items: await widget.api.search(query), fallback: true);
+        }
+      }
       final result = grouped != null
           ? (items: grouped.items, hasMore: false)
           : query.isNotEmpty

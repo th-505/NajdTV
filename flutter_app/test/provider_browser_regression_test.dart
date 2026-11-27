@@ -149,4 +149,67 @@ void main() {
       store.dispose();
     },
   );
+  testWidgets('a failed specialist search shows global results within Najd', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'provider.browser.selection.v1': jsonEncode({'provider': '3cktv'}),
+    });
+    final store = await LocalLibraryStore.create();
+    final paths = <String>[];
+    final api = MitvApi(
+      client: MockClient((request) async {
+        final path = request.url.path;
+        paths.add(path);
+        if (path.endsWith('/group-search')) {
+          return http.Response('{"message":"ACCESS_BLOCKED"}', 503);
+        }
+        final body = path.endsWith('/sources')
+            ? {
+                'data': [
+                  {
+                    'id': '3cktv',
+                    'name': '3ckTV',
+                    'groups': ['turkish'],
+                  },
+                ],
+              }
+            : path == '/api/v1/search'
+            ? {
+                'data': [
+                  {
+                    'id': 'alternate',
+                    'ref': 'tmdb:tv:123',
+                    'title': 'نتيجة بديلة',
+                    'type': 'series',
+                  },
+                ],
+              }
+            : {'items': []};
+        return http.Response(
+          jsonEncode({'status': 'success', ...body}),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      }),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProviderBrowserPage(api: api, store: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'وادي الذئاب');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(
+      paths,
+      containsAllInOrder(['/api/v1/browser/group-search', '/api/v1/search']),
+    );
+    expect(find.text('نتائج البحث الشامل'), findsOneWidget);
+    expect(find.text('نتيجة بديلة'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    api.close();
+    store.dispose();
+  });
 }
