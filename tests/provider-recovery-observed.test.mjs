@@ -113,3 +113,30 @@ test('Beta 3ckTV preserves the upstream catalog challenge in strict mode', async
     }),
   }), { code: 'ACCESS_BLOCKED', message: 'CLOUDFLARE_OR_WAF_CHALLENGE_HTTP_403', status: 403 });
 });
+
+for (const [family, modulePath] of [
+  ['Core', '../server/scrapers/sites/3cktv.mjs'],
+  ['Beta', '../server/browser/providers/sites/3cktv.mjs'],
+]) {
+  test(`${family} 3ckTV uses the observed latest-episodes route`, async () => {
+    const { scrapeCatalog } = await import(modulePath);
+    await scrapeCatalog('turkish_latest', 1, {
+      fetchImpl: async url => {
+        assert.equal(new URL(url).pathname, '/qeseh/');
+        return new Response('<main>empty listing fixture</main>');
+      },
+    });
+  });
+
+  test(`${family} 3ckTV excludes reCAPTCHA and ad verification frames`, async () => {
+    const { extractServersFromHtml } = await import(modulePath);
+    const rows = await extractServersFromHtml(
+      '<iframe src="https://www.google.com/recaptcha/api2/aframe"></iframe>' +
+      '<iframe src="https://pagead2.googlesyndication.com/pagead/sodar"></iframe>' +
+      '<iframe src="https://ep1.adtrafficquality.google/pagead/sodar"></iframe>' +
+      '<iframe src="https://player.example/embed"></iframe>',
+      'https://e.3cktv.com/video/episode/', { fixtureHtml: 'offline' },
+    );
+    assert.deepEqual(rows.map(row => row.url), ['https://player.example/embed']);
+  });
+}

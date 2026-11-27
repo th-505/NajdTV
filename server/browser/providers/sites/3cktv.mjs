@@ -69,13 +69,13 @@ export const THREE_CKTV_CONFIG = Object.freeze({
   fallbackBaseUrl: 'https://3cktv.com',
   domains: ['https://e.3cktv.com', 'https://e.3cktv.cam', 'https://3cktv.com', 'https://ei.3cktv.com'],
   categories: {
-    turkish_latest: '/episodes/',
+    turkish_latest: '/qeseh/',
     turkish_subbed: '/category/مسلسلات-تركية-مترجمة/',
     turkish_dubbed: '/category/مسلسلات-تركية-مدبلجة/',
     turkish_movies: '/category/أفلام-تركية/',
     movies: '/category/أفلام-تركية/',
     series: '/category/مسلسلات-تركية-مترجمة/',
-    latest: '/episodes/',
+    latest: '/qeseh/',
     all: '/episodes/',
     dubbed: '/category/مسلسلات-تركية-مدبلجة/'
   }
@@ -284,6 +284,10 @@ export async function extractServersFromHtml(html = '', pageUrl = THREE_CKTV_CON
     const unwrapped = unwrapCandidateUrl(rawUrl);
     const safeUrl = resolveSafeUrl(unwrapped, pageUrl,{allowHttp:false});
     if (!safeUrl || seenUrls.has(safeUrl)) return;
+    const { hostname, pathname } = new URL(safeUrl);
+    const recaptcha = ['www.google.com', 'www.recaptcha.net'].includes(hostname) &&
+      pathname.startsWith('/recaptcha/');
+    if (recaptcha || ['pagead2.googlesyndication.com', 'ep1.adtrafficquality.google'].includes(hostname)) return;
     seenUrls.add(safeUrl);
     candidateUrls.push({ url: safeUrl, name: name || 'سيرفر مشاهدة' });
   }
