@@ -442,6 +442,7 @@ export async function scrapeCatalog(category = 'turkish_latest', page = 1, optio
     });
   } catch (err) {
     const classified = classifyNetworkError(err, { providerId: PROVIDER_META.id, url: targetUrl });
+    if (options.strict) throw classified;
     return createEmptyArrayResult(PROVIDER_META.id, classified.code, classified.message, {
       url: targetUrl
     });

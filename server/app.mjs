@@ -149,7 +149,7 @@ const browserCatalogAccessChecks = new Set([
   'DNS_EMPTY_RECORDS', 'DNS_TIMEOUT', 'TOO_MANY_REDIRECTS',
 ]);
 
-function brstejCatalogDiagnostic(cause, reason, check) {
+function browserCatalogDiagnostic(cause, reason, check) {
   let host;
   try {
     const hostname = new URL(cause?.url).hostname;
@@ -931,9 +931,7 @@ export function createServer({ iskRuntime = create3iskRuntime(), alooyRuntime = 
             ? {check: 'CIRCUIT_OPEN'}
             : error.catalogCacheHit
             ? {check: 'CACHED_ACCESS_BLOCKED', cache_hit: true}
-            : provider === 'brstej'
-              ? brstejCatalogDiagnostic(error.cause, reason, knownCheck)
-              : {check: knownCheck};
+            : browserCatalogDiagnostic(error.cause, reason, knownCheck);
           setBrowserRetryAfter(res, error);
           log('browser_catalog_failed', {
             trace_id: traceId,

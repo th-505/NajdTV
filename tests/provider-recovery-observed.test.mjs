@@ -102,3 +102,14 @@ for (const [name, modulePath] of [
     ]);
   });
 }
+
+test('Beta 3ckTV preserves the upstream catalog challenge in strict mode', async () => {
+  const { scrapeCatalog } = await import('../server/browser/providers/sites/3cktv.mjs');
+  await assert.rejects(scrapeCatalog('turkish_latest', 1, {
+    strict: true,
+    fetchImpl: async () => new Response('blocked', {
+      status: 403,
+      headers: { 'cf-mitigated': 'challenge' },
+    }),
+  }), { code: 'ACCESS_BLOCKED', message: 'CLOUDFLARE_OR_WAF_CHALLENGE_HTTP_403', status: 403 });
+});

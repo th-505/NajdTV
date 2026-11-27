@@ -1059,7 +1059,7 @@
       "id": "3cktv",
       "scope": "beta",
       "path": "server/browser/providers/sites/3cktv.mjs",
-      "source_sha256": "c75d6ad7127d52e4440b37c0b972c67ae9f23e8e36f4539043b835b999212caa",
+      "source_sha256": "8176d589454cd80bcd5bd7a7d76c8ff83fc40b7f144b5f1e48e7402b647f9dc7",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
