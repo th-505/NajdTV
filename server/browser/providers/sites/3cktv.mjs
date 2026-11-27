@@ -311,6 +311,14 @@ export async function extractServersFromHtml(html = '', pageUrl = THREE_CKTV_CON
     }
   });
 
+  // Relative media in HTML video elements is resolved from the observed player page.
+  $('video[src], video source[src]').each((_, el) => {
+    const src = resolveSafeUrl($(el).attr('src'), pageUrl, {allowHttp:false});
+    if (src && /\.(?:m3u8|mp4)$/i.test(new URL(src).pathname)) {
+      addCandidate(src, 'رابط مباشر');
+    }
+  });
+
   // 3. Check for Dean Edwards packed JS or direct video sources
   const unpackedScript = unpackDeanEdwards(html);
   const combinedText = `${html}\n${unpackedScript}`;

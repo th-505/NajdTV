@@ -82,3 +82,23 @@ for (const [name, modulePath] of [
     assert.equal(rows[0].url, 'https://cdn.example/observed.mp4');
   });
 }
+
+for (const [name, modulePath] of [
+  ['Core', '../server/scrapers/sites/3cktv.mjs'],
+  ['Beta', '../server/browser/providers/sites/3cktv.mjs'],
+]) {
+  test(`${name} 3ckTV resolves relative media elements inside the player page`, async () => {
+    const { extractServersFromHtml } = await import(modulePath);
+    const page = 'https://e.3cktv.com/video/episode/';
+    const rows = await extractServersFromHtml(
+      '<video src="../player/master.m3u8"></video>' +
+      '<video><source src="/video/episode.mp4?download=1">' +
+      '<source src="/player?file=unverified.mp4"></video>',
+      page, { fixtureHtml: 'offline' },
+    );
+    assert.deepEqual(rows.map(row => [row.url, row.type]), [
+      ['https://e.3cktv.com/video/player/master.m3u8', 'm3u8'],
+      ['https://e.3cktv.com/video/episode.mp4?download=1', 'mp4'],
+    ]);
+  });
+}
