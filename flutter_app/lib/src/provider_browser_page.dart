@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'source_editions_panel.dart' show sourceHarvestMessage;
 
@@ -35,7 +34,6 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
   late final MitvApi _browserApi;
   List<Map<String, dynamic>> _sources = [];
   List<CatalogItem> _items = [];
-  List<Map<String, dynamic>> _external = [];
   String _group = '';
   bool _usedGlobalSearch = false;
 
@@ -51,62 +49,6 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
 
   bool _matchesGroup(Map source) =>
       _group.isEmpty || (source['groups'] as List?)?.contains(_group) == true;
-
-  Future<void> _openExternal(String value) async {
-    final uri = Uri.tryParse(value);
-    final opened =
-        uri != null &&
-        uri.scheme == 'https' &&
-        await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        ).catchError((_) => false);
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('تعذر فتح موقع المزود')));
-    }
-  }
-
-  Future<void> _browseExternal(Map<String, dynamic> source) async {
-    final sections = (source['sections'] as List? ?? const [])
-        .whereType<Map>()
-        .toList();
-    if (sections.isEmpty) {
-      await _openExternal(source['url'] as String);
-      return;
-    }
-    final sectionId = await showNajdOptions<String>(
-      context,
-      title: source['name'] as String,
-      icon: Icons.open_in_new,
-      options: [
-        for (final section in sections)
-          NajdOption(section['id'] as String, section['label'] as String),
-      ],
-    );
-    if (!mounted || sectionId == null) return;
-    final section = sections.firstWhere((row) => row['id'] == sectionId);
-    final url = section['url'] as String;
-    if (section['browse'] != true) {
-      await _openExternal(url);
-      return;
-    }
-    final items = await _browserApi
-        .browserExternalSection(source['id'] as String, sectionId)
-        .catchError((_) => <Map<String, dynamic>>[]);
-    if (!mounted) return;
-    final selected = await showNajdOptions<String>(
-      context,
-      title: section['label'] as String,
-      icon: Icons.open_in_new,
-      options: [
-        NajdOption(url, 'فتح القسم على موقع المزود', icon: Icons.open_in_new),
-        for (final item in items)
-          NajdOption(item['url'] as String, item['title'] as String),
-      ],
-    );
-    if (mounted && selected != null) await _openExternal(selected);
-  }
 
   String? _provider, _error;
   String _category = '';
@@ -135,17 +77,13 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
     });
     try {
       final sources = (await _browserApi.browserSources())
+          .where((source) => source['access'] != 'external')
           .where(
             (s) => widget.liveOnly
                 ? s['content_type'] == 'live'
                 : s['content_type'] != 'live',
           )
           .toList();
-      final external = widget.liveOnly
-          ? <Map<String, dynamic>>[]
-          : await _browserApi.browserDirectory().catchError(
-              (_) => <Map<String, dynamic>>[],
-            );
       final prefs = await SharedPreferences.getInstance();
       Map saved = const {};
       try {
@@ -162,7 +100,6 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
       if (!mounted) return;
       setState(() {
         _sources = sources;
-        _external = external;
         if (_provider == null) {
           final savedId = saved['provider'];
           if (sources.any((s) => s['id'] == savedId)) {
@@ -337,22 +274,8 @@ class _ProviderBrowserPageState extends State<ProviderBrowserPage> {
                       source['name'] as String,
                       selected: source['id'] == _provider,
                     ),
-                  for (final source in _external.where(_matchesGroup))
-                    NajdOption(
-                      'external:${source['id']}',
-                      '${source['name']} · موقع خارجي',
-                      icon: Icons.open_in_new,
-                    ),
                 ],
                 onSelected: (value) async {
-                  if (value.startsWith('external:')) {
-                    await _browseExternal(
-                      _external.firstWhere(
-                        (source) => 'external:${source['id']}' == value,
-                      ),
-                    );
-                    return;
-                  }
                   setState(() {
                     ++_generation;
                     _items = [];

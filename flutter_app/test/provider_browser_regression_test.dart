@@ -72,8 +72,10 @@ void main() {
       SharedPreferences.setMockInitialValues({'search.source.v1': 'tmdb'});
       final store = await LocalLibraryStore.create();
       final providers = <String>[];
+      final paths = <String>[];
       final api = MitvApi(
         client: MockClient((r) async {
+          paths.add(r.url.path);
           dynamic body;
           if (r.url.path.endsWith('/sources')) {
             body = {
@@ -81,6 +83,7 @@ void main() {
               'data': [
                 {'id': 'mycima', 'name': 'ماي سيما', 'categories': []},
                 {'id': 'ahwak', 'name': 'أهواك', 'categories': []},
+                {'id': 'plex', 'name': 'Plex', 'access': 'external'},
               ],
             };
           } else {
@@ -117,6 +120,7 @@ void main() {
       expect(find.text('اختر المزود لتصفح أقسامه وأعماله'), findsOneWidget);
       await tester.tap(find.text('اختر المزود'));
       await tester.pumpAndSettle();
+      expect(find.textContaining('Plex'), findsNothing);
       await tester.tap(find.text('أهواك'));
       await tester.pumpAndSettle();
       expect(providers, ['ahwak']);
@@ -138,6 +142,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(providers, ['ahwak', 'ahwak']);
+      expect(paths, everyElement(matches(r'/(sources|catalog)$')));
       expect(find.text('عمل أهواك'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       api.close();
