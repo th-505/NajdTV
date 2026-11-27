@@ -54,3 +54,31 @@ for (const [scope, family] of [['najd', najd], ['beta', beta]]) test(scope + ' C
  assert.equal(rows.length, 0);
  assert.equal(rows._meta.errorCode, 'ACCESS_BLOCKED');
 });
+
+for (const [name, modulePath] of [
+  ['Core', '../server/scrapers/sites/3cktv.mjs'],
+  ['Beta', '../server/browser/providers/sites/3cktv.mjs'],
+]) {
+  test(`${name} 3ckTV follows its observed bridge after an empty same-work watch page`, async () => {
+    const { scrapeServers } = await import(modulePath);
+    const source = 'https://e.3cktv.com/video/observed-ep-1/';
+    const bridge = 'https://yespress7.com/trend/1006.php?post=fixture';
+    const requested = [];
+    const rows = await scrapeServers(source, {
+      headers: { Cookie: 'private-fixture' },
+      fetchImpl: async (url, options) => {
+        requested.push(url);
+        if (url === source) return new Response(
+          '<a href="?do=watch">مشاهدة</a>' +
+          `<a id="btnWatch" class="single-watch-btn" href="${bridge}">مشاهدة</a>`,
+        );
+        if (url === source + '?do=watch') return new Response('<p>No player.</p>');
+        assert.equal(url, bridge);
+        assert.equal(new Headers(options.headers).has('cookie'), false);
+        return new Response('<video><source src="https://cdn.example/observed.mp4"></video>');
+      },
+    });
+    assert.deepEqual(requested, [source, source + '?do=watch', bridge]);
+    assert.equal(rows[0].url, 'https://cdn.example/observed.mp4');
+  });
+}

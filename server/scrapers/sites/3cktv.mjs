@@ -653,8 +653,30 @@ export async function scrapeServers(urlOrRef, options = {}) {
       // It is not accepted as an episode reference or a general redirect allowance.
       const bridge=resolveSafeUrl($('#btnWatch.single-watch-btn').attr('href')||'',watchUrl,{allowHttp:false});
       const bridgeUrl=bridge?new URL(bridge):null;
-      if(!observedWatch&&bridgeUrl&&/^\/trend\/\d{1,8}\.php$/.test(bridgeUrl.pathname)&&bridgeUrl.searchParams.get('post')&&bridgeUrl.searchParams.get('post').length<=8192)observedWatch=bridge;
-      if(observedWatch){const networkOptions=bridge===observedWatch?{...pageOptions,allowedHosts:[bridgeUrl.hostname],referer:watchUrl,cookies:'',method:'GET',body:undefined,headers:Object.fromEntries(Object.entries(pageOptions.headers||{}).filter(([name])=>!['cookie','authorization','proxy-authorization','x-csrf-token','x-xsrf-token'].includes(name.toLowerCase())))}:pageOptions;response=await fetchProviderHtml(observedWatch,networkOptions);watchUrl=response.url||observedWatch;if(response.ok&&response.html)servers=await extractServersFromHtml(response.html,watchUrl,options);}
+      const hasObservedBridge = bridgeUrl &&
+        /^\/trend\/\d{1,8}\.php$/.test(bridgeUrl.pathname) &&
+        bridgeUrl.searchParams.get('post') &&
+        bridgeUrl.searchParams.get('post').length <= 8192;
+      const sourcePageUrl = watchUrl;
+      if (observedWatch) {
+        response = await fetchProviderHtml(observedWatch, pageOptions);
+        watchUrl = response.url || observedWatch;
+        if (response.ok && response.html) {
+          servers = await extractServersFromHtml(response.html, watchUrl, options);
+        }
+      }
+      if (!servers.length && hasObservedBridge && bridge !== observedWatch) {
+        const headers = Object.fromEntries(Object.entries(pageOptions.headers).filter(([name]) =>
+          !['cookie','authorization','proxy-authorization','x-csrf-token','x-xsrf-token'].includes(name.toLowerCase())));
+        response = await fetchProviderHtml(bridge, {
+          ...pageOptions, allowedHosts: [bridgeUrl.hostname], referer: sourcePageUrl,
+          cookies: '', method: 'GET', body: undefined, headers,
+        });
+        watchUrl = response.url || bridge;
+        if (response.ok && response.html) {
+          servers = await extractServersFromHtml(response.html, watchUrl, options);
+        }
+      }
     }
     return attachResultMeta(servers,{ok:servers.length>0,errorCode:servers.length?null:SCRAPER_ERROR_CODES.SERVER_EXTRACTION_FAILED,errorMessage:servers.length?null:'No observed direct media or player available',providerId:PROVIDER_META.id,url:watchUrl});
   }catch(err){const classified=classifyNetworkError(err,{providerId:PROVIDER_META.id,url:cleanUrl});return createEmptyArrayResult(PROVIDER_META.id,classified.code,classified.message,{url:cleanUrl});}

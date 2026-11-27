@@ -39,7 +39,7 @@
       "mirror_of": null,
       "path": "server/scrapers/sites/3cktv.mjs",
       "metadata_line": 37,
-      "source_sha256": "cb0eaf58c8ee83bb732166ae4ec50a00681bbae1d75514b332f494e20bf991ce",
+      "source_sha256": "17fdef1c493c783492e54f51995d22343ca1d942e2231c036670562b0763b2e7",
       "registered": true,
       "declared_capabilities": {
         "catalog": true,
@@ -1059,7 +1059,7 @@
       "id": "3cktv",
       "scope": "beta",
       "path": "server/browser/providers/sites/3cktv.mjs",
-      "source_sha256": "3bf77a69f01b32f4cabfae1b4fd503325f9e70b5e277ed1c7270b569ee9d46ff",
+      "source_sha256": "23b94cb393f3c178b71a32524267dc427da248500edc4ba6521b958517f5fcc0",
       "registered": true,
       "mirror_of": null,
       "live_validation": "not_run"
